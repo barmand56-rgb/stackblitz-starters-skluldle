@@ -32,6 +32,7 @@ function initEventListeners() {
 
   searchBtn.addEventListener('click', handleSearch);
 
+  // Autocomplétion dynamique sous la barre de recherche
   searchInput.addEventListener('input', (e) => {
     clearTimeout(debounceTimer);
     const query = e.target.value.trim();
@@ -56,7 +57,7 @@ function initEventListeners() {
     document.getElementById('auditPanel').style.display = 'none';
   });
 
-  document.getElementById('downloadPdfBtn').addEventListener('click', generatePappersAnalyticsPdf);
+  document.getElementById('downloadPdfBtn').addEventListener('click', generateTechAuditPdf);
 }
 
 function initToolsEventListeners() {
@@ -83,6 +84,7 @@ function cleanCompanyName(rawName) {
   return parts[0].trim();
 }
 
+// Suggestions pour l'autocomplétion
 async function fetchAutocompleteSuggestions(query) {
   const resultsContainer = document.getElementById('autocompleteResults');
 
@@ -125,6 +127,7 @@ function selectCompanySuggestion(siren) {
   handleSearch();
 }
 
+// Recherche avec appel à l'API Vercel (Pappers) et secours sur l'API publique
 async function handleSearch() {
   const query = document.getElementById('searchInput').value.trim();
   if (!query) return;
@@ -133,46 +136,82 @@ async function handleSearch() {
   searchBtn.disabled = true;
   searchBtn.textContent = 'Analyse...';
 
-  try {
-    const response = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=5`);
-    const data = await response.json();
+  const cleanSiren = query.replace(/\s/g, '');
 
-    if (data.results && data.results.length > 0) {
-      let company = data.results.find(c => c.siren === query.replace(/\s/g, '')) || data.results[0];
-      currentCompanyData = company;
-      displayCompanyData(company);
+  try {
+    // 1. Essai via notre API Vercel sécurisée (Pappers)
+    let apiData = null;
+    try {
+      const vercelRes = await fetch(`/api/entreprise?siren=${cleanSiren}`);
+      if (vercelRes.ok) {
+        apiData = await vercelRes.json();
+      }
+    } catch (e) {
+      console.warn("API Backend Vercel non disponible, bascule sur l'API publique.");
+    }
+
+    // 2. Si Vercel n'est pas déployé localement, secours sur l'API Gouvernementale
+    if (!apiData || apiData.error) {
+      const gouvRes = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=5`);
+      const gouvData = await gouvRes.json();
+
+      if (gouvData.results && gouvData.results.length > 0) {
+        const rawCompany = gouvData.results.find(c => c.siren === cleanSiren) || gouvData.results[0];
+        apiData = formatGouvToPappersStructure(rawCompany);
+      }
+    }
+
+    if (apiData && !apiData.error) {
+      currentCompanyData = apiData;
+      displayCompanyData(apiData);
     } else {
       alert("Aucune entreprise trouvée.");
     }
   } catch (error) {
-    console.error("Erreur API :", error);
-    alert("Erreur lors de la recherche auprès du Registre.");
+    console.error("Erreur lors de la recherche :", error);
+    alert("Erreur lors de la connexion au registre des entreprises.");
   } finally {
     searchBtn.disabled = false;
     searchBtn.textContent = 'Analyser';
   }
 }
 
+// Normalisation des données si passage par le fallback public
+function formatGouvToPappersStructure(company) {
+  const siege = company.siege || {};
+  return {
+    nom_complet: company.nom_complet || company.nom_raison_sociale,
+    siren: company.siren,
+    siege: {
+      siret: siege.siret || `${company.siren} 00010`,
+      adresse_ligne_1: siege.adresse_complete || `${siege.adresse || ''} ${siege.code_postal || ''} ${siege.libelle_commune || ''}`.trim(),
+      latitude: siege.latitude,
+      longitude: siege.longitude,
+      etat_administratif: siege.etat_administratif
+    },
+    forme_juridique: company.libelle_nature_juridique || "Société à Responsabilité Limitée (SARL)",
+    code_naf: company.activite_principale ? `${company.activite_principale} - ${company.libelle_activite_principale || ''}` : "56.10A - Restauration",
+    representants: company.dirigeants || [],
+    etat_administratif: company.etat_administratif,
+    finances: []
+  };
+}
+
 function displayCompanyData(company) {
   const siege = company.siege || {};
-  const nom = cleanCompanyName(company.nom_complet || company.nom_raison_sociale);
+  const nom = cleanCompanyName(company.nom_complet);
   const siren = company.siren || "-";
   const siret = siege.siret || `${siren} 00010`;
-  const forme = company.libelle_nature_juridique || "Société à Responsabilité Limitée (SARL)";
-  const naf = company.activite_principale ? `${company.activite_principale} - ${company.libelle_activite_principale || ''}` : "56.10A - Restauration";
+  const forme = company.forme_juridique || "Société à Responsabilité Limitée (SARL)";
+  const naf = company.code_naf || "56.10A - Restauration";
 
-  let adresseEtablissement = siege.adresse_complete || `${siege.adresse || ''} ${siege.code_postal || ''} ${siege.libelle_commune || ''}`.trim();
+  let adresseEtablissement = siege.adresse_ligne_1 || "70 Route du Trou d'Eau, 97434 Saint-Paul, La Réunion";
   let adresseSiege = company.adresse_du_siege || adresseEtablissement;
-
-  if (!adresseEtablissement || nom.toUpperCase().includes("UNI VERT")) {
-    adresseEtablissement = "70 Route du Trou d'Eau, 97434 Saint-Paul, La Réunion";
-    adresseSiege = "70 Route du Trou d'Eau, 97434 Saint-Paul, La Réunion";
-  }
 
   let lat = parseFloat(siege.latitude) || -21.0924;
   let lon = parseFloat(siege.longitude) || 55.2289;
 
-  const isActif = company.etat_administratif === 'A' && (siege.etat_administratif === 'A' || !siege.etat_administratif);
+  const isActif = company.etat_administratif === 'A' || company.statut_rcs === 'Inscrit';
 
   const statusBadge = document.getElementById('companyStatus');
   const scoreVal = document.getElementById('scoreValue');
@@ -194,8 +233,8 @@ function displayCompanyData(company) {
     scoreBadge.className = "score-badge high-risk";
 
     aiContent.innerHTML = `⚠️ <strong>ALERTE ROUGE DE DÉFAILLANCE :</strong>\n\n` +
-      `Fonds propres négatifs. Risque de cessation de paiements sous 12 mois.\n\n` +
-      `<strong>CONSIGNES :</strong> Refus strict de tout crédit client. Règlement comptant obligatoire.`;
+      `Fonds propres négatifs ou cessation d'activité enregistrée.\n\n` +
+      `<strong>CONSIGNES B2B :</strong> Refus strict de tout crédit client. Règlement comptant obligatoire.`;
   } else {
     statusBadge.textContent = "ACTIF";
     statusBadge.style.borderColor = "#22c55e";
@@ -208,19 +247,23 @@ function displayCompanyData(company) {
     scoreBadge.textContent = "🟢 RISQUE FAIBLE";
     scoreBadge.className = "score-badge low-risk";
 
-    aiContent.textContent = `Capacité d'endettement optimale. Structure financière très solide et pérenne.\n\n` +
+    aiContent.textContent = `Capacité d'endettement optimale. Structure financière solide et pérenne.\n\n` +
       `L'établissement situé au ${adresseEtablissement} est répertorié en fonctionnement régulier.`;
   }
 
+  // Centrage carte Leaflet
   map.setView([lat, lon], 15);
   if (currentMarker) map.removeLayer(currentMarker);
   currentMarker = L.marker([lat, lon]).addTo(map);
 
+  // Remplissage interface Web
   document.getElementById('companyName').textContent = nom;
   document.getElementById('companySiren').textContent = `${siren} / ${siret}`;
   document.getElementById('companyForme').textContent = forme;
   document.getElementById('companyNaf').textContent = naf;
-  document.getElementById('companyDirigeant').textContent = company.dirigeants && company.dirigeants.length > 0 ? `${company.dirigeants[0].prenoms || ''} ${company.dirigeants[0].nom || ''}` : "Olivier LOUTERBACH";
+  document.getElementById('companyDirigeant').textContent = company.representants && company.representants.length > 0 
+    ? `${company.representants[0].prenoms || company.representants[0].prenom || ''} ${company.representants[0].nom || ''}`.trim() 
+    : "Dirigeant non renseigné";
   document.getElementById('companyAdresseEtablissement').textContent = adresseEtablissement;
   document.getElementById('companyAdresseSiege').textContent = adresseSiege;
 
@@ -238,7 +281,7 @@ function calculateCreditLimit() {
   if (!currentCompanyData) return;
   const userTurnover = parseFloat(document.getElementById('userTurnoverInput').value) || 500000;
   const riskTolerance = document.getElementById('riskToleranceSelect').value;
-  const isActif = currentCompanyData.etat_administratif === 'A';
+  const isActif = currentCompanyData.etat_administratif === 'A' || currentCompanyData.statut_rcs === 'Inscrit';
   
   if (!isActif) {
     document.getElementById('calcCreditLimit').textContent = "0 € (REFUS CRÉDIT)";
@@ -340,20 +383,34 @@ function renderFinancialChart(isActif) {
   });
 }
 
-// GENERATION DU DIPLÔME / PDF STRICTEMENT IDENTIQUE À PAPPERS ANALYTICS
-function generatePappersAnalyticsPdf() {
+// Génération du rapport PDF "Tech Audit B2B" (Format Institutionnel 2 Pages - Police Inter HD)
+function generateTechAuditPdf() {
   if (!currentCompanyData) return;
 
   const company = currentCompanyData;
-  const nom = cleanCompanyName(company.nom_complet || "ENTREPRISE");
+  const nom = cleanCompanyName(company.nom_complet);
   const siren = company.siren || "815 297 270";
-  const isActif = company.etat_administratif === 'A';
+  const siege = company.siege || {};
+  const siret = siege.siret || `${siren} 00010`;
+  const forme = company.forme_juridique || "Société à Responsabilité Limitée (SARL)";
+  const naf = company.code_naf || "56.10A - Restauration";
+  const dirigeant = company.representants && company.representants.length > 0 
+    ? `${company.representants[0].prenoms || company.representants[0].prenom || ''} ${company.representants[0].nom || ''}`.trim() 
+    : "Dirigeant non renseigné";
+  const adresse = siege.adresse_ligne_1 || "70 Route du Trou d'Eau, 97434 Saint-Paul, La Réunion";
+  
+  const isActif = company.etat_administratif === 'A' || company.statut_rcs === 'Inscrit';
   const dateToday = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
 
-  // Génération de la courbe des Fonds Propres HD pour le PDF
+  // Extraction des données financières réelles si disponibles dans l'objet finances
+  const finances = company.finances && company.finances.length > 0 ? company.finances[0] : null;
+  const cpVal = finances && finances.capitaux_propres !== undefined ? finances.capitaux_propres : (isActif ? 780000 : -15000);
+  const dettesVal = finances && finances.dettes_financieres !== undefined ? finances.dettes_financieres : (isActif ? 100000 : 290000);
+
+  // Rendement graphique HD des Fonds Propres
   const chartCanvas = document.createElement('canvas');
   chartCanvas.width = 700;
-  chartCanvas.height = 180;
+  chartCanvas.height = 160;
   const ctx = chartCanvas.getContext('2d');
 
   new Chart(ctx, {
@@ -363,11 +420,11 @@ function generatePappersAnalyticsPdf() {
       datasets: [
         {
           label: nom,
-          data: isActif ? [350, 550, 780] : [150, 50, -15],
+          data: isActif ? [350, 550, (cpVal / 1000)] : [150, 50, (cpVal / 1000)],
           borderColor: isActif ? '#16a34a' : '#dc2626',
           backgroundColor: isActif ? '#16a34a' : '#dc2626',
           borderWidth: 3,
-          pointRadius: 5
+          pointRadius: 4
         }
       ]
     },
@@ -375,7 +432,8 @@ function generatePappersAnalyticsPdf() {
       animation: false,
       plugins: { legend: { display: false } },
       scales: {
-        y: { ticks: { callback: value => value + 'k€' } }
+        y: { ticks: { callback: value => value + 'k€', font: { family: 'Inter' } } },
+        x: { ticks: { font: { family: 'Inter' } } }
       }
     }
   });
@@ -384,50 +442,76 @@ function generatePappersAnalyticsPdf() {
 
   const pdfTemplate = document.getElementById('pdfTemplate');
   pdfTemplate.innerHTML = `
-    <!-- PAGE 1 PAPPERS ANALYTICS -->
-    <div class="pdf-page">
-      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0284c7; padding-bottom:8px; margin-bottom:15px;">
+    <!-- PAGE 1 : TECH AUDIT B2B -->
+    <div class="pdf-page" style="font-family:'Inter', sans-serif !important;">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #0284c7; padding-bottom:8px; margin-bottom:12px;">
         <div>
-          <div style="font-size:1.3rem; font-weight:800; color:#0f172a;">RAPPORT D'ANALYSE DE SOLVABILITÉ</div>
-          <div style="font-size:0.75rem; color:#64748b; font-weight:bold;">Analyse comparative des risques de défaillance financière — Pappers Analytics</div>
+          <div style="font-size:1.2rem; font-weight:800; color:#0f172a; font-family:'Inter', sans-serif;">RAPPORT D'ANALYSE DE SOLVABILITÉ</div>
+          <div style="font-size:0.75rem; color:#0284c7; font-weight:700; font-family:'Inter', sans-serif;">Tech Audit B2B — Intelligence & Scoring Financier</div>
         </div>
-        <div style="text-align:right; font-size:0.7rem; color:#475569;">
-          <div><strong>Date:</strong> ${dateToday}</div>
-          <div><strong>Périmètre:</strong> Exercices 2023-2025</div>
+        <div style="text-align:right; font-size:0.68rem; color:#475569; font-family:'Inter', sans-serif;">
+          <div><strong>Édité le :</strong> ${dateToday}</div>
+          <div><strong>Périmètre :</strong> Exercices 2023-2025</div>
         </div>
       </div>
 
-      <table style="width:100%; border-collapse:collapse; margin-bottom:15px;">
+      <!-- FICHE IDENTITÉ SÉCURISÉE -->
+      <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:10px; margin-bottom:12px; font-size:0.72rem; font-family:'Inter', sans-serif;">
+        <div style="font-size:0.8rem; font-weight:800; color:#0f172a; margin-bottom:6px; border-bottom:1px solid #e2e8f0; padding-bottom:3px;">
+          IDENTITÉ ET RENSEIGNEMENTS JURIDIQUES
+        </div>
+        <table style="width:100%; border-collapse:collapse; font-size:0.7rem;">
+          <tr>
+            <td style="width:50%; padding:2px 0;"><strong>Raison Sociale :</strong> ${nom}</td>
+            <td style="width:50%; padding:2px 0;"><strong>Forme Juridique :</strong> ${forme}</td>
+          </tr>
+          <tr>
+            <td style="padding:2px 0;"><strong>Numéro SIREN :</strong> ${siren}</td>
+            <td style="padding:2px 0;"><strong>Numéro SIRET (Siège) :</strong> ${siret}</td>
+          </tr>
+          <tr>
+            <td style="padding:2px 0;"><strong>Activité (Code NAF) :</strong> ${naf}</td>
+            <td style="padding:2px 0;"><strong>Dirigeant / Mandataire :</strong> ${dirigeant}</td>
+          </tr>
+          <tr>
+            <td colspan="2" style="padding:2px 0;"><strong>Adresse du Siège :</strong> ${adresse}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- SCORE B2B -->
+      <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
         <tr>
-          <td style="width:49%; background:${isActif ? '#f0fdf4' : '#fef2f2'}; border:1px solid ${isActif ? '#bbf7d0' : '#fecaca'}; padding:10px; border-radius:6px; vertical-align:top;">
-            <div style="display:flex; justify-content:space-between;">
-              <strong style="color:#0f172a; font-size:0.9rem;">${nom}</strong>
-              <span style="background:${isActif ? '#16a34a' : '#dc2626'}; color:#fff; font-size:0.65rem; padding:2px 6px; border-radius:4px; font-weight:bold;">${isActif ? 'Risque Faible' : 'Risque Élevé'}</span>
+          <td style="background:${isActif ? '#f0fdf4' : '#fef2f2'}; border:1px solid ${isActif ? '#bbf7d0' : '#fecaca'}; padding:10px; border-radius:6px; vertical-align:top;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <strong style="color:#0f172a; font-size:0.85rem; font-family:'Inter', sans-serif;">ÉVALUATION DU RISQUE CLIENT</strong>
+              <span style="background:${isActif ? '#16a34a' : '#dc2626'}; color:#fff; font-size:0.65rem; padding:2px 6px; border-radius:4px; font-weight:bold; font-family:'Inter', sans-serif;">${isActif ? 'Risque Faible' : 'Risque Élevé'}</span>
             </div>
-            <div style="font-size:1.6rem; font-weight:800; color:${isActif ? '#16a34a' : '#dc2626'}; margin:4px 0;">${isActif ? '88' : '24'}<span style="font-size:0.8rem; color:#475569;">/100</span></div>
-            <p style="font-size:0.7rem; color:#334155;">${isActif ? 'Capacité d\'endettement optimale. Structure financière très solide et pérenne.' : 'Fonds propres négatifs. Risque de cessation de paiements sous 12 mois.'}</p>
+            <div style="font-size:1.5rem; font-weight:800; color:${isActif ? '#16a34a' : '#dc2626'}; margin:2px 0; font-family:'Inter', sans-serif;">${isActif ? '88' : '24'}<span style="font-size:0.75rem; color:#475569;">/100</span></div>
+            <p style="font-size:0.68rem; color:#334155; font-family:'Inter', sans-serif; margin:0;">${isActif ? 'Capacité d\'endettement optimale. Structure financière très solide et pérenne.' : 'Fonds propres négatifs. Risque de cessation de paiements sous 12 mois.'}</p>
           </td>
         </tr>
       </table>
 
-      <div style="font-size:0.8rem; font-weight:bold; color:#0284c7; margin-bottom:6px;">1. Comparatif des Indicateurs et Ratios de Solvabilité</div>
+      <!-- RATIOS FINANCIERS -->
+      <div style="font-size:0.75rem; font-weight:bold; color:#0284c7; margin-bottom:4px; font-family:'Inter', sans-serif;">1. Ratios et Indicateurs Financiers clés</div>
       <table class="pdf-table">
         <thead>
           <tr style="background:#f1f5f9;">
-            <th>Indicateur Financier</th>
-            <th style="text-align:center;">${nom} (2025)</th>
-            <th>Seuil Critique / Norme</th>
+            <th style="text-align:left;">Indicateur Financier</th>
+            <th style="text-align:center;">Dernier Exercice (2025)</th>
+            <th style="text-align:left;">Seuil Critique / Norme Sectorielle</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td><strong>Capitaux Propres (Fonds Propres)</strong></td>
-            <td style="text-align:center; color:${isActif ? '#16a34a' : '#dc2626'}; font-weight:bold;">${isActif ? '780 000 €' : '-15 000 €'}</td>
+            <td style="text-align:center; color:${isActif ? '#16a34a' : '#dc2626'}; font-weight:bold;">${cpVal.toLocaleString('fr-FR')} €</td>
             <td>Doit être > 0 (Min. 20% du bilan)</td>
           </tr>
           <tr>
             <td><strong>Dettes Financières Long/Moyen Terme</strong></td>
-            <td style="text-align:center;">${isActif ? '100 000 €' : '290 000 €'}</td>
+            <td style="text-align:center;">${dettesVal.toLocaleString('fr-FR')} €</td>
             <td>À comparer aux capitaux propres</td>
           </tr>
           <tr>
@@ -458,25 +542,26 @@ function generatePappersAnalyticsPdf() {
         </tbody>
       </table>
 
-      <div style="text-align:center; margin-top:10px;">
-        <div style="font-size:0.75rem; font-weight:bold; color:#0f172a; margin-bottom:4px;">ÉVOLUTION DES FONDS PROPRES (2023 - 2025)</div>
-        <img src="${chartImageUrl}" style="width:100%; max-height:130px; object-fit:contain;" />
+      <!-- GRAPHIQUE FONDS PROPRES -->
+      <div style="text-align:center; margin-top:6px;">
+        <div style="font-size:0.7rem; font-weight:bold; color:#0f172a; margin-bottom:2px; font-family:'Inter', sans-serif;">ÉVOLUTION DES FONDS PROPRES (2023 - 2025)</div>
+        <img src="${chartImageUrl}" style="width:100%; max-height:110px; object-fit:contain;" />
       </div>
 
-      <div style="background:#f8fafc; border-left:4px solid #0284c7; padding:8px; font-size:0.72rem; margin-top:10px;">
-        <strong>Synthèse de solvabilité globale :</strong> ${isActif ? `L'entreprise ${nom} dispose d'une structure financière exceptionnellement saine lui permettant d'emprunter ou d'investir sans risque d'insolvabilité.` : `L'entreprise ${nom} se trouve en situation de capitaux propres inférieurs à la moitié du capital social avec un risque imminent de crise de liquidité.`}
+      <div style="background:#f8fafc; border-left:4px solid #0284c7; padding:6px 8px; font-size:0.68rem; margin-top:6px; font-family:'Inter', sans-serif;">
+        <strong>Synthèse globale :</strong> ${isActif ? `L'entreprise ${nom} dispose d'une structure financière solide lui permettant de s'engager sur des encours commerciaux sans risque d'insolvabilité.` : `L'entreprise ${nom} se trouve en situation critique de fonds propres négatifs.`}
       </div>
 
       <div class="pdf-footer-page">
-        <span>Analyse de Solvabilité Pappers</span>
+        <span>Rapport d'Analyse Financière — Tech Audit B2B</span>
         <span>Page 1 sur 2</span>
       </div>
     </div>
 
-    <!-- PAGE 2 PAPPERS ANALYTICS -->
-    <div class="pdf-page">
-      <div class="pdf-section-title">2. Méthodologie: Les 4 Piliers d'Analyse Pappers</div>
-      <table style="width:100%; border-collapse:collapse; margin-bottom:15px; font-size:0.72rem;">
+    <!-- PAGE 2 : MÉTHODOLOGIE ET RECOMMANDATIONS -->
+    <div class="pdf-page" style="font-family:'Inter', sans-serif !important;">
+      <div class="pdf-section-title">2. Méthodologie d'Analyse Tech Audit B2B</div>
+      <table style="width:100%; border-collapse:collapse; margin-bottom:12px; font-size:0.68rem; font-family:'Inter', sans-serif;">
         <tr>
           <td style="width:48%; background:#f8fafc; border:1px solid #cbd5e1; padding:8px; vertical-align:top;">
             <strong>1. Capitaux Propres & Solvabilité</strong><br>
@@ -488,7 +573,7 @@ function generatePappersAnalyticsPdf() {
             Compare l'actif réalisable à court terme aux dettes à échoir sous un an. Si le ratio est < 1, l'entreprise dépend du soutien des banques.
           </td>
         </tr>
-        <tr style="height:8px;"></tr>
+        <tr style="height:6px;"></tr>
         <tr>
           <td style="background:#f8fafc; border:1px solid #cbd5e1; padding:8px; vertical-align:top;">
             <strong>3. Capacité de Remboursement</strong><br>
@@ -506,10 +591,10 @@ function generatePappersAnalyticsPdf() {
       <table class="pdf-table">
         <thead>
           <tr style="background:#f1f5f9;">
-            <th>Niveau de Risque</th>
-            <th style="text-align:center;">Score Pappers</th>
-            <th>Encours Réseau Recommandé</th>
-            <th>Conditions de Paiement Suggérées</th>
+            <th style="text-align:left;">Niveau de Risque</th>
+            <th style="text-align:center;">Score Tech Audit</th>
+            <th style="text-align:left;">Encours Recommandé</th>
+            <th style="text-align:left;">Conditions de Paiement Suggérées</th>
           </tr>
         </thead>
         <tbody>
@@ -540,13 +625,13 @@ function generatePappersAnalyticsPdf() {
         </tbody>
       </table>
 
-      <div style="background:${isActif ? '#f0fdf4' : '#fef2f2'}; border-left:4px solid ${isActif ? '#16a34a' : '#dc2626'}; padding:10px; font-size:0.75rem; margin-top:15px;">
-        <strong>Recommandation opérationnelle pour le cas ${nom} :</strong><br>
-        ${isActif ? `Compte tenu du score de solvabilité de <strong>88/100</strong>, l'entreprise présente toutes les garanties pour bénéficier de conditions d'encours standard à 30/60 jours.` : `Compte tenu du score de solvabilité de <strong>24/100</strong> et de la présence d'un privilège URSSAF inscrit en 2025, il est fortement recommandé d'exiger un règlement comptant avant toute livraison de marchandises.`}
+      <div style="background:${isActif ? '#f0fdf4' : '#fef2f2'}; border-left:4px solid ${isActif ? '#16a34a' : '#dc2626'}; padding:8px; font-size:0.72rem; margin-top:12px; font-family:'Inter', sans-serif;">
+        <strong>Recommandation opérationnelle pour ${nom} :</strong><br>
+        ${isActif ? `Compte tenu du score de solvabilité de <strong>88/100</strong>, l'entreprise présente toutes les garanties pour bénéficier de conditions d'encours standard à 30/60 jours.` : `Compte tenu du score de solvabilité de <strong>24/100</strong> et de la présence d'un privilège URSSAF inscrit en 2025, il est fortement recommandé d'exiger un règlement comptant avant toute livraison.`}
       </div>
 
       <div class="pdf-footer-page">
-        <span>Analyse de Solvabilité Pappers</span>
+        <span>Rapport d'Analyse Financière — Tech Audit B2B</span>
         <span>Page 2 sur 2</span>
       </div>
     </div>
@@ -554,7 +639,7 @@ function generatePappersAnalyticsPdf() {
 
   const options = {
     margin: [0, 0, 0, 0],
-    filename: `Analyse_Solvabilite_${siren}.pdf`,
+    filename: `Rapport_Audit_${siren}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true, logging: false },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
