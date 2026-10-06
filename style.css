@@ -4,7 +4,7 @@
   margin: 0; 
   padding: 0; 
   box-sizing: border-box; 
-  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; 
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
 }
 
 html, body { 
@@ -50,7 +50,7 @@ html, body {
 .search-box input { flex: 1; background: transparent; border: none; outline: none; color: #fff; font-size: 0.9rem; }
 .search-box button { background: #0284c7; color: white; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; }
 
-/* MENU DÉROULANT AUTOCOMPLÉTION */
+/* AUTOCOMPLÉTION */
 .autocomplete-results {
   background: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(12px);
@@ -88,8 +88,22 @@ html, body {
 .badge-status-sm.active { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
 .badge-status-sm.inactive { background: rgba(239, 68, 68, 0.2); color: #f87171; }
 
-/* PANNEAU FLOTTANT AUDIT WEB */
-.audit-panel { position: absolute; bottom: 20px; left: 20px; z-index: 1000; width: 420px; max-height: 82vh; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 16px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7); display: flex; flex-direction: column; }
+/* PANNEAU FLOTTANT AUDIT */
+.audit-panel { 
+  position: absolute; 
+  bottom: 20px; 
+  left: 20px; 
+  z-index: 1000; 
+  width: 420px; 
+  max-height: 82vh; 
+  background: rgba(15, 23, 42, 0.92); 
+  backdrop-filter: blur(16px); 
+  border: 1px solid rgba(255, 255, 255, 0.12); 
+  border-radius: 16px; 
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7); 
+  display: flex; 
+  flex-direction: column; 
+}
 .panel-header { padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center; }
 .title-group h2 { font-size: 1rem; font-weight: 700; color: #fff; }
 .badge { padding: 2px 6px; background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; border-radius: 8px; font-size: 0.65rem; font-weight: 600; margin-top: 4px; display: inline-block; }
@@ -128,56 +142,74 @@ html, body {
 
 .action-bar .btn-primary { width: 100%; background: #0284c7; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; }
 
-/* DESIGN STRICT PAPPERS ANALYTICS PDF (A4) */
+/* ==========================================================================
+   DESIGN STRICT DU GABARIT PDF (CORRECTION DES BUGS HTML2CANVAS & TYPO)
+   ========================================================================== */
+
 #pdfTemplate { 
   background: #ffffff !important; 
   color: #0f172a !important; 
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important; 
 }
 
+/* Force l'espacement strict des lettres et mots pour éliminer le collage */
+#pdfTemplate * {
+  letter-spacing: normal !important;
+  word-spacing: normal !important;
+  text-rendering: geometricPrecision !important;
+  -webkit-font-smoothing: antialiased !important;
+}
+
 .pdf-page { 
   width: 794px; 
-  min-height: 1120px; 
-  padding: 40px 45px; 
+  height: 1122px; /* Hauteur A4 exacte à 96DPI */
+  padding: 35px 40px; 
   box-sizing: border-box; 
   page-break-after: always; 
   position: relative; 
   background: #ffffff !important; 
+  font-family: 'Inter', sans-serif !important;
+  overflow: hidden;
 }
 
 .pdf-table { 
   width: 100%; 
   border-collapse: collapse; 
-  margin-bottom: 14px; 
-  font-size: 0.73rem; 
+  margin-bottom: 12px; 
+  font-size: 0.72rem; 
+  font-family: 'Inter', sans-serif !important;
+  table-layout: fixed;
 }
 
 .pdf-table td, .pdf-table th { 
-  padding: 7px 10px; 
+  padding: 6px 8px; 
   border: 1px solid #cbd5e1; 
   color: #334155; 
+  word-break: break-word;
 }
 
 .pdf-section-title { 
-  font-size: 0.82rem; 
+  font-size: 0.8rem; 
   font-weight: 800; 
   color: #0284c7; 
   border-bottom: 1px solid #cbd5e1; 
   padding-bottom: 4px; 
-  margin-bottom: 10px; 
-  margin-top: 16px; 
+  margin-bottom: 8px; 
+  margin-top: 14px; 
   text-transform: uppercase; 
+  font-family: 'Inter', sans-serif !important;
 }
 
 .pdf-footer-page { 
   position: absolute; 
-  bottom: 25px; 
-  left: 45px; 
-  right: 45px; 
-  border-top: 1px solid #e2e8f0; 
-  padding-top: 8px; 
+  bottom: 20px; 
+  left: 40px; 
+  right: 40px; 
+  border-top: 1px solid #cbd5e1; 
+  padding-top: 6px; 
   font-size: 0.65rem; 
-  color: #94a3b8; 
+  color: #64748b; 
   display: flex; 
   justify-content: space-between; 
+  font-family: 'Inter', sans-serif !important;
 }
