@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FINTECH AUDIT B2B — Intelligence Économique & Solvabilité</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230284c7'><path d='M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z'/></svg>">
+
+  <!-- CSS Leaflet & Style Principal -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Librairies JS (Leaflet, Chart.js & HTML2PDF HD) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+  <!-- CARTE INTERACTIVE LEAFLET -->
+  <div id="map"></div>
+
+  <!-- BARRE DE RECHERCHE FLOTTANTE AVEC AUTOCOMPLÉTION -->
+  <div class="search-container">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Rechercher une entreprise, ville, SIREN..." autocomplete="off">
+      <button id="searchBtn">Analyser</button>
+    </div>
+    <div id="autocompleteResults" class="autocomplete-results"></div>
+  </div>
+
+  <!-- PANNEAU D'AUDIT WEB -->
+  <div id="auditPanel" class="audit-panel" style="display: none;">
+    <div class="panel-header">
+      <div class="title-group">
+        <h2 id="companyName">Nom de l'Entreprise</h2>
+        <span id="companyStatus" class="badge">ACTIF</span>
+      </div>
+      <button id="closePanelBtn" class="close-btn">&times;</button>
+    </div>
+
+    <div class="panel-body">
+      <!-- Score de solvabilité -->
+      <div class="score-card">
+        <div class="score-value" id="scoreValue">82<span class="score-max">/100</span></div>
+        <div class="score-details">
+          <span class="score-title">Indice de Solvabilité B2B</span>
+          <span class="score-badge low-risk" id="scoreBadge">🟢 Risque Faible</span>
+        </div>
+      </div>
+
+      <!-- Fiche d'identité -->
+      <div class="info-grid">
+        <div class="info-card">
+          <span class="label">SIREN / SIRET</span>
+          <span class="value" id="companySiren">-</span>
+        </div>
+        <div class="info-card">
+          <span class="label">Forme Juridique</span>
+          <span class="value" id="companyForme">-</span>
+        </div>
+        <div class="info-card">
+          <span class="label">Activité (Code NAF)</span>
+          <span class="value" id="companyNaf">-</span>
+        </div>
+        <div class="info-card">
+          <span class="label">Dirigeant Principal</span>
+          <span class="value" id="companyDirigeant">-</span>
+        </div>
+        <div class="info-card full-width">
+          <span class="label">📍 Établissement Commercial (Carte)</span>
+          <span class="value highlight-text" id="companyAdresseEtablissement">-</span>
+        </div>
+        <div class="info-card full-width">
+          <span class="label">🏢 Siège Social Administratif</span>
+          <span class="value" id="companyAdresseSiege">-</span>
+        </div>
+      </div>
+
+      <!-- MODULES INTERACTIFS (1, 2, 3, 4) -->
+      <div class="tool-card">
+        <div class="tool-title">🧮 1. Calculateur de Limite de Crédit & Conditions</div>
+        <div class="tool-grid">
+          <div>
+            <label class="tool-label">Votre CA Annuel (€) :</label>
+            <input type="number" id="userTurnoverInput" value="500000" class="tool-input">
+          </div>
+          <div>
+            <label class="tool-label">Tolérance Risque :</label>
+            <select id="riskToleranceSelect" class="tool-input">
+              <option value="prudent">Prudente (2%)</option>
+              <option value="normal" selected>Modérée (5%)</option>
+              <option value="agressif">Offensive (10%)</option>
+            </select>
+          </div>
+        </div>
+        <div class="tool-result-box">
+          <div>Plafond conseillé : <strong id="calcCreditLimit" style="color:#38bdf8;">25 000 €</strong></div>
+          <div style="font-size: 0.72rem; color: #94a3b8;" id="calcPaymentTerms">Condition : 30 jours fin de mois.</div>
+        </div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-title">⚡ 2. Contrôle Anti-Fraude RIB / IBAN</div>
+        <div class="tool-grid">
+          <div style="grid-column: span 2;">
+            <input type="text" id="ibanInput" placeholder="FR76 3000 1007 9412 3456 7890 123" class="tool-input">
+          </div>
+        </div>
+        <button id="checkIbanBtn" class="btn-secondary-sm">Vérifier la Conformité</button>
+        <div id="ibanResultBox" class="tool-result-box" style="display:none; margin-top: 6px;"></div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-title">📊 3. Impact Trésorerie & DSO</div>
+        <div class="tool-grid">
+          <div>
+            <label class="tool-label">Facture (€) :</label>
+            <input type="number" id="invoiceAmountInput" value="15000" class="tool-input">
+          </div>
+          <div>
+            <label class="tool-label">Retard (Jours) :</label>
+            <input type="number" id="delayDaysInput" value="45" class="tool-input">
+          </div>
+        </div>
+        <div class="tool-result-box">
+          <div>Coût d'immobilisation : <strong id="cashFlowCost" style="color:#f59e0b;">184,93 €</strong></div>
+        </div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-title">🚨 4. Courrier Pré-Contentieux</div>
+        <select id="legalDocTypeSelect" class="tool-input" style="margin-bottom:8px;">
+          <option value="mise_en_demeure">Mise en Demeure de Payer</option>
+          <option value="comptant">Règlement Comptant Exigé</option>
+          <option value="declaration_creance">Déclaration de Créance</option>
+        </select>
+        <button id="generateLegalDocBtn" class="btn-secondary-sm">Générer le Document (.TXT)</button>
+      </div>
+
+      <!-- GRAPHIQUE FINANCIER -->
+      <div class="chart-box">
+        <h3>Évolution Financière & Ratios</h3>
+        <canvas id="financialChart"></canvas>
+      </div>
+
+      <!-- SYNTHÈSE IA -->
+      <section class="ai-section">
+        <div class="ai-header">
+          <span class="ai-icon">📊</span>
+          <h3>Diagnostic & Synthèse de Solvabilité</h3>
+        </div>
+        <div id="aiContent" class="ai-content">Recherchez une entreprise...</div>
+      </section>
+
+      <!-- LIEN DE PARTAGE DIRECT -->
+      <div class="share-box">
+        <span>🌐 Lien direct d'accès :</span>
+        <input type="text" id="shareUrlInput" readonly>
+      </div>
+
+      <div class="action-bar">
+        <button id="downloadPdfBtn" class="btn-primary">Télécharger le Rapport Détaillé PDF (4 Pages)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GABARIT PDF MASQUÉ (A4 HD) -->
+  <div id="pdfContainer" style="position: absolute; top: -9999px; left: -9999px; width: 794px;">
+    <div id="pdfTemplate"></div>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>

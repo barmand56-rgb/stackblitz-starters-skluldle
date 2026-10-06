@@ -1,0 +1,183 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+* { 
+  margin: 0; 
+  padding: 0; 
+  box-sizing: border-box; 
+  font-family: 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; 
+}
+
+html, body { 
+  width: 100vw; 
+  height: 100vh; 
+  overflow: hidden; 
+  background-color: #0f172a; 
+  color: #f8fafc; 
+}
+
+#map { 
+  position: absolute; 
+  top: 0; 
+  left: 0; 
+  width: 100vw; 
+  height: 100vh; 
+  z-index: 1; 
+  background: #1e293b; 
+}
+
+.search-container {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: 90%;
+  max-width: 550px;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 6px 14px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.search-icon { margin-right: 8px; font-size: 1rem; }
+.search-box input { flex: 1; background: transparent; border: none; outline: none; color: #fff; font-size: 0.9rem; }
+.search-box button { background: #0284c7; color: white; border: none; padding: 8px 18px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+
+/* MENU DÉROULANT AUTOCOMPLÉTION */
+.autocomplete-results {
+  background: rgba(15, 23, 42, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  margin-top: 6px;
+  max-height: 250px;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  display: none;
+}
+
+.suggestion-item {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.suggestion-item:last-child { border-bottom: none; }
+.suggestion-item:hover { background: rgba(56, 189, 248, 0.15); }
+
+.suggestion-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.suggestion-sub { font-size: 0.72rem; color: #94a3b8; margin-top: 2px; }
+
+.badge-status-sm { font-size: 0.6rem; padding: 1px 5px; border-radius: 4px; font-weight: 600; }
+.badge-status-sm.active { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+.badge-status-sm.inactive { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+/* PANNEAU FLOTTANT AUDIT WEB */
+.audit-panel { position: absolute; bottom: 20px; left: 20px; z-index: 1000; width: 420px; max-height: 82vh; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(16px); border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 16px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7); display: flex; flex-direction: column; }
+.panel-header { padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); display: flex; justify-content: space-between; align-items: center; }
+.title-group h2 { font-size: 1rem; font-weight: 700; color: #fff; }
+.badge { padding: 2px 6px; background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid #22c55e; border-radius: 8px; font-size: 0.65rem; font-weight: 600; margin-top: 4px; display: inline-block; }
+.close-btn { background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer; }
+.panel-body { padding: 14px; overflow-y: auto; }
+
+.score-card { display: flex; align-items: center; gap: 12px; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(56, 189, 248, 0.3); padding: 10px 14px; border-radius: 10px; margin-bottom: 12px; }
+.score-value { font-size: 1.6rem; font-weight: 800; color: #38bdf8; }
+.score-max { font-size: 0.8rem; color: #94a3b8; }
+.score-title { display: block; font-size: 0.72rem; color: #94a3b8; }
+
+.info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+.info-card { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255, 255, 255, 0.08); padding: 8px; border-radius: 8px; }
+.info-card.full-width { grid-column: span 2; }
+.info-card .label { display: block; font-size: 0.62rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 2px; }
+.info-card .value { font-size: 0.78rem; font-weight: 600; color: #f1f5f9; }
+.highlight-text { color: #38bdf8 !important; }
+
+.tool-card { background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
+.tool-title { font-size: 0.78rem; font-weight: 700; color: #38bdf8; margin-bottom: 6px; }
+.tool-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-bottom: 6px; }
+.tool-label { display: block; font-size: 0.65rem; color: #94a3b8; }
+.tool-input { width: 100%; background: #0f172a; border: 1px solid rgba(255, 255, 255, 0.15); color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 0.75rem; }
+.tool-result-box { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(56, 189, 248, 0.2); padding: 6px 8px; border-radius: 6px; font-size: 0.72rem; }
+.btn-secondary-sm { width: 100%; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); padding: 5px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
+
+.chart-box { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 10px; margin-bottom: 12px; }
+.chart-box h3 { font-size: 0.75rem; color: #94a3b8; margin-bottom: 6px; }
+
+.ai-section { background: rgba(2, 132, 199, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 10px; padding: 10px; margin-bottom: 12px; }
+.ai-header h3 { font-size: 0.8rem; color: #38bdf8; }
+.ai-content { font-size: 0.75rem; line-height: 1.4; color: #cbd5e1; white-space: pre-line; }
+
+.share-box { background: rgba(15, 23, 42, 0.5); padding: 6px 10px; border-radius: 6px; margin-bottom: 12px; font-size: 0.68rem; color: #94a3b8; }
+.share-box input { width: 100%; background: transparent; border: none; color: #38bdf8; font-size: 0.72rem; outline: none; }
+
+.action-bar .btn-primary { width: 100%; background: #0284c7; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; }
+
+/* DESIGN STRICT PAPPERS ANALYTICS PDF (A4) */
+#pdfTemplate { 
+  background: #ffffff !important; 
+  color: #0f172a !important; 
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important; 
+}
+
+.pdf-page { 
+  width: 794px; 
+  min-height: 1120px; 
+  padding: 40px 45px; 
+  box-sizing: border-box; 
+  page-break-after: always; 
+  position: relative; 
+  background: #ffffff !important; 
+}
+
+.pdf-table { 
+  width: 100%; 
+  border-collapse: collapse; 
+  margin-bottom: 14px; 
+  font-size: 0.73rem; 
+}
+
+.pdf-table td, .pdf-table th { 
+  padding: 7px 10px; 
+  border: 1px solid #cbd5e1; 
+  color: #334155; 
+}
+
+.pdf-section-title { 
+  font-size: 0.82rem; 
+  font-weight: 800; 
+  color: #0284c7; 
+  border-bottom: 1px solid #cbd5e1; 
+  padding-bottom: 4px; 
+  margin-bottom: 10px; 
+  margin-top: 16px; 
+  text-transform: uppercase; 
+}
+
+.pdf-footer-page { 
+  position: absolute; 
+  bottom: 25px; 
+  left: 45px; 
+  right: 45px; 
+  border-top: 1px solid #e2e8f0; 
+  padding-top: 8px; 
+  font-size: 0.65rem; 
+  color: #94a3b8; 
+  display: flex; 
+  justify-content: space-between; 
+}
