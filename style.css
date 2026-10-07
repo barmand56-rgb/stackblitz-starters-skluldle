@@ -94,9 +94,9 @@ html, body {
   bottom: 20px; 
   left: 20px; 
   z-index: 1000; 
-  width: 420px; 
-  max-height: 82vh; 
-  background: rgba(15, 23, 42, 0.92); 
+  width: 430px; 
+  max-height: 84vh; 
+  background: rgba(15, 23, 42, 0.94); 
   backdrop-filter: blur(16px); 
   border: 1px solid rgba(255, 255, 255, 0.12); 
   border-radius: 16px; 
@@ -118,9 +118,18 @@ html, body {
 .info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
 .info-card { background: rgba(30, 41, 59, 0.5); border: 1px solid rgba(255, 255, 255, 0.08); padding: 8px; border-radius: 8px; }
 .info-card.full-width { grid-column: span 2; }
-.info-card .label { display: block; font-size: 0.62rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 2px; }
+.info-card.highlight-box { background: rgba(2, 132, 199, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); }
+.info-card .label { display: block; font-size: 0.62rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; font-weight: 700; }
 .info-card .value { font-size: 0.78rem; font-weight: 600; color: #f1f5f9; }
 .highlight-text { color: #38bdf8 !important; }
+
+/* STYLE DE LA LISTE DU GROUPE SUR LE DASHBOARD */
+.group-companies-list { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; }
+.group-company-item { background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); padding: 6px 8px; border-radius: 6px; font-size: 0.72rem; display: flex; justify-content: space-between; align-items: center; }
+.group-company-name { font-weight: 700; color: #f8fafc; }
+.group-company-role { font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+.role-holding { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
+.role-sister { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
 
 .tool-card { background: rgba(30, 41, 59, 0.6); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; padding: 10px; margin-bottom: 10px; }
 .tool-title { font-size: 0.78rem; font-weight: 700; color: #38bdf8; margin-bottom: 6px; }
@@ -141,75 +150,3 @@ html, body {
 .share-box input { width: 100%; background: transparent; border: none; color: #38bdf8; font-size: 0.72rem; outline: none; }
 
 .action-bar .btn-primary { width: 100%; background: #0284c7; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: 600; font-size: 0.82rem; cursor: pointer; }
-
-/* ==========================================================================
-   DESIGN STRICT DU GABARIT PDF (CORRECTION DES BUGS HTML2CANVAS & TYPO)
-   ========================================================================== */
-
-#pdfTemplate { 
-  background: #ffffff !important; 
-  color: #0f172a !important; 
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important; 
-}
-
-/* Force l'espacement strict des lettres et mots pour éliminer le collage */
-#pdfTemplate * {
-  letter-spacing: normal !important;
-  word-spacing: normal !important;
-  text-rendering: geometricPrecision !important;
-  -webkit-font-smoothing: antialiased !important;
-}
-
-.pdf-page { 
-  width: 794px; 
-  height: 1122px; /* Hauteur A4 exacte à 96DPI */
-  padding: 35px 40px; 
-  box-sizing: border-box; 
-  page-break-after: always; 
-  position: relative; 
-  background: #ffffff !important; 
-  font-family: 'Inter', sans-serif !important;
-  overflow: hidden;
-}
-
-.pdf-table { 
-  width: 100%; 
-  border-collapse: collapse; 
-  margin-bottom: 12px; 
-  font-size: 0.72rem; 
-  font-family: 'Inter', sans-serif !important;
-  table-layout: fixed;
-}
-
-.pdf-table td, .pdf-table th { 
-  padding: 6px 8px; 
-  border: 1px solid #cbd5e1; 
-  color: #334155; 
-  word-break: break-word;
-}
-
-.pdf-section-title { 
-  font-size: 0.8rem; 
-  font-weight: 800; 
-  color: #0284c7; 
-  border-bottom: 1px solid #cbd5e1; 
-  padding-bottom: 4px; 
-  margin-bottom: 8px; 
-  margin-top: 14px; 
-  text-transform: uppercase; 
-  font-family: 'Inter', sans-serif !important;
-}
-
-.pdf-footer-page { 
-  position: absolute; 
-  bottom: 20px; 
-  left: 40px; 
-  right: 40px; 
-  border-top: 1px solid #cbd5e1; 
-  padding-top: 6px; 
-  font-size: 0.65rem; 
-  color: #64748b; 
-  display: flex; 
-  justify-content: space-between; 
-  font-family: 'Inter', sans-serif !important;
-}
