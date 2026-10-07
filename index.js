@@ -141,18 +141,18 @@ function pseudoRandom(seed, offset, min, max) {
   return Math.floor(rand * (max - min + 1)) + min;
 }
 
-// RECHERCHE EN TEMPS RÉEL DES AUTRES MANDATS DU DIRIGEANT AU RCS
+// RECHERCHE DÉTAILLÉE ET STRUCTURÉE DU GROUPE / HOLDINGS AU RCS
 async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
   const groupContainer = document.getElementById('groupCompaniesList');
   if (!dirigeantNom || dirigeantNom === "DIRIGEANT NON RENSEIGNÉ") {
-    groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucun dirigeant répertorié.</div>`;
+    groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucun dirigeant identifié pour lier le groupe.</div>`;
     return [];
   }
 
-  groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#38bdf8; padding:4px;">Interrogation du RCS...</div>`;
+  groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#38bdf8; padding:4px;">🔍 Recherche des entités liées à <strong>${dirigeantNom}</strong>...</div>`;
 
   try {
-    const response = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(dirigeantNom)}&per_page=8`);
+    const response = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(dirigeantNom)}&per_page=10`);
     if (!response.ok) throw new Error("Erreur serveur API");
     const data = await response.json();
 
@@ -160,32 +160,62 @@ async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
       const otherCompanies = data.results.filter(c => c.siren !== currentSiren);
 
       if (otherCompanies.length === 0) {
-        groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucune autre société enregistrée sous cette gérance.</div>`;
+        groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucune autre société directe rattachée à ${dirigeantNom}.</div>`;
         return [];
       }
 
-      groupContainer.innerHTML = otherCompanies.map(comp => {
-        const nomCo = cleanCompanyName(comp.nom_complet || comp.nom_raison_sociale);
-        const sirenCo = comp.siren;
-        const isHolding = nomCo.toUpperCase().includes('HOLDING') || nomCo.toUpperCase().includes('GROUP') || nomCo.toUpperCase().includes('FINANCIERE');
+      // SÉPARATION ET CLASSIFICATION CLAIRE DES HOLDINGS VS SOCIÉTÉS SŒURS
+      const holdings = [];
+      const sisters = [];
 
-        return `
-          <div class="group-company-item clickable" onclick="searchSirenDirect('${sirenCo}')">
-            <div>
-              <div class="group-company-name">${isHolding ? '🏢' : '🏬'} ${nomCo}</div>
-              <div style="font-size:0.65rem; color:#94a3b8;">SIREN : ${sirenCo}</div>
-            </div>
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span class="group-company-role ${isHolding ? 'role-holding' : 'role-sister'}">${isHolding ? 'HOLDING' : 'MÊME GÉRANCE'}</span>
+      otherCompanies.forEach(comp => {
+        const nomCo = cleanCompanyName(comp.nom_complet || comp.nom_raison_sociale);
+        const upper = nomCo.toUpperCase();
+        if (upper.includes('HOLDING') || upper.includes('GROUP') || upper.includes('FINANCIERE') || upper.includes('INVEST')) {
+          holdings.push(comp);
+        } else {
+          sisters.push(comp);
+        }
+      });
+
+      let html = '';
+
+      if (holdings.length > 0) {
+        html += `<div style="font-size:0.65rem; font-weight:800; color:#38bdf8; margin:6px 0 4px 0; text-transform:uppercase;">🏢 Holdings &amp; Maisons Mères (${holdings.length})</div>`;
+        holdings.forEach(comp => {
+          const nomCo = cleanCompanyName(comp.nom_complet || comp.nom_raison_sociale);
+          html += `
+            <div class="group-company-item clickable" onclick="searchSirenDirect('${comp.siren}')">
+              <div>
+                <div class="group-company-name">🏢 ${nomCo}</div>
+                <div style="font-size:0.65rem; color:#94a3b8;">SIREN : ${comp.siren} • Dirigeant : ${dirigeantNom}</div>
+              </div>
               <span class="btn-action-link">Consulter ➔</span>
             </div>
-          </div>
-        `;
-      }).join('');
+          `;
+        });
+      }
 
+      if (sisters.length > 0) {
+        html += `<div style="font-size:0.65rem; font-weight:800; color:#cbd5e1; margin:8px 0 4px 0; text-transform:uppercase;">🏬 Sociétés Sœurs &amp; Filiales (${sisters.length})</div>`;
+        sisters.forEach(comp => {
+          const nomCo = cleanCompanyName(comp.nom_complet || comp.nom_raison_sociale);
+          html += `
+            <div class="group-company-item clickable" onclick="searchSirenDirect('${comp.siren}')">
+              <div>
+                <div class="group-company-name">🏬 ${nomCo}</div>
+                <div style="font-size:0.65rem; color:#94a3b8;">SIREN : ${comp.siren} • Gérance commune</div>
+              </div>
+              <span class="btn-action-link">Consulter ➔</span>
+            </div>
+          `;
+        });
+      }
+
+      groupContainer.innerHTML = html;
       return otherCompanies;
     } else {
-      groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucune société sœur identifiée.</div>`;
+      groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucune société sœur ou holding rattachée.</div>`;
       return [];
     }
   } catch (error) {
@@ -280,7 +310,6 @@ function selectCompanySuggestion(siren) {
   handleSearch();
 }
 
-// FONCTION PRINCIPALE DE RECHERCHE AVEC TRIPLE NIVEAU DE SECOURS (VERCEL PAPPERS / PAPPERS DIRECT / GOUV)
 async function handleSearch() {
   const query = document.getElementById('searchInput').value.trim();
   if (!query) return;
@@ -293,7 +322,7 @@ async function handleSearch() {
   let apiData = null;
 
   try {
-    // 1. TENTATIVE VIA PASSERELLE VERCEL PAPPERS (/api/entreprise)
+    // 1. TENTATIVE VIA PASSERELLE VERCEL PAPPERS
     try {
       const vercelRes = await fetch(`/api/entreprise?siren=${cleanQuery}`);
       if (vercelRes.ok) {
@@ -306,7 +335,7 @@ async function handleSearch() {
       console.warn("Proxy Vercel non configuré ou indisponible.");
     }
 
-    // 2. TENTATIVE EN APPEL DIRECT PAPPERS (SI CLÉ DÉFINIE DANS JS)
+    // 2. TENTATIVE EN APPEL DIRECT PAPPERS
     if (!apiData && PAPPERS_API_KEY && PAPPERS_API_KEY.length > 5) {
       try {
         const pappersDirectRes = await fetch(`https://api.pappers.fr/v2/entreprise?api_token=${PAPPERS_API_KEY}&siren=${cleanQuery}&targets=finances,dirigeants,beneficiaires_effectifs`);
@@ -319,7 +348,7 @@ async function handleSearch() {
       }
     }
 
-    // 3. SECOURS AUTOMATIQUE SUR L'API PUBLIQUE DE L'ÉTAT (Si Pappers échoue)
+    // 3. SECOURS SUR L'API PUBLIQUE DE L'ÉTAT
     if (!apiData) {
       const gouvRes = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanQuery)}&per_page=5`);
       if (gouvRes.ok) {
@@ -346,7 +375,7 @@ async function handleSearch() {
   }
 }
 
-// CONVERTISSEUR DE DONNÉES PAPPERS
+// CONVERTISSEUR PAPPERS AVEC FORMATTAGE DES PRÉNOMS/NOMS DES DIRIGEANTS ET RBE
 function formatPappersToEnrichedStructure(p) {
   const siege = p.siege || {};
   const representants = p.representants || p.dirigeants || [];
@@ -365,8 +394,12 @@ function formatPappersToEnrichedStructure(p) {
     },
     forme_juridique: p.forme_juridique || "Société à Responsabilité Limitée (SARL)",
     code_naf: p.code_naf ? `${p.code_naf} - ${p.libelle_code_naf || ''}` : "56.10A - Restauration",
-    representants: representants.map(r => ({ prenom: r.prenom, nom: r.nom, qualite: r.qualite })),
-    beneficiaires_effectifs: beneficiaires.map(b => `${b.prenom || ''} ${b.nom || ''} (${b.pourcentage_parts || 100}% parts)`),
+    representants: representants.map(r => ({ 
+      prenom: r.prenom || r.prenoms || '', 
+      nom: r.nom || '', 
+      qualite: r.qualite || r.fonction || 'Dirigeant' 
+    })),
+    beneficiaires_effectifs: beneficiaires.map(b => `${b.prenom || ''} ${b.nom || ''}`.trim() + ` (${b.pourcentage_parts || 100}% parts)`),
     etat_administratif: p.entreprise_cessee ? 'F' : 'A',
     tranche_effectif: p.tranche_effectif || p.effectif || "10 à 19 salariés",
     convention_collective: p.conventions_collectives && p.conventions_collectives.length > 0
@@ -384,10 +417,11 @@ function formatPappersToEnrichedStructure(p) {
   };
 }
 
-// CONVERTISSEUR DE DONNÉES DE SECOURS (API ÉTAT)
+// CONVERTISSEUR API ÉTAT (SECOURS) AVEC PRÉNOMS ET NOMS
 function formatGouvToEnrichedStructure(company) {
   const siege = company.siege || {};
   const complements = company.complements || {};
+  const dirigeants = company.dirigeants || [];
 
   return {
     nom_complet: company.nom_complet || company.nom_raison_sociale || "ENTREPRISE",
@@ -401,7 +435,11 @@ function formatGouvToEnrichedStructure(company) {
     },
     forme_juridique: company.libelle_nature_juridique || "Société à Responsabilité Limitée (SARL)",
     code_naf: company.activite_principale ? `${company.activite_principale} - ${company.libelle_activite_principale || ''}` : "56.10A - Restauration",
-    representants: company.dirigeants || [],
+    representants: dirigeants.map(d => ({
+      prenom: d.prenoms || d.prenom || '',
+      nom: d.nom || '',
+      qualite: d.qualite || d.fonction || 'Dirigeant'
+    })),
     beneficiaires_effectifs: [],
     etat_administratif: company.etat_administratif || 'A',
     tranche_effectif: company.tranche_effectif_salarie || "10 à 19 salariés",
@@ -482,20 +520,32 @@ function displayCompanyData(company) {
   document.getElementById('companyForme').textContent = forme;
   document.getElementById('companyNaf').textContent = naf;
   
+  // EXTRACTION SYSTEMATIQUE DU PRÉNOM ET DU NOM DU DIRIGEANT
   const dirigeantObj = company.representants && company.representants.length > 0 ? company.representants[0] : null;
-  const dirigeantNom = dirigeantObj 
-    ? `${dirigeantObj.prenom || ''} ${dirigeantObj.nom || ''}`.trim() 
-    : "DIRIGEANT NON RENSEIGNÉ";
+  let dirigeantNom = "DIRIGEANT NON RENSEIGNÉ";
+  if (dirigeantObj) {
+    const p = dirigeantObj.prenom || dirigeantObj.prenoms || '';
+    const n = dirigeantObj.nom || '';
+    dirigeantNom = `${p} ${n}`.trim() || "DIRIGEANT NON RENSEIGNÉ";
+  }
 
   document.getElementById('companyDirigeant').textContent = dirigeantNom;
 
-  // BÉNÉFICIAIRES EFFECTIFS
+  // BÉNÉFICIAIRES EFFECTIFS DÉTAILLÉS
   const rbeText = company.beneficiaires_effectifs && company.beneficiaires_effectifs.length > 0
     ? company.beneficiaires_effectifs.join(', ')
     : `${dirigeantNom} (Contrôle direct à 100%)`;
 
   document.getElementById('rbeList').innerHTML = `👤 <strong>Bénéficiaire(s) Effectif(s) (> 25%) :</strong> ${rbeText}`;
-  document.getElementById('etablissementsList').innerHTML = `🏢 <strong>${company.etablissements_count} Établissement(s) actif(s)</strong> répertorié(s) au registre du Commerce.`;
+  
+  // ÉTABLISSEMENTS CLAIRS ET DISSOCIÉS
+  const totalEtab = company.etablissements_count || 1;
+  document.getElementById('etablissementsList').innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:4px; font-size:0.75rem;">
+      <div>📌 <strong>Siège Social :</strong> ${adresseSiege}</div>
+      <div>🏢 <strong>Établissements :</strong> ${totalEtab} site(s) au total (${totalEtab > 1 ? (totalEtab - 1) + ' établissement(s) secondaire(s)' : 'aucun secondaire'})</div>
+    </div>
+  `;
 
   // CONFORMITÉ & LABELS
   const complements = company.complements;
@@ -519,7 +569,7 @@ function displayCompanyData(company) {
     </span>
   `;
 
-  // AUTRES SOCIÉTÉS DU MÊME DIRIGEANT AU RCS
+  // RECHERCHE DÉTAILLÉE DES AUTRES SOCIÉTÉS ET HOLDINGS DU DIRIGEANT
   fetchRealRelatedCompanies(dirigeantNom, siren);
 
   const shareUrl = `${window.location.origin}${window.location.pathname}?siren=${siren}`;
@@ -644,9 +694,12 @@ function generateTechAuditPdf() {
   const naf = company.code_naf || "56.10A - Restauration";
   
   const dirigeantObj = company.representants && company.representants.length > 0 ? company.representants[0] : null;
-  const dirigeant = dirigeantObj 
-    ? `${dirigeantObj.prenom || ''} ${dirigeantObj.nom || ''}`.trim() 
-    : "OLIVIER LOUTERBACH";
+  let dirigeant = "DIRIGEANT NON RENSEIGNÉ";
+  if (dirigeantObj) {
+    const p = dirigeantObj.prenom || dirigeantObj.prenoms || '';
+    const n = dirigeantObj.nom || '';
+    dirigeant = `${p} ${n}`.trim() || "DIRIGEANT NON RENSEIGNÉ";
+  }
   
   const adresse = cleanAddress(siege.adresse_ligne_1);
   const isActif = company.etat_administratif === 'A' || company.statut_rcs === 'Inscrit';
@@ -763,7 +816,7 @@ function generateTechAuditPdf() {
       <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 5px; margin-bottom: 5px;">
         <div style="font-size: 8.5px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; margin-bottom: 3px; display:flex; justify-content:space-between;">
           <span>IDENTITÉ LÉGALE ET RENSEIGNEMENTS JURIDIQUES (GREFFE &amp; RCS)</span>
-          <span style="color:#0284c7;">${hasOfficialFinances ? '✔ Comptes Déposés Officiels' : 'ℹ️ Données Verifiées Registre'}</span>
+          <span style="color:#0284c7;">${hasOfficialFinances ? '✔ Comptes Déposés Officiels' : 'ℹ️ Données Vérifiées Registre'}</span>
         </div>
         <table style="width: 100%; font-size: 8px; border-collapse: collapse;">
           <tr>
@@ -776,7 +829,7 @@ function generateTechAuditPdf() {
           </tr>
           <tr>
             <td style="padding: 1px 0;"><strong>Activité Principale (Code NAF) :</strong> ${naf}</td>
-            <td style="padding: 1px 0;"><strong>Dirigeant Principal :</strong> ${dirigeant}</td>
+            <td style="padding: 1px 0;"><strong>Dirigeant Légal :</strong> ${dirigeant}</td>
           </tr>
           <tr>
             <td colspan="2" style="padding: 1px 0;"><strong>Adresse du Siège Social :</strong> ${adresse}</td>
