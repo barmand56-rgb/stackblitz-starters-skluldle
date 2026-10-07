@@ -1,7 +1,7 @@
 // =========================================================================
 // EURO EXPERT SOLVABILITÉ - CODE SOURCE COMPLET (OPTIMISÉ PDF & ONGLETS)
 // =========================================================================
-const PAPPERS_API_KEY = ""; // Optionnel si configuré via les variables Vercel
+const PAPPERS_API_KEY = "31138522741f55c243bc5c260a03e5923d6b0b08a17ad1c2"; // Optionnel si configuré via les variables Vercel
 
 let map;
 let currentMarker = null;
