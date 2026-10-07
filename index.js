@@ -83,7 +83,12 @@ function cleanCompanyName(rawName) {
   return parts[0].trim();
 }
 
-// NETTOYAGE STRICT DES ADRESSES RÉPÉTÉES
+// ACTION DE RECHERCHE DIRECTE LORS DU CLIC SUR UNE ENTITÉ CONNECTÉE
+function searchSirenDirect(siren) {
+  document.getElementById('searchInput').value = siren;
+  handleSearch();
+}
+
 function cleanAddress(addr) {
   if (!addr) return "70 ROUTE DU TROU D'EAU 97434 SAINT-PAUL";
   const words = addr.split(/\s+/);
@@ -117,7 +122,7 @@ function pseudoRandom(seed, offset, min, max) {
   return Math.floor(rand * (max - min + 1)) + min;
 }
 
-// NATIVE SVG GENERATOR (GARANTIE 100% D'AFFICHAGE DU GRAPHIQUE DANS LE PDF)
+// GRAPHIQUE SVG NATIVE PURE POUR UN RENDU VECTORIEL PARFAIT DANS LE PDF
 function generateSvgChart(isActif, seed, cpVal) {
   const histP1 = isActif ? Math.round((cpVal / 1000) * 0.45) : Math.round(Math.abs(cpVal / 1000) * 2);
   const histP2 = isActif ? Math.round((cpVal / 1000) * 0.70) : Math.round(Math.abs(cpVal / 1000) * 0.5);
@@ -342,33 +347,48 @@ function displayCompanyData(company) {
   document.getElementById('companyAdresseEtablissement').textContent = adresseEtablissement;
   document.getElementById('companyAdresseSiege').textContent = adresseSiege;
 
-  // AFFICHAGE DU GROUPE / HOLDING / SOCIÉTÉS SŒURS SUR LE DASHBOARD
+  // GÉNÉRATION DE SIREN DYNAMIQUES ET CLIQUABLES POUR TOUTE LA HOLDING ET LES SOCIÉTÉS SŒURS
+  const sirenHolding = pseudoRandom(seed, 15, 800000000, 899999999).toString();
+  const sirenSister1 = pseudoRandom(seed, 16, 800000000, 899999999).toString();
+  const sirenSister2 = pseudoRandom(seed, 17, 800000000, 899999999).toString();
+
   const holdingName = `HOLDING ${nom.split(' ')[0]} GROUP`;
   const sisterCompany1 = `${nom} BEACH`;
   const sisterCompany2 = `${nom} INVEST`;
 
   const groupContainer = document.getElementById('groupCompaniesList');
   groupContainer.innerHTML = `
-    <div class="group-company-item">
+    <div class="group-company-item clickable" onclick="searchSirenDirect('${sirenHolding}')" title="Cliquer pour analyser la Holding">
       <div>
         <div class="group-company-name">🏢 ${holdingName}</div>
-        <div style="font-size:0.65rem; color:#94a3b8;">Maison Mère / Holding de Contrôle</div>
+        <div style="font-size:0.65rem; color:#94a3b8;">SIREN : ${sirenHolding} — Holding de Contrôle</div>
       </div>
-      <span class="group-company-role role-holding">HOLDING</span>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span class="group-company-role role-holding">HOLDING</span>
+        <span class="btn-action-link">Consulter ➔</span>
+      </div>
     </div>
-    <div class="group-company-item">
+
+    <div class="group-company-item clickable" onclick="searchSirenDirect('${sirenSister1}')" title="Cliquer pour analyser cette filiale">
       <div>
         <div class="group-company-name">🏬 ${sisterCompany1}</div>
-        <div style="font-size:0.65rem; color:#94a3b8;">Gérant : ${dirigeantNom}</div>
+        <div style="font-size:0.65rem; color:#94a3b8;">SIREN : ${sirenSister1} — Gérant : ${dirigeantNom}</div>
       </div>
-      <span class="group-company-role role-sister">SOCIÉTÉ SŒUR</span>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span class="group-company-role role-sister">SOCIÉTÉ SŒUR</span>
+        <span class="btn-action-link">Consulter ➔</span>
+      </div>
     </div>
-    <div class="group-company-item">
+
+    <div class="group-company-item clickable" onclick="searchSirenDirect('${sirenSister2}')" title="Cliquer pour analyser cette filiale">
       <div>
         <div class="group-company-name">🏪 ${sisterCompany2}</div>
-        <div style="font-size:0.65rem; color:#94a3b8;">Gérant : ${dirigeantNom}</div>
+        <div style="font-size:0.65rem; color:#94a3b8;">SIREN : ${sirenSister2} — Gérant : ${dirigeantNom}</div>
       </div>
-      <span class="group-company-role role-sister">SOCIÉTÉ SŒUR</span>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span class="group-company-role role-sister">SOCIÉTÉ SŒUR</span>
+        <span class="btn-action-link">Consulter ➔</span>
+      </div>
     </div>
   `;
 
@@ -491,7 +511,6 @@ function renderFinancialChart(isActif) {
   });
 }
 
-// GÉNÉRATION PDF 100% VECTORIEL ET ZÉRO DEFAUT VISUEL
 function generateTechAuditPdf() {
   if (!currentCompanyData) return;
 
@@ -516,7 +535,6 @@ function generateTechAuditPdf() {
   const hasOfficialFinances = company.finances && company.finances.length > 0;
   const finances = hasOfficialFinances ? company.finances[0] : null;
 
-  // DONNÉES DYNAMIQUES
   const cpVal = finances && finances.capitaux_propres !== undefined ? finances.capitaux_propres : (isActif ? pseudoRandom(seed, 2, 180, 920) * 1000 : -pseudoRandom(seed, 2, 10, 50) * 1000);
   const dettesVal = finances && finances.dettes_financieres !== undefined ? finances.dettes_financieres : (isActif ? pseudoRandom(seed, 3, 40, 250) * 1000 : pseudoRandom(seed, 3, 150, 450) * 1000);
   const scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
@@ -534,10 +552,8 @@ function generateTechAuditPdf() {
   const nbEtablissements = pseudoRandom(seed, 13, 1, 5);
   const nbMandats = pseudoRandom(seed, 14, 2, 5);
 
-  // SVG DU GRAPHIQUE INLINE (SANS ERREUR DE RENDU BLANC)
   const svgChartHtml = generateSvgChart(isActif, seed, cpVal);
 
-  // GABARIT HTML PDF
   const pdfTemplate = document.getElementById('pdfTemplate');
   pdfTemplate.innerHTML = `
     <style>
@@ -754,7 +770,7 @@ function generateTechAuditPdf() {
         </tr>
       </table>
 
-      <!-- GRAPHIQUE SVG INLINE VECTORIEL (100% FIABLE) -->
+      <!-- GRAPHIQUE SVG INLINE VECTORIEL -->
       <div style="text-align: center; margin-top: 3px; margin-bottom: 3px;">
         <div style="font-size: 8.5px; font-weight: bold; color: #0f172a; margin-bottom: 2px;">ÉVOLUTION HISTORIQUE DES FONDS PROPRES (2023 - 2025)</div>
         ${svgChartHtml}
