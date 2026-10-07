@@ -1,7 +1,7 @@
 // =========================================================================
-// EURO EXPERT SOLVABILITÉ - CODE SOURCE COMPLET
+// EURO EXPERT SOLVABILITÉ - CODE SOURCE COMPLET AVEC AUTOCOMPLÉTION CORRIGÉE
 // =========================================================================
-const PAPPERS_API_KEY = "31138522741f55c243bc5c260a03e5923d6b0b08a17ad1c2"; // Optionnel si configuré via les variables d'environnement Vercel
+const PAPPERS_API_KEY = "31138522741f55c243bc5c260a03e5923d6b0b08a17ad1c2"; // Optionnel si configuré via les variables Vercel
 
 let map;
 let currentMarker = null;
@@ -9,8 +9,61 @@ let currentCompanyData = null;
 let financialChartInstance = null;
 let debounceTimer;
 
+// =========================================================================
+// 1. FONCTIONS D'AUTOCOMPLÉTION (DÉCLARÉES ET ACCESSIBLES EN GLOBAL)
+// =========================================================================
+async function fetchAutocompleteSuggestions(query) {
+  const autoBox = document.getElementById('autocompleteResults');
+  if (!autoBox) return;
+
+  try {
+    const response = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=5`);
+    if (!response.ok) return;
+    const data = await response.json();
+
+    if (data.results && data.results.length > 0) {
+      let html = '';
+      data.results.forEach(item => {
+        const nom = cleanCompanyName(item.nom_complet || item.nom_raison_sociale);
+        const siren = item.siren || '';
+        const ville = item.siege ? (item.siege.libelle_commune || item.siege.code_postal || '') : '';
+        const escapedNom = nom.replace(/'/g, "\\'");
+        
+        html += `
+          <div class="autocomplete-item" onclick="selectAutocompleteSuggestion('${siren}', '${escapedNom}')">
+            <div style="font-weight: bold; color: #ffffff; font-size: 0.85rem;">🏢 ${nom}</div>
+            <div style="font-size: 0.72rem; color: #38bdf8;">SIREN : ${siren} ${ville ? '• ' + ville : ''}</div>
+          </div>
+        `;
+      });
+      autoBox.innerHTML = html;
+      autoBox.style.display = 'block';
+    } else {
+      autoBox.style.display = 'none';
+    }
+  } catch (e) {
+    console.warn("Erreur d'autocomplétion :", e);
+    if (autoBox) autoBox.style.display = 'none';
+  }
+}
+
+function selectAutocompleteSuggestion(siren, nom) {
+  const searchInput = document.getElementById('searchInput');
+  if (searchInput) searchInput.value = siren;
+  const autoBox = document.getElementById('autocompleteResults');
+  if (autoBox) autoBox.style.display = 'none';
+  handleSearch();
+}
+
+// Rattachement aux fonctions globales pour compatibilité totale
+window.fetchAutocompleteSuggestions = fetchAutocompleteSuggestions;
+window.selectAutocompleteSuggestion = selectAutocompleteSuggestion;
+
+// =========================================================================
+// 2. INITIALISATION AU CHARGEMENT DE LA PAGE
+// =========================================================================
 document.addEventListener('DOMContentLoaded', () => {
-  initSecurityPassSystem(); // Activation de la sécurité Pass 24h
+  initSecurityPassSystem();
   initMap();
   initEventListeners();
   initToolsEventListeners();
@@ -18,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =========================================================================
-// 1. SYSTÈME DE SÉCURITÉ ET D'ACCÈS PAR CODE IMPRÉVISIBLE (PASS 24H)
+// 3. SYSTÈME DE SÉCURITÉ (PASS 24H) ET STYLES AUTOMATIQUES
 // =========================================================================
 const SECRET_SALT = "EURO_EXPERT_SOLVABILITE_KEY_2026";
 
@@ -70,6 +123,19 @@ function initSecurityPassSystem() {
     }
     .pass-btn:hover { background: #0369a1; }
     .pass-error { color: #ef4444; font-size: 0.78rem; margin-top: 10px; display: none; }
+
+    .search-container { position: relative; }
+    #autocompleteResults {
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: #1e293b; border: 1px solid #38bdf8; border-top: none;
+      border-radius: 0 0 8px 8px; max-height: 260px; overflow-y: auto;
+      z-index: 10000; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); display: none;
+    }
+    .autocomplete-item {
+      padding: 10px 14px; cursor: pointer; text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05); transition: background 0.2s;
+    }
+    .autocomplete-item:hover { background: #0f172a; }
   `;
   document.head.appendChild(style);
 
@@ -91,7 +157,7 @@ function showPassModal() {
   overlay.innerHTML = `
     <div class="pass-card">
       <div class="pass-title">🛡️ Euro Expert Solvabilité</div>
-      <div class="pass-sub">Accès restreint. Saisissez votre code Pass 24h pour débloquer la plateforme d'audit.</div>
+      <div class="pass-sub">Accès restreint. Saisissez votre code Pass 24h pour débloquer la plateforme.</div>
       <input type="text" id="passCodeInput" class="pass-input" placeholder="Ex: EES-XXXXXX" autocomplete="off" />
       <button id="validatePassBtn" class="pass-btn">Activer mon Pass 24h</button>
       <div id="passErrorMsg" class="pass-error">Code invalide ou expiré. Veuillez vérifier votre Pass.</div>
@@ -126,7 +192,7 @@ function verifyPassCode() {
 }
 
 // =========================================================================
-// 2. INITIALISATION ET GESTION NAVIGATION
+// 4. INITIALISATION DE LA CARTE ET ÉVÉNEMENTS
 // =========================================================================
 function initMap() {
   map = L.map('map', {
@@ -269,7 +335,7 @@ function pseudoRandom(seed, offset, min, max) {
 }
 
 // =========================================================================
-// 3. GENERATION DES DESCRIPTIONS DÉTAILLÉES PAR CATÉGORIE
+// 5. GENERATION DES DESCRIPTIONS DÉTAILLÉES PAR CATÉGORIE
 // =========================================================================
 function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dettesVal) {
   const nom = cleanCompanyName(company.nom_complet);
@@ -280,12 +346,12 @@ function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dett
 
   return {
     synthese: isActif 
-      ? `🟢 <strong>Analyse Synthétique Euro Expert Solvabilité :</strong> La société <strong>${nom}</strong> présente un profil financier solide avec un score de solvabilité de <strong>${scoreVal}/100</strong>. L'entreprise est immatriculée sous la gérance de ${dirigeantNom}. Le risque de défaillance est maîtrisé.`
+      ? `🟢 <strong>Analyse Synthétique Euro Expert Solvabilité :</strong> La société <strong>${nom}</strong> présente un profil financier solide avec un score de solvabilité de <strong>${scoreVal}/100</strong>. L'entreprise est enregistrée sous la gérance de ${dirigeantNom}. Le risque de défaillance est maîtrisé.`
       : `🔴 <strong>Alerte de Défaillance :</strong> La société <strong>${nom}</strong> est actuellement inactive ou fermée au Registre du Commerce. Risque de cessation de paiement critique.`,
 
     groupe: `🏢 <strong>Gouvernance & Réseau KYC :</strong> L'entreprise gère un réseau de <strong>${company.etablissements_count} établissement(s)</strong>. ` +
       (company.beneficiaires_effectifs && company.beneficiaires_effectifs.length > 0
-        ? `Les bénéficiaires effectifs au registre RBE sont : ${company.beneficiaires_effectifs.join(', ')}.`
+        ? `Les bénéficiaires effectifs répertoriés au RBE sont : ${company.beneficiaires_effectifs.join(', ')}.`
         : `Le contrôle direct est exercé par le gérant principal : ${dirigeantNom}.`) + 
       ` L'analyse des interconnexions RCS identifie les filiales et holdings associées.`,
 
@@ -303,7 +369,7 @@ function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dett
 }
 
 // =========================================================================
-// 4. RECHERCHE DES SOCIÉTÉS SŒURS / HOLDINGS AU RCS
+// 6. RECHERCHE DES SOCIÉTÉS SŒURS / HOLDINGS AU RCS
 // =========================================================================
 async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
   const groupContainer = document.getElementById('groupCompaniesList');
@@ -386,7 +452,7 @@ async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
 }
 
 // =========================================================================
-// 5. FONCTION PRINCIPALE DE RECHERCHE D'ENTREPRISE
+// 7. FONCTION PRINCIPALE DE RECHERCHE D'ENTREPRISE
 // =========================================================================
 async function handleSearch() {
   const query = document.getElementById('searchInput').value.trim();
@@ -396,11 +462,13 @@ async function handleSearch() {
   searchBtn.disabled = true;
   searchBtn.textContent = 'Analyse...';
 
+  const autoBox = document.getElementById('autocompleteResults');
+  if (autoBox) autoBox.style.display = 'none';
+
   const cleanQuery = query.replace(/\s/g, '');
   let apiData = null;
 
   try {
-    // 1. PASSERELLE VERCEL PAPPERS
     try {
       const vercelRes = await fetch(`/api/entreprise?siren=${cleanQuery}`);
       if (vercelRes.ok) {
@@ -413,7 +481,6 @@ async function handleSearch() {
       console.warn("Proxy Vercel non configuré.");
     }
 
-    // 2. APPEL DIRECT PAPPERS
     if (!apiData && PAPPERS_API_KEY && PAPPERS_API_KEY.length > 5) {
       try {
         const pappersDirectRes = await fetch(`https://api.pappers.fr/v2/entreprise?api_token=${PAPPERS_API_KEY}&siren=${cleanQuery}&targets=finances,dirigeants,beneficiaires_effectifs`);
@@ -426,7 +493,6 @@ async function handleSearch() {
       }
     }
 
-    // 3. SECOURS API ÉTAT
     if (!apiData) {
       const gouvRes = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanQuery)}&per_page=5`);
       if (gouvRes.ok) {
@@ -523,7 +589,7 @@ function formatGouvToEnrichedStructure(company) {
 }
 
 // =========================================================================
-// 6. AFFICHAGE DES DONNÉES DANS L'INTERFACE
+// 8. AFFICHAGE DES DONNÉES ET SYNTHÈSE MULTI-CATÉGORIES
 // =========================================================================
 function displayCompanyData(company) {
   const siege = company.siege || {};
@@ -533,7 +599,6 @@ function displayCompanyData(company) {
   const forme = company.forme_juridique || "Société à Responsabilité Limitée (SARL)";
   const naf = company.code_naf || "56.10A - Restauration";
 
-  let adresseEtablissement = cleanAddress(siege.adresse_ligne_1);
   let lat = parseFloat(siege.latitude) || -21.0924;
   let lon = parseFloat(siege.longitude) || 55.2289;
 
@@ -555,10 +620,41 @@ function displayCompanyData(company) {
   if (document.getElementById('summaryConformiteBox')) document.getElementById('summaryConformiteBox').innerHTML = summaries.conformite;
   if (document.getElementById('summaryDecisionBox')) document.getElementById('summaryDecisionBox').innerHTML = summaries.decision;
 
+  const aiContent = document.getElementById('aiContent');
+  if (aiContent) {
+    aiContent.innerHTML = `
+      <div style="margin-bottom: 12px; padding: 10px; background: rgba(56, 189, 248, 0.08); border-left: 4px solid #38bdf8; border-radius: 4px;">
+        <div style="font-weight: bold; color: #38bdf8; margin-bottom: 4px; font-size: 0.85rem;">📌 SYNTHÈSE GLOBALE DU CABINET</div>
+        <div style="font-size: 0.8rem; line-height: 1.4; color: #e2e8f0;">${summaries.synthese}</div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+        <div style="padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 6px;">
+          <div style="font-weight: bold; color: #cbd5e1; font-size: 0.78rem; margin-bottom: 4px;">🏢 STRUCTURE & GOUVERNANCE</div>
+          <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.35;">${summaries.groupe}</div>
+        </div>
+
+        <div style="padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 6px;">
+          <div style="font-weight: bold; color: #cbd5e1; font-size: 0.78rem; margin-bottom: 4px;">📊 SANTÉ FINANCIÈRE & BILAN</div>
+          <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.35;">${summaries.finance}</div>
+        </div>
+
+        <div style="padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 6px;">
+          <div style="font-weight: bold; color: #cbd5e1; font-size: 0.78rem; margin-bottom: 4px;">📋 CONFORMITÉ & JURIDIQUE</div>
+          <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.35;">${summaries.conformite}</div>
+        </div>
+
+        <div style="padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 6px;">
+          <div style="font-weight: bold; color: #cbd5e1; font-size: 0.78rem; margin-bottom: 4px;">💡 DÉCISION & RECOMMANDATION CRÉDIT</div>
+          <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.35;">${summaries.decision}</div>
+        </div>
+      </div>
+    `;
+  }
+
   const statusBadge = document.getElementById('companyStatus');
   const scoreValEl = document.getElementById('scoreValue');
   const scoreBadge = document.getElementById('scoreBadge');
-  const aiContent = document.getElementById('aiContent');
 
   if (!isActif) {
     if (statusBadge) {
@@ -575,7 +671,6 @@ function displayCompanyData(company) {
       scoreBadge.textContent = "🔴 RISQUE ÉLEVÉ";
       scoreBadge.className = "score-badge high-risk";
     }
-    if (aiContent) aiContent.innerHTML = summaries.synthese;
   } else {
     if (statusBadge) {
       statusBadge.textContent = "ACTIF";
@@ -591,7 +686,6 @@ function displayCompanyData(company) {
       scoreBadge.textContent = scoreVal > 75 ? "🟢 RISQUE FAIBLE" : "🟡 RISQUE MODÉRÉ";
       scoreBadge.className = "score-badge low-risk";
     }
-    if (aiContent) aiContent.innerHTML = summaries.synthese;
   }
 
   map.setView([lat, lon], 15);
@@ -787,7 +881,7 @@ function generateSvgChart(isActif, seed, cpVal) {
 }
 
 // =========================================================================
-// 7. GENERATION DU RAPPORT PDF EURO EXPERT SOLVABILITÉ (2 PAGES A4)
+// 9. GÉNÉRATION DU RAPPORT PDF (2 PAGES A4)
 // =========================================================================
 function generateTechAuditPdf() {
   if (!currentCompanyData) return;
@@ -966,7 +1060,7 @@ function generateTechAuditPdf() {
           ${scoreVal}<span style="font-size: 9px; color: #475569;"> / 100</span>
         </div>
         <div style="font-size: 7.8px; color: #334155; line-height: 1.2;">
-          ${isActif ? 'Capacité d\'endettement optimale. Structure financière très solide et pérenne avec couverture complète des engagements.' : 'Fonds propres négatifs. Risque de cessation de paiements sous 12 mois. Surveillance stricte requise.'}
+          ${isActif ? 'Capacité d\'endettement optimale. Structure financière solide et pérenne avec couverture complète des engagements.' : 'Fonds propres négatifs. Risque de cessation de paiements sous 12 mois. Surveillance stricte requise.'}
         </div>
       </div>
 
