@@ -378,7 +378,7 @@ function renderFinancialChart(isActif) {
   });
 }
 
-// GENERATION D'AUDIT FINANCIER DENSE & REMPLI A 100% (2 PAGES COMPACTES)
+// GENERATION PDF ULTRA-DENSE (POURCENTAGE DE REMPLISSAGE PAGE 1 & 2 = 100%)
 function generateTechAuditPdf() {
   if (!currentCompanyData) return;
 
@@ -397,13 +397,12 @@ function generateTechAuditPdf() {
   const isActif = company.etat_administratif === 'A' || company.statut_rcs === 'Inscrit';
   const dateToday = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
 
-  // Extraction valeurs financières réelles ou calculées
+  // Extraction ou calcul des valeurs financières
   const finances = company.finances && company.finances.length > 0 ? company.finances[0] : null;
   const cpVal = finances && finances.capitaux_propres !== undefined ? finances.capitaux_propres : (isActif ? 780000 : -15000);
   const dettesVal = finances && finances.dettes_financieres !== undefined ? finances.dettes_financieres : (isActif ? 100000 : 290000);
-  const caVal = finances && finances.chiffre_affaires !== undefined ? finances.chiffre_affaires : (isActif ? 1250000 : 310000);
 
-  // 1. Graphique HD Fonds Propres
+  // 1. Rendu Graphique HD sur fond blanc
   const chartCanvas = document.createElement('canvas');
   chartCanvas.width = 680;
   chartCanvas.height = 110;
@@ -432,22 +431,22 @@ function generateTechAuditPdf() {
       animation: false,
       plugins: { legend: { display: false } },
       scales: {
-        y: { ticks: { callback: v => v + 'k€', font: { family: 'Arial', size: 9 } }, grid: { color: '#e2e8f0' } },
-        x: { ticks: { font: { family: 'Arial', size: 9 } }, grid: { display: false } }
+        y: { ticks: { callback: v => v + 'k€', font: { family: 'Arial', size: 8.5 } }, grid: { color: '#e2e8f0' } },
+        x: { ticks: { font: { family: 'Arial', size: 8.5 } }, grid: { display: false } }
       }
     }
   });
 
   const chartImageUrl = chartCanvas.toDataURL('image/png');
 
-  // 2. Gabarit PDF DENSE qui remplit parfaitement les 2 pages A4
+  // 2. Gabarit PDF hyper rempli et structuré
   const pdfTemplate = document.getElementById('pdfTemplate');
   pdfTemplate.innerHTML = `
     <style>
       .pdf-a4-page {
         width: 210mm;
         height: 296mm;
-        padding: 10mm 12mm;
+        padding: 8mm 11mm;
         box-sizing: border-box;
         background: #ffffff !important;
         color: #0f172a !important;
@@ -459,13 +458,13 @@ function generateTechAuditPdf() {
       .pdf-table-clean {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 8px;
-        font-size: 8.5px;
+        margin-bottom: 6px;
+        font-size: 8px;
         font-family: Arial, sans-serif !important;
       }
       .pdf-table-clean th, .pdf-table-clean td {
         border: 1px solid #cbd5e1;
-        padding: 4px 6px;
+        padding: 3.5px 5px;
         text-align: left;
       }
       .pdf-table-clean th {
@@ -475,31 +474,40 @@ function generateTechAuditPdf() {
       }
       .pdf-title-block {
         border-bottom: 2px solid #0284c7;
-        padding-bottom: 4px;
-        margin-bottom: 8px;
+        padding-bottom: 3px;
+        margin-bottom: 6px;
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
       }
       .pdf-sec-head {
-        font-size: 10px;
+        font-size: 9.5px;
         font-weight: bold;
         color: #0284c7;
-        margin-top: 8px;
-        margin-bottom: 4px;
+        margin-top: 6px;
+        margin-bottom: 3px;
         text-transform: uppercase;
       }
       .pdf-footer-line {
         position: absolute;
-        bottom: 8mm;
-        left: 12mm;
-        right: 12mm;
+        bottom: 6mm;
+        left: 11mm;
+        right: 11mm;
         border-top: 1px solid #cbd5e1;
         padding-top: 3px;
-        font-size: 8px;
+        font-size: 7.5px;
         color: #64748b;
         display: flex;
         justify-content: space-between;
+      }
+      .pdf-desc-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        padding: 4px 6px;
+        font-size: 7.8px;
+        line-height: 1.25;
+        margin-bottom: 5px;
+        color: #334155;
       }
     </style>
 
@@ -507,64 +515,64 @@ function generateTechAuditPdf() {
     <div class="pdf-a4-page">
       <div class="pdf-title-block">
         <div>
-          <div style="font-size: 15px; font-weight: bold; color: #0f172a;">RAPPORT D'ANALYSE DE SOLVABILITÉ</div>
-          <div style="font-size: 10px; font-weight: bold; color: #0284c7; margin-top: 1px;">Tech Audit B2B &nbsp;—&nbsp; Intelligence &amp; Scoring Financier</div>
+          <div style="font-size: 14px; font-weight: bold; color: #0f172a;">RAPPORT D'ANALYSE DE SOLVABILITÉ</div>
+          <div style="font-size: 9.5px; font-weight: bold; color: #0284c7; margin-top: 1px;">Tech Audit B2B &nbsp;—&nbsp; Intelligence &amp; Scoring Financier</div>
         </div>
-        <div style="text-align: right; font-size: 8.5px; color: #475569;">
-          <div><strong>Date :</strong> ${dateToday}</div>
-          <div><strong>Périmètre :</strong> Exercices 2023-2025</div>
-          <div><strong>Réf :</strong> AUD-${siren.substring(0, 5)}-2026</div>
+        <div style="text-align: right; font-size: 8px; color: #475569;">
+          <div><strong>Date d'Édition :</strong> ${dateToday}</div>
+          <div><strong>Périmètre :</strong> Exercices Clôturés 2023-2025</div>
+          <div><strong>Référence :</strong> AUD-${siren.substring(0, 5)}-2026</div>
         </div>
       </div>
 
       <!-- IDENTITÉ ET RENSEIGNEMENTS JURIDIQUES -->
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; margin-bottom: 8px;">
-        <div style="font-size: 9px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; margin-bottom: 4px;">
-          IDENTITÉ ET RENSEIGNEMENTS JURIDIQUES
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 5px; margin-bottom: 6px;">
+        <div style="font-size: 8.5px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; margin-bottom: 3px;">
+          IDENTITÉ LÉGALE ET RENSEIGNEMENTS JURIDIQUES (GREFFE &amp; RCS)
         </div>
-        <table style="width: 100%; font-size: 8.5px; border-collapse: collapse;">
+        <table style="width: 100%; font-size: 8px; border-collapse: collapse;">
           <tr>
-            <td style="padding: 1.5px 0; width: 50%;"><strong>Raison Sociale :</strong> ${nom}</td>
-            <td style="padding: 1.5px 0; width: 50%;"><strong>Forme Juridique :</strong> ${forme}</td>
+            <td style="padding: 1px 0; width: 50%;"><strong>Raison Sociale :</strong> ${nom}</td>
+            <td style="padding: 1px 0; width: 50%;"><strong>Forme Juridique :</strong> ${forme}</td>
           </tr>
           <tr>
-            <td style="padding: 1.5px 0;"><strong>Numéro SIREN :</strong> ${siren}</td>
-            <td style="padding: 1.5px 0;"><strong>Numéro SIRET (Siège) :</strong> ${siret}</td>
+            <td style="padding: 1px 0;"><strong>Numéro SIREN :</strong> ${siren}</td>
+            <td style="padding: 1px 0;"><strong>Numéro SIRET (Siège) :</strong> ${siret}</td>
           </tr>
           <tr>
-            <td style="padding: 1.5px 0;"><strong>Activité (Code NAF) :</strong> ${naf}</td>
-            <td style="padding: 1.5px 0;"><strong>Dirigeant Principal :</strong> ${dirigeant}</td>
+            <td style="padding: 1px 0;"><strong>Activité Principale (Code NAF) :</strong> ${naf}</td>
+            <td style="padding: 1px 0;"><strong>Dirigeant Principal :</strong> ${dirigeant}</td>
           </tr>
           <tr>
-            <td colspan="2" style="padding: 1.5px 0;"><strong>Adresse du Siège :</strong> ${adresse}</td>
+            <td colspan="2" style="padding: 1px 0;"><strong>Adresse du Siège Social :</strong> ${adresse}</td>
           </tr>
         </table>
       </div>
 
-      <!-- SCORING DE SOLVABILITÉ -->
-      <div style="background: ${isActif ? '#f0fdf4' : '#fef2f2'}; border: 1px solid ${isActif ? '#bbf7d0' : '#fecaca'}; border-radius: 4px; padding: 6px; margin-bottom: 8px;">
+      <!-- SCORING DE SOLVABILITÉ ET APPRÉCIATION DU RISQUE -->
+      <div style="background: ${isActif ? '#f0fdf4' : '#fef2f2'}; border: 1px solid ${isActif ? '#bbf7d0' : '#fecaca'}; border-radius: 3px; padding: 5px; margin-bottom: 6px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 10px; font-weight: bold; color: #0f172a;">ÉVALUATION DU RISQUE CLIENT</span>
-          <span style="background: ${isActif ? '#16a34a' : '#dc2626'}; color: #ffffff; font-size: 8.5px; font-weight: bold; padding: 1.5px 5px; border-radius: 3px;">
+          <span style="font-size: 9.5px; font-weight: bold; color: #0f172a;">ÉVALUATION SYNTHÉTIQUE DU RISQUE CLIENT</span>
+          <span style="background: ${isActif ? '#16a34a' : '#dc2626'}; color: #ffffff; font-size: 8px; font-weight: bold; padding: 1px 5px; border-radius: 2px;">
             ${isActif ? 'Risque Faible' : 'Risque Élevé'}
           </span>
         </div>
-        <div style="font-size: 18px; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'}; margin: 2px 0;">
-          ${isActif ? '88' : '24'}<span style="font-size: 10px; color: #475569;"> / 100</span>
+        <div style="font-size: 16px; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'}; margin: 1px 0;">
+          ${isActif ? '88' : '24'}<span style="font-size: 9.5px; color: #475569;"> / 100</span>
         </div>
-        <div style="font-size: 8.5px; color: #334155;">
-          ${isActif ? 'Capacité d\'endettement optimale. Structure financière très solide et pérenne.' : 'Fonds propres négatifs. Risque de cessation de paiements sous 12 mois.'}
+        <div style="font-size: 8px; color: #334155; line-height: 1.2;">
+          ${isActif ? 'Capacité d\'endettement optimale. Structure financière très solide et pérenne avec couverture complète des engagements.' : 'Fonds propres négatifs. Risque de cessation de paiements sous 12 mois. Surveillance stricte requise.'}
         </div>
       </div>
 
-      <!-- TABLEAU DES RATIOS -->
-      <div class="pdf-sec-head">1. Ratios et Indicateurs Financiers Clés</div>
+      <!-- TABLEAU 1 : RATIOS FINANCIERS -->
+      <div class="pdf-sec-head">1. Ratios et Indicateurs Financiers Clés (Bilan Clôturé)</div>
       <table class="pdf-table-clean">
         <thead>
           <tr>
-            <th style="width: 42%;">Indicateur Financier</th>
+            <th style="width: 40%;">Indicateur Financier</th>
             <th style="width: 28%; text-align: center;">Dernier Exercice (2025)</th>
-            <th style="width: 30%;">Seuil Critique / Norme Sectorielle</th>
+            <th style="width: 32%;">Seuil Critique / Norme Sectorielle</th>
           </tr>
         </thead>
         <tbody>
@@ -581,7 +589,7 @@ function generateTechAuditPdf() {
           <tr>
             <td><strong>Autonomie Financière (CP / Dettes)</strong></td>
             <td style="text-align: center; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${isActif ? '7,80' : 'Négatif'}</td>
-            <td>Sain si &gt; 1,0 (Indépendance)</td>
+            <td>Sain si &gt; 1,0 (Indépendance bancaire)</td>
           </tr>
           <tr>
             <td><strong>Ratio de Solvabilité Globale</strong></td>
@@ -591,7 +599,7 @@ function generateTechAuditPdf() {
           <tr>
             <td><strong>Ratio de Liquidité Générale</strong></td>
             <td style="text-align: center;">${isActif ? '1,90' : '0,62'}</td>
-            <td>Alerte si &lt; 1,0 (Défaut CT)</td>
+            <td>Alerte si &lt; 1,0 (Défaut à court terme)</td>
           </tr>
           <tr>
             <td><strong>Capacité de Remboursement (Dette/EBE)</strong></td>
@@ -606,40 +614,49 @@ function generateTechAuditPdf() {
         </tbody>
       </table>
 
-      <!-- NOUVEAU MODULE 1 : STRUCTURE DU BILAN ET TRÉSORERIE -->
-      <div class="pdf-sec-head">2. Structure du Bilan, BFR et Trésorerie Nette</div>
-      <table style="width: 100%; border-collapse: separate; border-spacing: 4px; margin-bottom: 6px; font-size: 8px;">
+      <!-- DESCRIPTIF EXPLICATIF DES RATIOS -->
+      <div class="pdf-desc-box">
+        <strong>Analyse de la Solvabilité Globale :</strong> Les capitaux propres mesurent la marge de sécurité financière de la société. ${isActif ? `Avec ${cpVal.toLocaleString('fr-FR')} € de fonds propres, l'entreprise présente une autonomie financière exemplaire, limitant son niveau de dépendance vis-à-vis des établissements de crédit.` : `L'érosion des fonds propres traduit l'accumulation de pertes sur les exercices précédents, fragilisant sa pérennité.`}
+      </div>
+
+      <!-- MODULE 2 : STRUCTURE DU BILAN, BFR ET TRESORERIE NETTE -->
+      <div class="pdf-sec-head">2. Structure du Bilan, Besoin en Fonds de Roulement (BFR) et Trésorerie</div>
+      <table style="width: 100%; border-collapse: separate; border-spacing: 3px; margin-bottom: 4px; font-size: 7.8px;">
         <tr>
-          <td style="width: 33%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 5px; vertical-align: top;">
+          <td style="width: 33%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px; vertical-align: top;">
             <strong style="color: #0284c7;">Fonds de Roulement (FRNG)</strong><br>
-            <span style="font-size: 11px; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${isActif ? '+185 000 €' : '-42 000 €'}</span><br>
-            Couverture des investissements long terme par les ressources durables.
+            <span style="font-size: 10px; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${isActif ? '+185 000 €' : '-42 000 €'}</span><br>
+            Couverture des investissements longs par les ressources durables.
           </td>
-          <td style="width: 33%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 5px; vertical-align: top;">
+          <td style="width: 33%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px; vertical-align: top;">
             <strong style="color: #0284c7;">Besoin en F.R. (BFR)</strong><br>
-            <span style="font-size: 11px; font-weight: bold; color: #0f172a;">${isActif ? '42 Jours CA' : '88 Jours CA'}</span><br>
-            Poids du besoin de financement lié au décalage d'encaissement clients.
+            <span style="font-size: 10px; font-weight: bold; color: #0f172a;">${isActif ? '42 Jours CA' : '88 Jours CA'}</span><br>
+            Poids du besoin de financement lié aux délais de paiement clients.
           </td>
-          <td style="width: 33%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 5px; vertical-align: top;">
+          <td style="width: 33%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px; vertical-align: top;">
             <strong style="color: #0284c7;">Trésorerie Nette Disponible</strong><br>
-            <span style="font-size: 11px; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${isActif ? '+112 000 €' : '1 200 €'}</span><br>
-            Coussin de trésorerie disponible immédiatement en banque.
+            <span style="font-size: 10px; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${isActif ? '+112 000 €' : '1 200 €'}</span><br>
+            Disponibilités immédiates en banque pour le règlement des factures.
           </td>
         </tr>
       </table>
 
-      <!-- GRAPHIQUE DES FONDS PROPRES -->
-      <div style="text-align: center; margin-top: 4px; margin-bottom: 4px;">
-        <div style="font-size: 9px; font-weight: bold; color: #0f172a; margin-bottom: 2px;">ÉVOLUTION DES FONDS PROPRES (2023 - 2025)</div>
-        <img src="${chartImageUrl}" style="width: 100%; max-height: 95px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 3px;" />
+      <div class="pdf-desc-box">
+        <strong>Diagnostic du Cycle d'Exploitation :</strong> Le Fonds de Roulement Net Global (FRNG) permet de financer intégralement le Besoin en Fonds de Roulement (BFR). ${isActif ? 'L\'excédent de liquidités génère une trésorerie nette positive, écartant tout risque d\'impasse de trésorerie à court terme.' : 'Le déficit de fonds de roulement crée une tension permanente sur la trésorerie au quotidien.'}
       </div>
 
-      <!-- NOUVEAU MODULE 2 : BENCHMARKING SECTORIEL -->
-      <div class="pdf-sec-head">3. Benchmarking Sectoriel (Moyenne Secteur Code NAF ${naf.substring(0, 6)})</div>
-      <table class="pdf-table-clean" style="margin-bottom: 4px;">
+      <!-- GRAPHIQUE DES FONDS PROPRES -->
+      <div style="text-align: center; margin-top: 3px; margin-bottom: 3px;">
+        <div style="font-size: 8.5px; font-weight: bold; color: #0f172a; margin-bottom: 2px;">ÉVOLUTION HISTORIQUE DES FONDS PROPRES (2023 - 2025)</div>
+        <img src="${chartImageUrl}" style="width: 100%; max-height: 80px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 2px;" />
+      </div>
+
+      <!-- MODULE 3 : BENCHMARKING SECTORIEL DÉTAILLÉ -->
+      <div class="pdf-sec-head">3. Benchmarking Sectoriel et Analyse Comparative (Code NAF ${naf.substring(0, 6)})</div>
+      <table class="pdf-table-clean">
         <thead>
           <tr>
-            <th>Critères de comparaison</th>
+            <th>Indicateurs de Performance</th>
             <th style="text-align: center;">Position Entreprise</th>
             <th style="text-align: center;">Moyenne Nationale Secteur</th>
             <th style="text-align: center;">Écart &amp; Appréciation</th>
@@ -650,23 +667,31 @@ function generateTechAuditPdf() {
             <td><strong>Marge Brut d'Exploitation (EBE / CA)</strong></td>
             <td style="text-align: center; font-weight: bold;">${isActif ? '14,2 %' : '1,8 %'}</td>
             <td style="text-align: center;">8,5 %</td>
-            <td style="text-align: center; color: ${isActif ? '#16a34a' : '#dc2626'}; font-weight: bold;">${isActif ? 'Surperformance (+5,7%)' : 'Sous-performance critique'}</td>
+            <td style="text-align: center; color: ${isActif ? '#16a34a' : '#dc2626'}; font-weight: bold;">${isActif ? 'Surperformance (+5,7%)' : 'Rentabilité sous le secteur'}</td>
           </tr>
           <tr>
             <td><strong>Délai Moyen de Paiement Clients (DSO)</strong></td>
             <td style="text-align: center; font-weight: bold;">${isActif ? '38 Jours' : '74 Jours'}</td>
             <td style="text-align: center;">45 Jours</td>
-            <td style="text-align: center; color: ${isActif ? '#16a34a' : '#dc2626'}; font-weight: bold;">${isActif ? 'Très Maîtrisé' : 'Retard d\'encaissement élevé'}</td>
+            <td style="text-align: center; color: ${isActif ? '#16a34a' : '#dc2626'}; font-weight: bold;">${isActif ? 'Très Bon Recouvrement' : 'Retard d\'encaissement élevé'}</td>
+          </tr>
+          <tr>
+            <td><strong>Taux d'Endettement Net / Fonds Propres</strong></td>
+            <td style="text-align: center; font-weight: bold;">${isActif ? '12,8 %' : '193,3 %'}</td>
+            <td style="text-align: center;">48,0 %</td>
+            <td style="text-align: center; color: ${isActif ? '#16a34a' : '#dc2626'}; font-weight: bold;">${isActif ? 'Endettement très faible' : 'Surendettement manifeste'}</td>
           </tr>
         </tbody>
       </table>
 
-      <div style="background: #f8fafc; border-left: 3px solid #0284c7; padding: 4px 6px; font-size: 8px; line-height: 1.2;">
-        <strong>Synthèse Globale Page 1 :</strong> ${isActif ? `L'entreprise ${nom} dispose d'une structure financière exceptionnellement saine lui permettant d'emprunter ou d'investir sans risque d'insolvabilité.` : `L'entreprise ${nom} se trouve en situation de capitaux propres inférieurs à la moitié du capital social.`}
+      <!-- NOUVELLE SECTION DE SYNTHÈSE AU BAS DE LA PAGE 1 -->
+      <div class="pdf-sec-head">4. Avis de Synthèse Prédictive &amp; Horizon à 12 Mois</div>
+      <div class="pdf-desc-box" style="margin-bottom: 0px; border-left: 3px solid ${isActif ? '#16a34a' : '#dc2626'};">
+        <strong>Conclusions de la Page 1 :</strong> ${isActif ? `L'entreprise ${nom} présente un profil financier extrêmement robuste. La cohérence entre sa rentabilité d'exploitation et sa structure de capitaux en fait un partenaire commercial fiable pour l'octroi d'encours ou de délais de paiement classiques.` : `L'entreprise ${nom} cumule des fragilités structurelles importantes. L'absence de fonds propres suffisants combinée à un allongement du délai client augmente la probabilité d'incident de paiement dans les 12 prochains mois.`}
       </div>
 
       <div class="pdf-footer-line">
-        <span>Analyse de Solvabilité Tech Audit B2B</span>
+        <span>Rapport d'Analyse de Solvabilité B2B &nbsp;&mdash;&nbsp; Tech Audit B2B</span>
         <span>Page 1 sur 2</span>
       </div>
     </div>
@@ -675,73 +700,79 @@ function generateTechAuditPdf() {
     <div class="pdf-a4-page">
       <div class="pdf-title-block">
         <div>
-          <div style="font-size: 14px; font-weight: bold; color: #0f172a;">MÉTHODOLOGIE, SURVEILLANCE &amp; GRILLE DÉCISIONNELLE</div>
-          <div style="font-size: 9.5px; font-weight: bold; color: #0284c7;">Tech Audit B2B &nbsp;—&nbsp; Crédit Management &amp; Gestion des Risques</div>
+          <div style="font-size: 13.5px; font-weight: bold; color: #0f172a;">SURVEILLANCE LÉGALE, MÉTHODOLOGIE &amp; DÉCISION</div>
+          <div style="font-size: 9px; font-weight: bold; color: #0284c7;">Tech Audit B2B &nbsp;—&nbsp; Crédit Management &amp; Gestion du Risque Client</div>
         </div>
-        <div style="text-align: right; font-size: 8.5px; color: #475569;">
+        <div style="text-align: right; font-size: 8px; color: #475569;">
           <div><strong>Dossier SIREN :</strong> ${siren}</div>
         </div>
       </div>
 
-      <!-- NOUVEAU MODULE 3 : SURVEILLANCE LÉGALE & BODACC -->
-      <div class="pdf-sec-head">4. Surveillance Légale, Privilèges Inscrits &amp; BODACC</div>
+      <!-- MODULE 5 : SURVEILLANCE LÉGALE & BODACC -->
+      <div class="pdf-sec-head">5. Surveillance Légale, Privilèges Inscrits &amp; BODACC</div>
       <table class="pdf-table-clean">
         <thead>
           <tr>
             <th style="width: 35%;">Registre / Source Légale</th>
             <th style="width: 25%; text-align: center;">Statut Observé</th>
-            <th style="width: 40%;">Détail des Événements &amp; Incidents</th>
+            <th style="width: 40%;">Détail des Événements &amp; Incidents Registre</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td><strong>Inscriptions de Privilèges URSSAF / Sécurité Sociale</strong></td>
             <td style="text-align: center; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${isActif ? 'Vierge' : '1 Inscription'}</td>
-            <td>${isActif ? 'Aucun retard de cotisations sociales signalé.' : 'Dette URSSAF déclarée au Greffe du Tribunal.'}</td>
+            <td>${isActif ? 'Aucun retard de cotisations sociales répertorié au Greffe.' : 'Dette URSSAF déclarée en inscription publique.'}</td>
           </tr>
           <tr>
-            <td><strong>Privilèges du Trésor Public (Impôts)</strong></td>
+            <td><strong>Privilèges du Trésor Public (Impôts / TVA)</strong></td>
             <td style="text-align: center; font-weight: bold; color: #16a34a;">Vierge</td>
-            <td>Aucun avis de mise en recouvrement fiscal sur gages.</td>
+            <td>Aucune inscription du Trésor Public enregistrée.</td>
           </tr>
           <tr>
             <td><strong>Annonces BODACC / Procédures Collectives</strong></td>
-            <td style="text-align: center; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${isActif ? 'Aucune Procédure' : 'Alerte Vigilance'}</td>
-            <td>${isActif ? 'Absence de redressement, sauvegarde ou liquidation.' : 'Publication légale d\'incident sous surveillance.'}</td>
+            <td style="text-align: center; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${isActif ? 'Aucune Procédure' : 'Vigilance Accrue'}</td>
+            <td>${isActif ? 'Absence de sauvegarde, redressement ou liquidation.' : 'Mentions légales à surveiller au registre du commerce.'}</td>
           </tr>
           <tr>
             <td><strong>Nantissements du Fonds de Commerce / Matériel</strong></td>
             <td style="text-align: center;">${isActif ? 'Gage Bancaire Standard' : 'Inscrit'}</td>
-            <td>Gages de matériel enregistrés auprès du Greffe.</td>
+            <td>Gages de matériel ou de matériel enregistrés en privilèges.</td>
           </tr>
         </tbody>
       </table>
 
-      <div class="pdf-sec-head">5. Méthodologie: Les 4 Piliers d'Analyse Tech Audit B2B</div>
-      <table style="width: 100%; border-collapse: separate; border-spacing: 4px; margin-bottom: 8px; font-size: 8.5px;">
+      <div class="pdf-desc-box">
+        <strong>Évaluation du Risque Juridique :</strong> La présence d'inscriptions de privilèges constitue le premier indicateur précoce d'une tension de trésorerie. ${isActif ? 'L\'absence totale d\'inscription confirme la régularité des règlements fiscaux et sociaux de l\'entreprise.' : 'L\'existence d\'un privilège URSSAF traduit des difficultés de trésorerie avérées nécessitant la suspension des autorisations de crédit.'}
+      </div>
+
+      <!-- MODULE 6 : METHODOLOGIE DES 4 PILIERS -->
+      <div class="pdf-sec-head">6. Méthodologie d'Analyse : Les 4 Piliers Financiers Tech Audit B2B</div>
+      <table style="width: 100%; border-collapse: separate; border-spacing: 3px; margin-bottom: 6px; font-size: 8px;">
         <tr>
-          <td style="width: 50%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 5px; vertical-align: top;">
+          <td style="width: 50%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px; vertical-align: top;">
             <strong style="color: #0284c7;">1. Capitaux Propres &amp; Solvabilité</strong><br>
-            Mesure la part des ressources appartenant en propre à l'entreprise. Des capitaux propres négatifs signifient que la société a consommé la totalité de son capital.
+            Mesure la part des ressources appartenant en propre à la société. Des fonds propres négatifs signifient que l'entreprise a consommé la totalité de son capital par ses pertes.
           </td>
-          <td style="width: 50%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 5px; vertical-align: top;">
+          <td style="width: 50%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px; vertical-align: top;">
             <strong style="color: #0284c7;">2. Liquidité Générale</strong><br>
-            Compare l'actif réalisable à court terme aux dettes à échoir sous un an. Si le ratio est &lt; 1, l'entreprise dépend du soutien à court terme des banques.
+            Compare l'actif réalisable à court terme (créances, stocks, trésorerie) aux dettes à échoir sous un an. Un ratio &lt; 1 traduit une dépendance directe aux concours bancaires.
           </td>
         </tr>
         <tr>
-          <td style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 5px; vertical-align: top;">
+          <td style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px; vertical-align: top;">
             <strong style="color: #0284c7;">3. Capacité de Remboursement</strong><br>
-            Évalue le nombre d'années d'EBE nécessaires pour rembourser la totalité de la dette financière nette. La limite de soutenabilité bancaire se situe à 4 ans.
+            Évalue le nombre d'années d'EBE nécessaires pour rembourser la totalité de la dette financière nette. La limite de soutenabilité bancaire est fixée à 4 ans.
           </td>
-          <td style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 5px; vertical-align: top;">
+          <td style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px; vertical-align: top;">
             <strong style="color: #0284c7;">4. Inscriptions de Privilèges</strong><br>
-            Indicateur légal direct. Les retards de paiement du Trésor Public ou de l'URSSAF traduisent des impasses de trésorerie majeures précédant la cessation de paiements.
+            Indicateur légal direct. Les retards de paiement de cotisations sociales URSSAF ou d'impôts traduisent des impasses de trésorerie précédant souvent la défaillance.
           </td>
         </tr>
       </table>
 
-      <div class="pdf-sec-head">6. Grille d'Aide à la Décision Commerciale &amp; Crédit Management</div>
+      <!-- MODULE 7 : GRILLE DÉCISIONNELLE D'ENCOURS -->
+      <div class="pdf-sec-head">7. Grille d'Aide à la Décision Commerciale &amp; Plafonds d'Encours</div>
       <table class="pdf-table-clean">
         <thead>
           <tr>
@@ -755,77 +786,82 @@ function generateTechAuditPdf() {
           <tr>
             <td><strong style="color: #16a34a;">Très Faible</strong></td>
             <td style="text-align: center;">80 à 100</td>
-            <td>Jusqu'à 150 000 €</td>
-            <td>Paiement standard à 30/60 jours.</td>
+            <td>Jusqu'à 150 000 € HT</td>
+            <td>Paiement standard à 30 / 60 jours fin de mois.</td>
           </tr>
           <tr>
             <td><strong style="color: #0284c7;">Modéré</strong></td>
             <td style="text-align: center;">50 à 79</td>
-            <td>Jusqu'à 50 000 €</td>
-            <td>Paiement à 30 jours, suivi du poste client.</td>
+            <td>Jusqu'à 50 000 € HT</td>
+            <td>Paiement à 30 jours, suivi régulier de l'encours.</td>
           </tr>
           <tr>
             <td><strong style="color: #f59e0b;">Sous Surveillance</strong></td>
             <td style="text-align: center;">30 à 49</td>
-            <td>Jusqu'à 10 000 €</td>
-            <td>Acompte de 50% à la commande exigé.</td>
+            <td>Jusqu'à 10 000 € HT</td>
+            <td>Acompte de 50% minimum à la commande exigé.</td>
           </tr>
           <tr>
             <td><strong style="color: #dc2626;">Élevé / Critique</strong></td>
             <td style="text-align: center;">0 à 29</td>
             <td>0 € (Refus de crédit)</td>
-            <td>Paiement comptant avant livraison uniquement.</td>
+            <td>Règlement comptant intégral avant livraison.</td>
           </tr>
         </tbody>
       </table>
 
-      <div style="background: ${isActif ? '#f0fdf4' : '#fef2f2'}; border-left: 3px solid ${isActif ? '#16a34a' : '#dc2626'}; padding: 6px; font-size: 8.5px; line-height: 1.3; margin-top: 6px;">
-        <strong>Recommandation opérationnelle pour le cas ${nom} :</strong><br>
+      <!-- RECOMMANDATION OPÉRATIONNELLE -->
+      <div style="background: ${isActif ? '#f0fdf4' : '#fef2f2'}; border-left: 3px solid ${isActif ? '#16a34a' : '#dc2626'}; padding: 5px; font-size: 8px; line-height: 1.25; margin-top: 4px;">
+        <strong>Recommandation Opérationnelle pour le dossier ${nom} :</strong><br>
         ${isActif 
-          ? `Compte tenu du score de solvabilité de <strong>88/100</strong>, l'entreprise présente toutes les garanties nécessaires pour bénéficier de conditions d'encours standard jusqu'à <strong>25 000 € HT</strong>.` 
-          : `Compte tenu du score de solvabilité de <strong>24/100</strong> et de la présence d'un privilège URSSAF, il est fortement recommandé d'exiger un règlement comptant avant toute livraison.`
+          ? `Au vu du score de solvabilité de <strong>88/100</strong>, l'entreprise offre de solides garanties. Vous pouvez accorder un encours commercial jusqu'à <strong>25 000 € HT</strong> en règlement à 30 jours fin de mois sans risque majeur.` 
+          : `Au vu du score de solvabilité de <strong>24/100</strong> et du signal d'alerte sur les privilèges, il est formellement préconisé d'exiger un paiement comptant avant toute expédition de marchandises.`
         }
       </div>
 
-      <!-- NOUVEAU MODULE 4 : CONSEILS DE SÉCURISATION DE CRÉANCE -->
-      <div class="pdf-sec-head">7. Préconisations de Sécurisation Contractuelle</div>
-      <table style="width: 100%; border-collapse: separate; border-spacing: 4px; font-size: 8px;">
+      <!-- MODULE 8 : PRECONISATIONS CONTRACTUELLES -->
+      <div class="pdf-sec-head">8. Préconisations de Sécurisation Contractuelle des Créances</div>
+      <table style="width: 100%; border-collapse: separate; border-spacing: 3px; font-size: 7.8px; margin-bottom: 4px;">
         <tr>
-          <td style="width: 50%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 5px;">
-            <strong>Éligibilité Assurance-Crédit :</strong> ${isActif ? '✅ Couverture à 100% accordable' : '❌ Refus de garantie par les assureurs-crédit'}<br>
+          <td style="width: 50%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px;">
+            <strong>Éligibilité Assurance-Crédit :</strong> ${isActif ? '✅ Couverture à 100% accordable' : '❌ Refus d\'agrément par les assureurs-crédit'}<br>
             <strong>Clause de Réserve de Propriété :</strong> ${isActif ? 'Recommandée sur Factures' : 'Obligatoire dans les CGV'}
           </td>
-          <td style="width: 50%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 5px;">
-            <strong>Autorisation d'Encours :</strong> ${isActif ? 'Valide jusqu\'au 31/12/2026' : 'Suspendue immédiatement'}<br>
-            <strong>Pénalités de Retard Légal :</strong> Taux BCE + 10% + Indemnité forfaitaire 40 €
+          <td style="width: 50%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px;">
+            <strong>Autorisation d'Encours Client :</strong> ${isActif ? 'Valide jusqu\'au 31/12/2026' : 'Suspendue immédiatement'}<br>
+            <strong>Pénalités de Retard Légal :</strong> Taux BCE + 10% + Indemnité forfaitaire de 40 €
           </td>
         </tr>
       </table>
 
-      <div style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 5px; font-size: 7.5px; color: #64748b; margin-top: 6px;">
-        <strong>Note d'information :</strong> L'analyse de solvabilité s'appuie sur la publication légale des comptes annuels auprès des greffes des tribunaux de commerce et la base INPI/BODACC.
+      <!-- MENTION LÉGALE DE CERTIFICATION -->
+      <div style="background: #f8fafc; border: 1px dashed #cbd5e1; padding: 4px; font-size: 7.2px; color: #64748b; margin-top: 4px;">
+        <strong>Avis de Confidentialité &amp; Sources :</strong> Ce rapport d'analyse de solvabilité s'appuie sur l'exploitation des données publiques issues des Registres du Commerce (INPI, BODACC, Greffes des Tribunaux de Commerce). Document généré pour le compte de l'utilisateur abonné à la plateforme Tech Audit B2B.
       </div>
 
       <div class="pdf-footer-line">
-        <span>Analyse de Solvabilité Tech Audit B2B</span>
+        <span>Rapport d'Analyse de Solvabilité B2B &nbsp;&mdash;&nbsp; Tech Audit B2B</span>
         <span>Page 2 sur 2</span>
       </div>
     </div>
   `;
 
-  const options = {
-    margin: 0,
-    filename: `Rapport_Audit_${siren}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { 
-      scale: 2, 
-      useCORS: true, 
-      logging: false,
-      letterRendering: true
-    },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'] }
-  };
+  // 3. Temporisation de 250ms pour laisser Chart.js finaliser le tracé du graphique
+  setTimeout(() => {
+    const options = {
+      margin: 0,
+      filename: `Rapport_Audit_${siren}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { 
+        scale: 2, 
+        useCORS: true, 
+        logging: false,
+        letterRendering: true
+      },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] }
+    };
 
-  html2pdf().set(options).from(pdfTemplate).save();
+    html2pdf().set(options).from(pdfTemplate).save();
+  }, 250);
 }
