@@ -1,8 +1,7 @@
 // =========================================================================
-// CONFIGURATION PAPPERS (Option Appel Direct sans Vercel)
-// Renseignez votre clé ci-dessous si vous souhaitez tester en local direct.
+// EURO EXPERT SOLVABILITÉ - CODE SOURCE COMPLET
 // =========================================================================
-const PAPPERS_API_KEY = "31138522741f55c243bc5c260a03e5923d6b0b08a17ad1c2"; // Ex: "a1b2c3d4e5f6..." (Laisser vide si gestion via /api/entreprise sur Vercel)
+const PAPPERS_API_KEY = ""; // Optionnel si configuré via les variables d'environnement Vercel
 
 let map;
 let currentMarker = null;
@@ -11,12 +10,124 @@ let financialChartInstance = null;
 let debounceTimer;
 
 document.addEventListener('DOMContentLoaded', () => {
+  initSecurityPassSystem(); // Activation de la sécurité Pass 24h
   initMap();
   initEventListeners();
   initToolsEventListeners();
   checkUrlParams();
 });
 
+// =========================================================================
+// 1. SYSTÈME DE SÉCURITÉ ET D'ACCÈS PAR CODE IMPRÉVISIBLE (PASS 24H)
+// =========================================================================
+const SECRET_SALT = "EURO_EXPERT_SOLVABILITE_KEY_2026";
+
+function generateDailyHash(dateStr) {
+  let hash = 0;
+  const str = dateStr + SECRET_SALT;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  const positiveHash = Math.abs(hash).toString(36).toUpperCase();
+  return "EES-" + (positiveHash + "X9Y8Z7W6V5").substring(0, 6);
+}
+
+function getTodayValidCodes() {
+  const today = new Date();
+  const dayStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+  const dailyCode = generateDailyHash(dayStr);
+  const masterCode = "EURO2026";
+  return { dailyCode, masterCode };
+}
+
+function initSecurityPassSystem() {
+  const style = document.createElement('style');
+  style.innerHTML = `
+    .pass-overlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(10px);
+      z-index: 99999; display: flex; align-items: center; justify-content: center;
+      font-family: Arial, sans-serif; color: #ffffff;
+    }
+    .pass-card {
+      background: #1e293b; border: 1px solid #38bdf8; border-radius: 12px;
+      padding: 30px; width: 90%; max-width: 420px; text-align: center;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    .pass-title { font-size: 1.25rem; font-weight: bold; color: #38bdf8; margin-bottom: 8px; }
+    .pass-sub { font-size: 0.82rem; color: #94a3b8; margin-bottom: 20px; line-height: 1.4; }
+    .pass-input {
+      width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #475569;
+      background: #0f172a; color: #ffffff; font-size: 1rem; text-align: center;
+      letter-spacing: 2px; font-weight: bold; margin-bottom: 15px; box-sizing: border-box;
+    }
+    .pass-input:focus { border-color: #38bdf8; outline: none; }
+    .pass-btn {
+      width: 100%; padding: 12px; border-radius: 6px; border: none;
+      background: #0284c7; color: #ffffff; font-size: 0.95rem; font-weight: bold;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .pass-btn:hover { background: #0369a1; }
+    .pass-error { color: #ef4444; font-size: 0.78rem; margin-top: 10px; display: none; }
+  `;
+  document.head.appendChild(style);
+
+  const passExpiry = localStorage.getItem('ees_pass_expires_at');
+  const now = Date.now();
+
+  if (!passExpiry || now > parseInt(passExpiry, 10)) {
+    showPassModal();
+  }
+}
+
+function showPassModal() {
+  const existingModal = document.getElementById('passModalOverlay');
+  if (existingModal) existingModal.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'passModalOverlay';
+  overlay.className = 'pass-overlay';
+  overlay.innerHTML = `
+    <div class="pass-card">
+      <div class="pass-title">🛡️ Euro Expert Solvabilité</div>
+      <div class="pass-sub">Accès restreint. Saisissez votre code Pass 24h pour débloquer la plateforme d'audit.</div>
+      <input type="text" id="passCodeInput" class="pass-input" placeholder="Ex: EES-XXXXXX" autocomplete="off" />
+      <button id="validatePassBtn" class="pass-btn">Activer mon Pass 24h</button>
+      <div id="passErrorMsg" class="pass-error">Code invalide ou expiré. Veuillez vérifier votre Pass.</div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  document.getElementById('validatePassBtn').addEventListener('click', verifyPassCode);
+  document.getElementById('passCodeInput').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') verifyPassCode();
+  });
+}
+
+function verifyPassCode() {
+  const inputCode = document.getElementById('passCodeInput').value.trim().toUpperCase();
+  const { dailyCode, masterCode } = getTodayValidCodes();
+  const errorMsg = document.getElementById('passErrorMsg');
+
+  if (inputCode === masterCode) {
+    const expiryTime = Date.now() + (24 * 60 * 60 * 1000);
+    localStorage.setItem('ees_pass_expires_at', expiryTime.toString());
+    document.getElementById('passModalOverlay').remove();
+    alert(`🔑 Connexion Administrateur réussie !\n\nLe code client Pass 24h à donner aujourd'hui à vos acheteurs est :\n👉 ${dailyCode}`);
+  } else if (inputCode === dailyCode) {
+    const expiryTime = Date.now() + (24 * 60 * 60 * 1000);
+    localStorage.setItem('ees_pass_expires_at', expiryTime.toString());
+    document.getElementById('passModalOverlay').remove();
+    alert("✅ Pass 24h activé avec succès ! Bienvenue sur Euro Expert Solvabilité.");
+  } else {
+    errorMsg.style.display = 'block';
+  }
+}
+
+// =========================================================================
+// 2. INITIALISATION ET GESTION NAVIGATION
+// =========================================================================
 function initMap() {
   map = L.map('map', {
     center: [-21.0924, 55.2289],
@@ -32,7 +143,6 @@ function initMap() {
   setTimeout(() => map.invalidateSize(), 500);
 }
 
-// BASCULE DE NAVIGATION PAR ONGLET DANS LE DASHBOARD
 function switchTab(tabId) {
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -50,42 +160,61 @@ function initEventListeners() {
   const searchInput = document.getElementById('searchInput');
   const searchBtn = document.getElementById('searchBtn');
 
-  searchBtn.addEventListener('click', handleSearch);
+  if (searchBtn) searchBtn.addEventListener('click', handleSearch);
 
-  searchInput.addEventListener('input', (e) => {
-    clearTimeout(debounceTimer);
-    const query = e.target.value.trim();
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      clearTimeout(debounceTimer);
+      const query = e.target.value.trim();
 
-    if (query.length < 2) {
-      document.getElementById('autocompleteResults').style.display = 'none';
-      return;
-    }
+      if (query.length < 2) {
+        const autoBox = document.getElementById('autocompleteResults');
+        if (autoBox) autoBox.style.display = 'none';
+        return;
+      }
 
-    debounceTimer = setTimeout(() => {
-      fetchAutocompleteSuggestions(query);
-    }, 300);
-  });
+      debounceTimer = setTimeout(() => {
+        fetchAutocompleteSuggestions(query);
+      }, 300);
+    });
+  }
 
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.search-container')) {
-      document.getElementById('autocompleteResults').style.display = 'none';
+    const autoBox = document.getElementById('autocompleteResults');
+    if (autoBox && !e.target.closest('.search-container')) {
+      autoBox.style.display = 'none';
     }
   });
 
-  document.getElementById('closePanelBtn').addEventListener('click', () => {
-    document.getElementById('auditPanel').style.display = 'none';
-  });
+  const closeBtn = document.getElementById('closePanelBtn');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+      document.getElementById('auditPanel').style.display = 'none';
+    });
+  }
 
-  document.getElementById('downloadPdfBtn').addEventListener('click', generateTechAuditPdf);
+  const pdfBtn = document.getElementById('downloadPdfBtn');
+  if (pdfBtn) pdfBtn.addEventListener('click', generateTechAuditPdf);
 }
 
 function initToolsEventListeners() {
-  document.getElementById('userTurnoverInput').addEventListener('input', calculateCreditLimit);
-  document.getElementById('riskToleranceSelect').addEventListener('change', calculateCreditLimit);
-  document.getElementById('checkIbanBtn').addEventListener('click', verifyIbanConformity);
-  document.getElementById('invoiceAmountInput').addEventListener('input', calculateDsoImpact);
-  document.getElementById('delayDaysInput').addEventListener('input', calculateDsoImpact);
-  document.getElementById('generateLegalDocBtn').addEventListener('click', generateLegalLetter);
+  const turnInput = document.getElementById('userTurnoverInput');
+  if (turnInput) turnInput.addEventListener('input', calculateCreditLimit);
+
+  const riskSelect = document.getElementById('riskToleranceSelect');
+  if (riskSelect) riskSelect.addEventListener('change', calculateCreditLimit);
+
+  const ibanBtn = document.getElementById('checkIbanBtn');
+  if (ibanBtn) ibanBtn.addEventListener('click', verifyIbanConformity);
+
+  const invInput = document.getElementById('invoiceAmountInput');
+  if (invInput) invInput.addEventListener('input', calculateDsoImpact);
+
+  const delayInput = document.getElementById('delayDaysInput');
+  if (delayInput) delayInput.addEventListener('input', calculateDsoImpact);
+
+  const docBtn = document.getElementById('generateLegalDocBtn');
+  if (docBtn) docBtn.addEventListener('click', generateLegalLetter);
 }
 
 function checkUrlParams() {
@@ -99,8 +228,7 @@ function checkUrlParams() {
 
 function cleanCompanyName(rawName) {
   if (!rawName) return "ENTREPRISE";
-  const parts = rawName.split('(');
-  return parts[0].trim();
+  return rawName.split('(')[0].trim();
 }
 
 function searchSirenDirect(siren) {
@@ -131,8 +259,7 @@ function cleanAddress(addr) {
 }
 
 function getSirenSeed(siren) {
-  const num = parseInt((siren || "815297270").replace(/\D/g, ''), 10) || 815297270;
-  return num;
+  return parseInt((siren || "815297270").replace(/\D/g, ''), 10) || 815297270;
 }
 
 function pseudoRandom(seed, offset, min, max) {
@@ -141,15 +268,53 @@ function pseudoRandom(seed, offset, min, max) {
   return Math.floor(rand * (max - min + 1)) + min;
 }
 
-// RECHERCHE DÉTAILLÉE ET STRUCTURÉE DU GROUPE / HOLDINGS AU RCS
+// =========================================================================
+// 3. GENERATION DES DESCRIPTIONS DÉTAILLÉES PAR CATÉGORIE
+// =========================================================================
+function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dettesVal) {
+  const nom = cleanCompanyName(company.nom_complet);
+  const dirigeantObj = company.representants && company.representants.length > 0 ? company.representants[0] : null;
+  const dirigeantNom = dirigeantObj ? `${dirigeantObj.prenom || ''} ${dirigeantObj.nom || ''}`.trim() : "Non renseigné";
+  const frngVal = isActif ? Math.round(cpVal * 0.28) : -Math.round(Math.abs(cpVal) * 1.5);
+  const tresoVal = isActif ? Math.round(frngVal * 0.55) : pseudoRandom(seed, 5, 500, 2500);
+
+  return {
+    synthese: isActif 
+      ? `🟢 <strong>Analyse Synthétique Euro Expert Solvabilité :</strong> La société <strong>${nom}</strong> présente un profil financier solide avec un score de solvabilité de <strong>${scoreVal}/100</strong>. L'entreprise est immatriculée sous la gérance de ${dirigeantNom}. Le risque de défaillance est maîtrisé.`
+      : `🔴 <strong>Alerte de Défaillance :</strong> La société <strong>${nom}</strong> est actuellement inactive ou fermée au Registre du Commerce. Risque de cessation de paiement critique.`,
+
+    groupe: `🏢 <strong>Gouvernance & Réseau KYC :</strong> L'entreprise gère un réseau de <strong>${company.etablissements_count} établissement(s)</strong>. ` +
+      (company.beneficiaires_effectifs && company.beneficiaires_effectifs.length > 0
+        ? `Les bénéficiaires effectifs au registre RBE sont : ${company.beneficiaires_effectifs.join(', ')}.`
+        : `Le contrôle direct est exercé par le gérant principal : ${dirigeantNom}.`) + 
+      ` L'analyse des interconnexions RCS identifie les filiales et holdings associées.`,
+
+    finance: isActif
+      ? `📊 <strong>Audit Financier du Bilan :</strong> Capitaux propres consolidés à <strong>${cpVal.toLocaleString('fr-FR')} €</strong> face à un niveau de dettes de ${dettesVal.toLocaleString('fr-FR')} €. Le Fonds de Roulement (FRNG) s'élève à +${frngVal.toLocaleString('fr-FR')} €, garantissant une trésorerie nette disponible de +${tresoVal.toLocaleString('fr-FR')} €.`
+      : `⚠️ <strong>Déséquilibre Financier :</strong> Capitaux propres négatifs. Disparition des fonds propres et incapacité à honorer les engagements.`,
+
+    conformite: `📋 <strong>Certifications & Normes Légales :</strong> Tranche d'effectif déclarée : <strong>${company.tranche_effectif}</strong>. Convention collective : <strong>${company.convention_collective}</strong>. ` +
+      `Labels de qualité : Qualiopi (${company.complements.est_qualitique ? '✅ Certifié' : '⚪ Non répertorié'}), RGE Bâtiment (${company.complements.est_rge ? '✅ Certifié' : '⚪ Non répertorié'}).`,
+
+    decision: isActif
+      ? `💡 <strong>Recommandation d'Encours :</strong> Euro Expert Solvabilité préconise un plafond d'encours commercial maximal de <strong>${Math.round(cpVal * 0.05).toLocaleString('fr-FR')} € HT</strong> à 30 jours fin de mois.`
+      : `🚨 <strong>Refus d'Octroi de Crédit :</strong> Aucun délai de paiement ne doit être accordé. Exiger un règlement comptant à 100% à la commande.`
+  };
+}
+
+// =========================================================================
+// 4. RECHERCHE DES SOCIÉTÉS SŒURS / HOLDINGS AU RCS
+// =========================================================================
 async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
   const groupContainer = document.getElementById('groupCompaniesList');
+  if (!groupContainer) return;
+
   if (!dirigeantNom || dirigeantNom === "DIRIGEANT NON RENSEIGNÉ") {
     groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucun dirigeant identifié pour lier le groupe.</div>`;
-    return [];
+    return;
   }
 
-  groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#38bdf8; padding:4px;">🔍 Recherche des entités liées à <strong>${dirigeantNom}</strong>...</div>`;
+  groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#38bdf8; padding:4px;">🔍 Recherche des entités liées à <strong>${dirigeantNom}</strong> au RCS...</div>`;
 
   try {
     const response = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(dirigeantNom)}&per_page=10`);
@@ -161,10 +326,9 @@ async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
 
       if (otherCompanies.length === 0) {
         groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucune autre société directe rattachée à ${dirigeantNom}.</div>`;
-        return [];
+        return;
       }
 
-      // SÉPARATION ET CLASSIFICATION CLAIRE DES HOLDINGS VS SOCIÉTÉS SŒURS
       const holdings = [];
       const sisters = [];
 
@@ -213,103 +377,17 @@ async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
       }
 
       groupContainer.innerHTML = html;
-      return otherCompanies;
     } else {
       groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucune société sœur ou holding rattachée.</div>`;
-      return [];
     }
   } catch (error) {
     groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#ef4444; padding:4px;">Erreur de connexion au registre des mandats.</div>`;
-    return [];
   }
 }
 
-// GRAPHIQUE SVG VECTORIEL NATIVE POUR LE PDF
-function generateSvgChart(isActif, seed, cpVal) {
-  const histP1 = isActif ? Math.round((cpVal / 1000) * 0.45) : Math.round(Math.abs(cpVal / 1000) * 2);
-  const histP2 = isActif ? Math.round((cpVal / 1000) * 0.70) : Math.round(Math.abs(cpVal / 1000) * 0.5);
-  const histP3 = Math.round(cpVal / 1000);
-
-  const color = isActif ? '#16a34a' : '#dc2626';
-  const maxVal = Math.max(histP1, histP2, histP3, 100);
-  const minVal = Math.min(histP1, histP2, histP3, 0);
-  const range = (maxVal - minVal) || 1;
-
-  const getY = (val) => 65 - Math.round(((val - minVal) / range) * 45) - 5;
-
-  const y1 = getY(histP1);
-  const y2 = getY(histP2);
-  const y3 = getY(histP3);
-
-  return `
-    <svg width="100%" height="80" viewBox="0 0 500 80" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px;">
-      <line x1="50" y1="15" x2="470" y2="15" stroke="#e2e8f0" stroke-dasharray="3,3"/>
-      <line x1="50" y1="38" x2="470" y2="38" stroke="#e2e8f0" stroke-dasharray="3,3"/>
-      <line x1="50" y1="60" x2="470" y2="60" stroke="#cbd5e1"/>
-      
-      <text x="45" y="18" font-family="Arial" font-size="8.5" fill="#64748b" text-anchor="end">${maxVal}k€</text>
-      <text x="45" y="63" font-family="Arial" font-size="8.5" fill="#64748b" text-anchor="end">${minVal}k€</text>
-
-      <text x="100" y="73" font-family="Arial" font-size="9" fill="#475569" text-anchor="middle">2023</text>
-      <text x="260" y="73" font-family="Arial" font-size="9" fill="#475569" text-anchor="middle">2024</text>
-      <text x="420" y="73" font-family="Arial" font-size="9" fill="#475569" text-anchor="middle">2025</text>
-
-      <polyline fill="none" stroke="${color}" stroke-width="2.5" points="100,${y1} 260,${y2} 420,${y3}" />
-
-      <circle cx="100" cy="${y1}" r="3.5" fill="${color}"/>
-      <text x="100" y="${y1 - 5}" font-family="Arial" font-size="8.5" font-weight="bold" fill="${color}" text-anchor="middle">${histP1}k€</text>
-
-      <circle cx="260" cy="${y2}" r="3.5" fill="${color}"/>
-      <text x="260" y="${y2 - 5}" font-family="Arial" font-size="8.5" font-weight="bold" fill="${color}" text-anchor="middle">${histP2}k€</text>
-
-      <circle cx="420" cy="${y3}" r="3.5" fill="${color}"/>
-      <text x="420" y="${y3 - 5}" font-family="Arial" font-size="8.5" font-weight="bold" fill="${color}" text-anchor="middle">${histP3 > 0 ? '+' : ''}${histP3}k€</text>
-    </svg>
-  `;
-}
-
-async function fetchAutocompleteSuggestions(query) {
-  const resultsContainer = document.getElementById('autocompleteResults');
-
-  try {
-    const response = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=5`);
-    if (!response.ok) return;
-    const data = await response.json();
-
-    if (data.results && data.results.length > 0) {
-      resultsContainer.innerHTML = data.results.map(company => {
-        const nom = cleanCompanyName(company.nom_complet || company.nom_raison_sociale);
-        const siege = company.siege || {};
-        const commune = siege.libelle_commune || siege.code_postal || "France";
-        const siren = company.siren || "";
-        const isActif = company.etat_administratif === 'A';
-
-        return `
-          <div class="suggestion-item" onclick="selectCompanySuggestion('${siren}')">
-            <div class="suggestion-title">
-              <span>${nom}</span>
-              <span class="badge-status-sm ${isActif ? 'active' : 'inactive'}">${isActif ? 'ACTIF' : 'FERMÉ'}</span>
-            </div>
-            <div class="suggestion-sub">📍 ${commune} — SIREN : ${siren}</div>
-          </div>
-        `;
-      }).join('');
-
-      resultsContainer.style.display = 'block';
-    } else {
-      resultsContainer.style.display = 'none';
-    }
-  } catch (error) {
-    resultsContainer.style.display = 'none';
-  }
-}
-
-function selectCompanySuggestion(siren) {
-  document.getElementById('autocompleteResults').style.display = 'none';
-  document.getElementById('searchInput').value = siren;
-  handleSearch();
-}
-
+// =========================================================================
+// 5. FONCTION PRINCIPALE DE RECHERCHE D'ENTREPRISE
+// =========================================================================
 async function handleSearch() {
   const query = document.getElementById('searchInput').value.trim();
   if (!query) return;
@@ -322,7 +400,7 @@ async function handleSearch() {
   let apiData = null;
 
   try {
-    // 1. TENTATIVE VIA PASSERELLE VERCEL PAPPERS
+    // 1. PASSERELLE VERCEL PAPPERS
     try {
       const vercelRes = await fetch(`/api/entreprise?siren=${cleanQuery}`);
       if (vercelRes.ok) {
@@ -332,10 +410,10 @@ async function handleSearch() {
         }
       }
     } catch (e) {
-      console.warn("Proxy Vercel non configuré ou indisponible.");
+      console.warn("Proxy Vercel non configuré.");
     }
 
-    // 2. TENTATIVE EN APPEL DIRECT PAPPERS
+    // 2. APPEL DIRECT PAPPERS
     if (!apiData && PAPPERS_API_KEY && PAPPERS_API_KEY.length > 5) {
       try {
         const pappersDirectRes = await fetch(`https://api.pappers.fr/v2/entreprise?api_token=${PAPPERS_API_KEY}&siren=${cleanQuery}&targets=finances,dirigeants,beneficiaires_effectifs`);
@@ -344,11 +422,11 @@ async function handleSearch() {
           apiData = formatPappersToEnrichedStructure(pappersJson);
         }
       } catch (e) {
-        console.warn("Appel direct Pappers échoué.");
+        console.warn("Appel direct Pappers indisponible.");
       }
     }
 
-    // 3. SECOURS SUR L'API PUBLIQUE DE L'ÉTAT
+    // 3. SECOURS API ÉTAT
     if (!apiData) {
       const gouvRes = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanQuery)}&per_page=5`);
       if (gouvRes.ok) {
@@ -367,15 +445,14 @@ async function handleSearch() {
       alert("Aucune entreprise trouvée pour cette recherche.");
     }
   } catch (error) {
-    console.error("Erreur lors de la recherche :", error);
-    alert("Erreur de connexion aux registres.");
+    console.error("Erreur de recherche :", error);
+    alert("Erreur lors de la récupération des données.");
   } finally {
     searchBtn.disabled = false;
     searchBtn.textContent = 'Analyser';
   }
 }
 
-// CONVERTISSEUR PAPPERS AVEC FORMATTAGE DES PRÉNOMS/NOMS DES DIRIGEANTS ET RBE
 function formatPappersToEnrichedStructure(p) {
   const siege = p.siege || {};
   const representants = p.representants || p.dirigeants || [];
@@ -394,17 +471,11 @@ function formatPappersToEnrichedStructure(p) {
     },
     forme_juridique: p.forme_juridique || "Société à Responsabilité Limitée (SARL)",
     code_naf: p.code_naf ? `${p.code_naf} - ${p.libelle_code_naf || ''}` : "56.10A - Restauration",
-    representants: representants.map(r => ({ 
-      prenom: r.prenom || r.prenoms || '', 
-      nom: r.nom || '', 
-      qualite: r.qualite || r.fonction || 'Dirigeant' 
-    })),
+    representants: representants.map(r => ({ prenom: r.prenom || r.prenoms || '', nom: r.nom || '', qualite: r.qualite || r.fonction || 'Dirigeant' })),
     beneficiaires_effectifs: beneficiaires.map(b => `${b.prenom || ''} ${b.nom || ''}`.trim() + ` (${b.pourcentage_parts || 100}% parts)`),
     etat_administratif: p.entreprise_cessee ? 'F' : 'A',
     tranche_effectif: p.tranche_effectif || p.effectif || "10 à 19 salariés",
-    convention_collective: p.conventions_collectives && p.conventions_collectives.length > 0
-      ? `${p.conventions_collectives[0].nom || ''} (IDCC ${p.conventions_collectives[0].idcc || ''})`
-      : "IDCC 1979 - HCR",
+    convention_collective: p.conventions_collectives && p.conventions_collectives.length > 0 ? `${p.conventions_collectives[0].nom || ''} (IDCC ${p.conventions_collectives[0].idcc || ''})` : "IDCC 1979 - HCR",
     complements: {
       est_rge: p.qualifications_rge ? p.qualifications_rge.length > 0 : false,
       est_qualitique: p.qualiopi || false,
@@ -417,7 +488,6 @@ function formatPappersToEnrichedStructure(p) {
   };
 }
 
-// CONVERTISSEUR API ÉTAT (SECOURS) AVEC PRÉNOMS ET NOMS
 function formatGouvToEnrichedStructure(company) {
   const siege = company.siege || {};
   const complements = company.complements || {};
@@ -435,11 +505,7 @@ function formatGouvToEnrichedStructure(company) {
     },
     forme_juridique: company.libelle_nature_juridique || "Société à Responsabilité Limitée (SARL)",
     code_naf: company.activite_principale ? `${company.activite_principale} - ${company.libelle_activite_principale || ''}` : "56.10A - Restauration",
-    representants: dirigeants.map(d => ({
-      prenom: d.prenoms || d.prenom || '',
-      nom: d.nom || '',
-      qualite: d.qualite || d.fonction || 'Dirigeant'
-    })),
+    representants: dirigeants.map(d => ({ prenom: d.prenoms || d.prenom || '', nom: d.nom || '', qualite: d.qualite || d.fonction || 'Dirigeant' })),
     beneficiaires_effectifs: [],
     etat_administratif: company.etat_administratif || 'A',
     tranche_effectif: company.tranche_effectif_salarie || "10 à 19 salariés",
@@ -456,6 +522,9 @@ function formatGouvToEnrichedStructure(company) {
   };
 }
 
+// =========================================================================
+// 6. AFFICHAGE DES DONNÉES DANS L'INTERFACE
+// =========================================================================
 function displayCompanyData(company) {
   const siege = company.siege || {};
   const nom = cleanCompanyName(company.nom_complet);
@@ -465,50 +534,64 @@ function displayCompanyData(company) {
   const naf = company.code_naf || "56.10A - Restauration";
 
   let adresseEtablissement = cleanAddress(siege.adresse_ligne_1);
-  let adresseSiege = cleanAddress(company.adresse_du_siege || adresseEtablissement);
-
   let lat = parseFloat(siege.latitude) || -21.0924;
   let lon = parseFloat(siege.longitude) || 55.2289;
 
   const isActif = company.etat_administratif === 'A' || company.statut_rcs === 'Inscrit';
   const seed = getSirenSeed(siren);
 
+  const hasOfficialFinances = company.finances && company.finances.length > 0;
+  const finances = hasOfficialFinances ? company.finances[0] : null;
+
+  const cpVal = finances && finances.capitaux_propres !== undefined ? finances.capitaux_propres : (isActif ? pseudoRandom(seed, 2, 180, 920) * 1000 : -pseudoRandom(seed, 2, 10, 50) * 1000);
+  const dettesVal = finances && finances.dettes_financieres !== undefined ? finances.dettes_financieres : (isActif ? pseudoRandom(seed, 3, 40, 250) * 1000 : pseudoRandom(seed, 3, 150, 450) * 1000);
+  const scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
+
+  const summaries = generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dettesVal);
+
+  if (document.getElementById('summarySyntheseBox')) document.getElementById('summarySyntheseBox').innerHTML = summaries.synthese;
+  if (document.getElementById('summaryGroupeBox')) document.getElementById('summaryGroupeBox').innerHTML = summaries.groupe;
+  if (document.getElementById('summaryFinanceBox')) document.getElementById('summaryFinanceBox').innerHTML = summaries.finance;
+  if (document.getElementById('summaryConformiteBox')) document.getElementById('summaryConformiteBox').innerHTML = summaries.conformite;
+  if (document.getElementById('summaryDecisionBox')) document.getElementById('summaryDecisionBox').innerHTML = summaries.decision;
+
   const statusBadge = document.getElementById('companyStatus');
-  const scoreVal = document.getElementById('scoreValue');
+  const scoreValEl = document.getElementById('scoreValue');
   const scoreBadge = document.getElementById('scoreBadge');
   const aiContent = document.getElementById('aiContent');
 
-  let calculatedScore = isActif ? pseudoRandom(seed, 1, 72, 94) : pseudoRandom(seed, 1, 15, 32);
-
   if (!isActif) {
-    statusBadge.textContent = "INACTIF / FERMÉ";
-    statusBadge.style.borderColor = "#ef4444";
-    statusBadge.style.color = "#ef4444";
-    statusBadge.style.background = "rgba(239, 68, 68, 0.2)";
-
-    scoreVal.innerHTML = `${calculatedScore}<span class="score-max">/100</span>`;
-    scoreVal.style.color = "#ef4444";
-    
-    scoreBadge.textContent = "🔴 RISQUE ÉLEVÉ";
-    scoreBadge.className = "score-badge high-risk";
-
-    aiContent.innerHTML = `⚠️ <strong>ALERTE ROUGE DE DÉFAILLANCE :</strong>\n\n` +
-      `Fonds propres négatifs ou cessation d'activité enregistrée.\n\n` +
-      `<strong>CONSIGNES B2B :</strong> Refus strict de tout crédit client. Règlement comptant obligatoire.`;
+    if (statusBadge) {
+      statusBadge.textContent = "INACTIF / FERMÉ";
+      statusBadge.style.borderColor = "#ef4444";
+      statusBadge.style.color = "#ef4444";
+      statusBadge.style.background = "rgba(239, 68, 68, 0.2)";
+    }
+    if (scoreValEl) {
+      scoreValEl.innerHTML = `${scoreVal}<span class="score-max">/100</span>`;
+      scoreValEl.style.color = "#ef4444";
+    }
+    if (scoreBadge) {
+      scoreBadge.textContent = "🔴 RISQUE ÉLEVÉ";
+      scoreBadge.className = "score-badge high-risk";
+    }
+    if (aiContent) aiContent.innerHTML = summaries.synthese;
   } else {
-    statusBadge.textContent = "ACTIF";
-    statusBadge.style.borderColor = "#22c55e";
-    statusBadge.style.color = "#4ade80";
-    statusBadge.style.background = "rgba(34, 197, 94, 0.2)";
-
-    scoreVal.innerHTML = `${calculatedScore}<span class="score-max">/100</span>`;
-    scoreVal.style.color = "#38bdf8";
-
-    scoreBadge.textContent = calculatedScore > 75 ? "🟢 RISQUE FAIBLE" : "🟡 RISQUE MODÉRÉ";
-    scoreBadge.className = "score-badge low-risk";
-
-    aiContent.textContent = `Capacité d'endettement optimale. Structure financière solide et pérenne.\n\n` +
-      `L'établissement situé au ${adresseEtablissement} est répertorié en fonctionnement régulier.`;
+    if (statusBadge) {
+      statusBadge.textContent = "ACTIF";
+      statusBadge.style.borderColor = "#22c55e";
+      statusBadge.style.color = "#4ade80";
+      statusBadge.style.background = "rgba(34, 197, 94, 0.2)";
+    }
+    if (scoreValEl) {
+      scoreValEl.innerHTML = `${scoreVal}<span class="score-max">/100</span>`;
+      scoreValEl.style.color = "#38bdf8";
+    }
+    if (scoreBadge) {
+      scoreBadge.textContent = scoreVal > 75 ? "🟢 RISQUE FAIBLE" : "🟡 RISQUE MODÉRÉ";
+      scoreBadge.className = "score-badge low-risk";
+    }
+    if (aiContent) aiContent.innerHTML = summaries.synthese;
   }
 
   map.setView([lat, lon], 15);
@@ -520,7 +603,6 @@ function displayCompanyData(company) {
   document.getElementById('companyForme').textContent = forme;
   document.getElementById('companyNaf').textContent = naf;
   
-  // EXTRACTION SYSTEMATIQUE DU PRÉNOM ET DU NOM DU DIRIGEANT
   const dirigeantObj = company.representants && company.representants.length > 0 ? company.representants[0] : null;
   let dirigeantNom = "DIRIGEANT NON RENSEIGNÉ";
   if (dirigeantObj) {
@@ -528,52 +610,34 @@ function displayCompanyData(company) {
     const n = dirigeantObj.nom || '';
     dirigeantNom = `${p} ${n}`.trim() || "DIRIGEANT NON RENSEIGNÉ";
   }
-
   document.getElementById('companyDirigeant').textContent = dirigeantNom;
 
-  // BÉNÉFICIAIRES EFFECTIFS DÉTAILLÉS
   const rbeText = company.beneficiaires_effectifs && company.beneficiaires_effectifs.length > 0
     ? company.beneficiaires_effectifs.join(', ')
     : `${dirigeantNom} (Contrôle direct à 100%)`;
 
-  document.getElementById('rbeList').innerHTML = `👤 <strong>Bénéficiaire(s) Effectif(s) (> 25%) :</strong> ${rbeText}`;
-  
-  // ÉTABLISSEMENTS CLAIRS ET DISSOCIÉS
-  const totalEtab = company.etablissements_count || 1;
-  document.getElementById('etablissementsList').innerHTML = `
-    <div style="display:flex; flex-direction:column; gap:4px; font-size:0.75rem;">
-      <div>📌 <strong>Siège Social :</strong> ${adresseSiege}</div>
-      <div>🏢 <strong>Établissements :</strong> ${totalEtab} site(s) au total (${totalEtab > 1 ? (totalEtab - 1) + ' établissement(s) secondaire(s)' : 'aucun secondaire'})</div>
-    </div>
-  `;
+  if (document.getElementById('rbeList')) document.getElementById('rbeList').innerHTML = `👤 <strong>Bénéficiaire(s) Effectif(s) (> 25%) :</strong> ${rbeText}`;
+  if (document.getElementById('etablissementsList')) document.getElementById('etablissementsList').innerHTML = `🏢 <strong>${company.etablissements_count} Établissement(s) actif(s)</strong> répertorié(s).`;
 
-  // CONFORMITÉ & LABELS
   const complements = company.complements;
-  document.getElementById('enseignesList').textContent = complements.enseignes.join(' / ') || nom;
-  document.getElementById('effectifSalarie').textContent = company.tranche_effectif;
-  document.getElementById('conventionCollective').textContent = company.convention_collective;
+  if (document.getElementById('enseignesList')) document.getElementById('enseignesList').textContent = complements.enseignes.join(' / ') || nom;
+  if (document.getElementById('effectifSalarie')) document.getElementById('effectifSalarie').textContent = company.tranche_effectif;
+  if (document.getElementById('conventionCollective')) document.getElementById('conventionCollective').textContent = company.convention_collective;
 
   const labelsContainer = document.getElementById('labelsContainer');
-  labelsContainer.innerHTML = `
-    <span class="label-badge-item ${complements.est_qualitique ? 'active' : 'inactive'}">
-      ${complements.est_qualitique ? '✅' : '⚪'} Qualiopi
-    </span>
-    <span class="label-badge-item ${complements.est_rge ? 'active' : 'inactive'}">
-      ${complements.est_rge ? '✅' : '⚪'} RGE Bâtiment
-    </span>
-    <span class="label-badge-item ${complements.est_bio ? 'active' : 'inactive'}">
-      ${complements.est_bio ? '✅' : '⚪'} Bio Certifié
-    </span>
-    <span class="label-badge-item ${complements.est_ess ? 'active' : 'inactive'}">
-      ${complements.est_ess ? '✅' : '⚪'} Économie Sociale (ESS)
-    </span>
-  `;
+  if (labelsContainer) {
+    labelsContainer.innerHTML = `
+      <span class="label-badge-item ${complements.est_qualitique ? 'active' : 'inactive'}">${complements.est_qualitique ? '✅' : '⚪'} Qualiopi</span>
+      <span class="label-badge-item ${complements.est_rge ? 'active' : 'inactive'}">${complements.est_rge ? '✅' : '⚪'} RGE Bâtiment</span>
+      <span class="label-badge-item ${complements.est_bio ? 'active' : 'inactive'}">${complements.est_bio ? '✅' : '⚪'} Bio Certifié</span>
+      <span class="label-badge-item ${complements.est_ess ? 'active' : 'inactive'}">${complements.est_ess ? '✅' : '⚪'} Économie Sociale (ESS)</span>
+    `;
+  }
 
-  // RECHERCHE DÉTAILLÉE DES AUTRES SOCIÉTÉS ET HOLDINGS DU DIRIGEANT
   fetchRealRelatedCompanies(dirigeantNom, siren);
 
   const shareUrl = `${window.location.origin}${window.location.pathname}?siren=${siren}`;
-  document.getElementById('shareUrlInput').value = shareUrl;
+  if (document.getElementById('shareUrlInput')) document.getElementById('shareUrlInput').value = shareUrl;
 
   calculateCreditLimit();
   calculateDsoImpact();
@@ -625,7 +689,9 @@ function calculateDsoImpact() {
   const delay = parseFloat(document.getElementById('delayDaysInput').value) || 0;
   const cost = (invoice * (0.10 / 365)) * delay;
 
-  document.getElementById('cashFlowCost').textContent = `${cost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+  if (document.getElementById('cashFlowCost')) {
+    document.getElementById('cashFlowCost').textContent = `${cost.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+  }
 }
 
 function generateLegalLetter() {
@@ -638,17 +704,19 @@ function generateLegalLetter() {
   const siren = currentCompanyData.siren || "SIREN";
   const dateToday = new Date().toLocaleDateString('fr-FR');
 
-  let textContent = `OBJET : MISE EN DEMEURE DE PAYER\nDATE : ${dateToday}\n\nDestinataire : ${nom} (SIREN ${siren})\n\nMadame, Monsieur,\n\nSauf erreur de notre part, vos factures demeurent impayées.\nPar la présente, nous vous mettons en demeure de procéder au règlement sous 8 jours.`;
+  let textContent = `EURO EXPERT SOLVABILITÉ - MISE EN DEMEURE\nOBJET : SOMMATION DE PAYER\nDATE : ${dateToday}\n\nDestinataire : ${nom} (SIREN ${siren})\n\nMadame, Monsieur,\n\nSauf erreur de notre part, vos factures demeurent impayées.\nPar la présente, nous vous mettons en demeure de procéder au règlement sous 8 jours.`;
 
   const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `Courrier_Legal_${siren}.txt`;
+  link.download = `Mise_en_Demeure_EES_${siren}.txt`;
   link.click();
 }
 
 function renderFinancialChart(isActif) {
-  const ctx = document.getElementById('financialChart').getContext('2d');
+  const canvas = document.getElementById('financialChart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
   if (financialChartInstance) financialChartInstance.destroy();
 
   const seed = currentCompanyData ? getSirenSeed(currentCompanyData.siren) : 815297270;
@@ -681,7 +749,46 @@ function renderFinancialChart(isActif) {
   });
 }
 
-// GENERATION DU PDF DANS SON DESIGN ORIGINAL "TECH AUDIT B2B" (PARFAIT SUR 2 PAGES A4)
+function generateSvgChart(isActif, seed, cpVal) {
+  const histP1 = isActif ? Math.round((cpVal / 1000) * 0.45) : Math.round(Math.abs(cpVal / 1000) * 2);
+  const histP2 = isActif ? Math.round((cpVal / 1000) * 0.70) : Math.round(Math.abs(cpVal / 1000) * 0.5);
+  const histP3 = Math.round(cpVal / 1000);
+
+  const color = isActif ? '#16a34a' : '#dc2626';
+  const maxVal = Math.max(histP1, histP2, histP3, 100);
+  const minVal = Math.min(histP1, histP2, histP3, 0);
+  const range = (maxVal - minVal) || 1;
+
+  const getY = (val) => 65 - Math.round(((val - minVal) / range) * 45) - 5;
+
+  const y1 = getY(histP1);
+  const y2 = getY(histP2);
+  const y3 = getY(histP3);
+
+  return `
+    <svg width="100%" height="80" viewBox="0 0 500 80" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px;">
+      <line x1="50" y1="15" x2="470" y2="15" stroke="#e2e8f0" stroke-dasharray="3,3"/>
+      <line x1="50" y1="38" x2="470" y2="38" stroke="#e2e8f0" stroke-dasharray="3,3"/>
+      <line x1="50" y1="60" x2="470" y2="60" stroke="#cbd5e1"/>
+      <text x="45" y="18" font-family="Arial" font-size="8.5" fill="#64748b" text-anchor="end">${maxVal}k€</text>
+      <text x="45" y="63" font-family="Arial" font-size="8.5" fill="#64748b" text-anchor="end">${minVal}k€</text>
+      <text x="100" y="73" font-family="Arial" font-size="9" fill="#475569" text-anchor="middle">2023</text>
+      <text x="260" y="73" font-family="Arial" font-size="9" fill="#475569" text-anchor="middle">2024</text>
+      <text x="420" y="73" font-family="Arial" font-size="9" fill="#475569" text-anchor="middle">2025</text>
+      <polyline fill="none" stroke="${color}" stroke-width="2.5" points="100,${y1} 260,${y2} 420,${y3}" />
+      <circle cx="100" cy="${y1}" r="3.5" fill="${color}"/>
+      <text x="100" y="${y1 - 5}" font-family="Arial" font-size="8.5" font-weight="bold" fill="${color}" text-anchor="middle">${histP1}k€</text>
+      <circle cx="260" cy="${y2}" r="3.5" fill="${color}"/>
+      <text x="260" y="${y2 - 5}" font-family="Arial" font-size="8.5" font-weight="bold" fill="${color}" text-anchor="middle">${histP2}k€</text>
+      <circle cx="420" cy="${y3}" r="3.5" fill="${color}"/>
+      <text x="420" y="${y3 - 5}" font-family="Arial" font-size="8.5" font-weight="bold" fill="${color}" text-anchor="middle">${histP3 > 0 ? '+' : ''}${histP3}k€</text>
+    </svg>
+  `;
+}
+
+// =========================================================================
+// 7. GENERATION DU RAPPORT PDF EURO EXPERT SOLVABILITÉ (2 PAGES A4)
+// =========================================================================
 function generateTechAuditPdf() {
   if (!currentCompanyData) return;
 
@@ -787,23 +894,14 @@ function generateTechAuditPdf() {
         display: flex;
         justify-content: space-between;
       }
-      .pdf-desc-box {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        padding: 4px 6px;
-        font-size: 7.8px;
-        line-height: 1.2;
-        margin-bottom: 4px;
-        color: #334155;
-      }
     </style>
 
-    <!-- ================= PAGE 1 ================= -->
+    <!-- PAGE 1 -->
     <div class="pdf-a4-page">
       <div class="pdf-title-block">
         <div>
           <div style="font-size: 14px; font-weight: bold; color: #0f172a;">RAPPORT D'ANALYSE DE SOLVABILITÉ</div>
-          <div style="font-size: 9.5px; font-weight: bold; color: #0284c7; margin-top: 1px;">Tech Audit B2B &nbsp;—&nbsp; Intelligence &amp; Scoring Financier</div>
+          <div style="font-size: 9.5px; font-weight: bold; color: #0284c7; margin-top: 1px;">Euro Expert Solvabilité &nbsp;—&nbsp; Intelligence &amp; Scoring Financier</div>
         </div>
         <div style="text-align: right; font-size: 8px; color: #475569;">
           <div><strong>Date d'Édition :</strong> ${dateToday}</div>
@@ -812,7 +910,6 @@ function generateTechAuditPdf() {
         </div>
       </div>
 
-      <!-- IDENTITÉ ET RENSEIGNEMENTS JURIDIQUES -->
       <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 5px; margin-bottom: 5px;">
         <div style="font-size: 8.5px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #e2e8f0; padding-bottom: 2px; margin-bottom: 3px; display:flex; justify-content:space-between;">
           <span>IDENTITÉ LÉGALE ET RENSEIGNEMENTS JURIDIQUES (GREFFE &amp; RCS)</span>
@@ -837,7 +934,6 @@ function generateTechAuditPdf() {
         </table>
       </div>
 
-      <!-- STRUCTURE DU GROUPE, HOLDING & BÉNÉFICIAIRES EFFECTIFS (KYC) -->
       <div class="pdf-sec-head">STRUCTURE DU GROUPE, CONTRÔLE KYC &amp; RBE</div>
       <table class="pdf-table-clean">
         <thead>
@@ -859,7 +955,6 @@ function generateTechAuditPdf() {
         </tbody>
       </table>
 
-      <!-- SCORING DE SOLVABILITÉ -->
       <div style="background: ${isActif ? '#f0fdf4' : '#fef2f2'}; border: 1px solid ${isActif ? '#bbf7d0' : '#fecaca'}; border-radius: 3px; padding: 5px; margin-bottom: 5px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 9px; font-weight: bold; color: #0f172a;">ÉVALUATION SYNTHÉTIQUE DU RISQUE CLIENT</span>
@@ -875,7 +970,6 @@ function generateTechAuditPdf() {
         </div>
       </div>
 
-      <!-- TABLEAU 1 : RATIOS FINANCIERS -->
       <div class="pdf-sec-head">1. Ratios et Indicateurs Financiers Clés (Bilan Clôturé)</div>
       <table class="pdf-table-clean">
         <thead>
@@ -924,7 +1018,6 @@ function generateTechAuditPdf() {
         </tbody>
       </table>
 
-      <!-- MODULE 2 : STRUCTURE DU BILAN -->
       <div class="pdf-sec-head">2. Structure du Bilan, Besoin en Fonds de Roulement (BFR) et Trésorerie</div>
       <table style="width: 100%; border-collapse: separate; border-spacing: 3px; margin-bottom: 4px; font-size: 7.8px;">
         <tr>
@@ -946,13 +1039,11 @@ function generateTechAuditPdf() {
         </tr>
       </table>
 
-      <!-- GRAPHIQUE SVG INLINE VECTORIEL -->
       <div style="text-align: center; margin-top: 3px; margin-bottom: 3px;">
         <div style="font-size: 8.5px; font-weight: bold; color: #0f172a; margin-bottom: 2px;">ÉVOLUTION HISTORIQUE DES FONDS PROPRES (2023 - 2025)</div>
         ${svgChartHtml}
       </div>
 
-      <!-- MODULE 3 : BENCHMARKING SECTORIEL -->
       <div class="pdf-sec-head">3. Benchmarking Sectoriel et Analyse Comparative (Code NAF ${naf.substring(0, 6)})</div>
       <table class="pdf-table-clean">
         <thead>
@@ -980,24 +1071,23 @@ function generateTechAuditPdf() {
       </table>
 
       <div class="pdf-footer-line">
-        <span>Rapport d'Analyse de Solvabilité B2B &nbsp;&mdash;&nbsp; Tech Audit B2B</span>
+        <span>Rapport d'Analyse de Solvabilité B2B &nbsp;&mdash;&nbsp; Euro Expert Solvabilité</span>
         <span>Page 1 sur 2</span>
       </div>
     </div>
 
-    <!-- ================= PAGE 2 ================= -->
+    <!-- PAGE 2 -->
     <div class="pdf-a4-page">
       <div class="pdf-title-block">
         <div>
           <div style="font-size: 13.5px; font-weight: bold; color: #0f172a;">SURVEILLANCE LÉGALE, MÉTHODOLOGIE &amp; DÉCISION</div>
-          <div style="font-size: 9px; font-weight: bold; color: #0284c7;">Tech Audit B2B &nbsp;—&nbsp; Crédit Management &amp; Gestion du Risque Client</div>
+          <div style="font-size: 9px; font-weight: bold; color: #0284c7;">Euro Expert Solvabilité &nbsp;—&nbsp; Crédit Management &amp; Risk Control</div>
         </div>
         <div style="text-align: right; font-size: 8px; color: #475569;">
           <div><strong>Dossier SIREN :</strong> ${siren}</div>
         </div>
       </div>
 
-      <!-- MODULE 5 : SURVEILLANCE LÉGALE & BODACC -->
       <div class="pdf-sec-head">5. Surveillance Légale, Privilèges Inscrits &amp; BODACC</div>
       <table class="pdf-table-clean">
         <thead>
@@ -1021,48 +1111,17 @@ function generateTechAuditPdf() {
           <tr>
             <td><strong>Annonces BODACC / Procédures Collectives</strong></td>
             <td style="text-align: center; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${isActif ? 'Aucune Procédure' : 'Vigilance Accrue'}</td>
-            <td>${isActif ? 'Absence de sauvegarde, redressement ou liquidation.' : 'Mentions légales à surveiller au registre du commerce.'}</td>
-          </tr>
-          <tr>
-            <td><strong>Nantissements du Fonds de Commerce / Matériel</strong></td>
-            <td style="text-align: center;">${isActif ? 'Gage Bancaire Standard' : 'Inscrit'}</td>
-            <td>Gages de matériel enregistrés en privilèges.</td>
+            <td>${isActif ? 'Absence de sauvegarde, redressement ou liquidation.' : 'Mentions légales à surveiller au registre.'}</td>
           </tr>
         </tbody>
       </table>
 
-      <!-- MODULE 6 : METHODOLOGIE DES 4 PILIERS -->
-      <div class="pdf-sec-head">6. Méthodologie d'Analyse : Les 4 Piliers Financiers Tech Audit B2B</div>
-      <table style="width: 100%; border-collapse: separate; border-spacing: 3px; margin-bottom: 6px; font-size: 8px;">
-        <tr>
-          <td style="width: 50%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px; vertical-align: top;">
-            <strong style="color: #0284c7;">1. Capitaux Propres &amp; Solvabilité</strong><br>
-            Mesure la part des ressources appartenant en propre à la société. Des fonds propres négatifs signifient que l'entreprise a consommé la totalité de son capital par ses pertes.
-          </td>
-          <td style="width: 50%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px; vertical-align: top;">
-            <strong style="color: #0284c7;">2. Liquidité Générale</strong><br>
-            Compare l'actif réalisable à court terme (créances, stocks, trésorerie) aux dettes à échoir sous un an. Un ratio &lt; 1 traduit une dépendance directe aux concours bancaires.
-          </td>
-        </tr>
-        <tr>
-          <td style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px; vertical-align: top;">
-            <strong style="color: #0284c7;">3. Capacité de Remboursement</strong><br>
-            Évalue le nombre d'années d'EBE nécessaires pour rembourser la totalité de la dette financière nette. La limite de soutenabilité bancaire est fixée à 4 ans.
-          </td>
-          <td style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px; vertical-align: top;">
-            <strong style="color: #0284c7;">4. Inscriptions de Privilèges</strong><br>
-            Indicateur légal direct. Les retards de paiement de cotisations sociales URSSAF ou d'impôts traduisent des impasses de trésorerie précédant souvent la défaillance.
-          </td>
-        </tr>
-      </table>
-
-      <!-- MODULE 7 : GRILLE DÉCISIONNELLE D'ENCOURS -->
       <div class="pdf-sec-head">7. Grille d'Aide à la Décision Commerciale &amp; Plafonds d'Encours</div>
       <table class="pdf-table-clean">
         <thead>
           <tr>
             <th>Niveau de Risque</th>
-            <th style="text-align: center;">Score Tech Audit</th>
+            <th style="text-align: center;">Score</th>
             <th>Encours Recommandé</th>
             <th>Conditions de Paiement Suggérées</th>
           </tr>
@@ -1072,55 +1131,39 @@ function generateTechAuditPdf() {
             <td><strong style="color: #16a34a;">Très Faible</strong></td>
             <td style="text-align: center;">80 à 100</td>
             <td>Jusqu'à 150 000 € HT</td>
-            <td>Paiement standard à 30 / 60 jours fin de mois.</td>
+            <td>Paiement standard à 30 / 60 jours.</td>
           </tr>
           <tr>
             <td><strong style="color: #0284c7;">Modéré</strong></td>
             <td style="text-align: center;">50 à 79</td>
             <td>Jusqu'à 50 000 € HT</td>
-            <td>Paiement à 30 jours, suivi régulier de l'encours.</td>
+            <td>Paiement à 30 jours.</td>
           </tr>
           <tr>
             <td><strong style="color: #f59e0b;">Sous Surveillance</strong></td>
             <td style="text-align: center;">30 à 49</td>
             <td>Jusqu'à 10 000 € HT</td>
-            <td>Acompte de 50% minimum à la commande exigé.</td>
+            <td>Acompte de 50% à la commande.</td>
           </tr>
           <tr>
             <td><strong style="color: #dc2626;">Élevé / Critique</strong></td>
             <td style="text-align: center;">0 à 29</td>
-            <td>0 € (Refus de crédit)</td>
-            <td>Règlement comptant intégral avant livraison.</td>
+            <td>0 € (Refus)</td>
+            <td>Règlement comptant intégral.</td>
           </tr>
         </tbody>
       </table>
 
-      <!-- RECOMMANDATION OPÉRATIONNELLE -->
       <div style="background: ${isActif ? '#f0fdf4' : '#fef2f2'}; border-left: 3px solid ${isActif ? '#16a34a' : '#dc2626'}; padding: 5px; font-size: 8px; line-height: 1.25; margin-top: 4px;">
-        <strong>Recommandation Opérationnelle pour le dossier ${nom} :</strong><br>
+        <strong>Recommandation Opérationnelle pour ${nom} :</strong><br>
         ${isActif 
-          ? `Au vu du score de solvabilité de <strong>${scoreVal}/100</strong>, l'entreprise offre de solides garanties. Vous pouvez accorder un encours commercial jusqu'à <strong>${Math.round(cpVal * 0.05).toLocaleString('fr-FR')} € HT</strong> en règlement à 30 jours fin de mois.` 
-          : `Au vu du score de solvabilité de <strong>${scoreVal}/100</strong> et du signal d'alerte sur les privilèges, il est formellement préconisé d'exiger un paiement comptant avant toute expédition de marchandises.`
+          ? `Au vu du score de solvabilité de <strong>${scoreVal}/100</strong>, l'entreprise offre de solides garanties. Encours recommandé : <strong>${Math.round(cpVal * 0.05).toLocaleString('fr-FR')} € HT</strong>.` 
+          : `Au vu du score de solvabilité de <strong>${scoreVal}/100</strong>, exigez un règlement comptant avant toute livraison.`
         }
       </div>
 
-      <!-- MODULE 8 : PRECONISATIONS CONTRACTUELLES -->
-      <div class="pdf-sec-head">8. Préconisations de Sécurisation Contractuelle des Créances</div>
-      <table style="width: 100%; border-collapse: separate; border-spacing: 3px; font-size: 7.8px; margin-bottom: 4px;">
-        <tr>
-          <td style="width: 50%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px;">
-            <strong>Éligibilité Assurance-Crédit :</strong> ${isActif ? '✅ Couverture à 100% accordable' : '❌ Refus d\'agrément par les assureurs-crédit'}<br>
-            <strong>Clause de Réserve de Propriété :</strong> ${isActif ? 'Recommandée sur Factures' : 'Obligatoire dans les CGV'}
-          </td>
-          <td style="width: 50%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 3px; padding: 4px;">
-            <strong>Autorisation d'Encours Client :</strong> ${isActif ? 'Valide jusqu\'au 31/12/2026' : 'Suspendue immédiatement'}<br>
-            <strong>Pénalités de Retard Légal :</strong> Taux BCE + 10% + Indemnité forfaitaire de 40 €
-          </td>
-        </tr>
-      </table>
-
       <div class="pdf-footer-line">
-        <span>Rapport d'Analyse de Solvabilité B2B &nbsp;&mdash;&nbsp; Tech Audit B2B</span>
+        <span>Rapport d'Analyse de Solvabilité B2B &nbsp;&mdash;&nbsp; Euro Expert Solvabilité</span>
         <span>Page 2 sur 2</span>
       </div>
     </div>
@@ -1130,14 +1173,8 @@ function generateTechAuditPdf() {
     margin: 0,
     filename: `Rapport_Audit_${siren}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { 
-      scale: 2, 
-      useCORS: true, 
-      logging: false,
-      letterRendering: true
-    },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    pagebreak: { mode: ['css', 'legacy'] }
+    html2canvas: { scale: 2, useCORS: true, logging: false },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
   html2pdf().set(options).from(pdfTemplate).save();
