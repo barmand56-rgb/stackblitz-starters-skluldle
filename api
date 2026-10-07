@@ -1,0 +1,26 @@
+// api/entreprise.js (Route Vercel Serverless - Exécutée côté serveur)
+export default async function handler(req, res) {
+  const { siren } = req.query;
+  
+  // Clé d'API récupérée depuis l'environnement Vercel ou directement saisie
+  const PAPPERS_API_TOKEN = process.env.PAPPERS_API_TOKEN || "31138522741f55c243bc5c260a03e5923d6b0b08a17ad1c2";
+
+  if (!siren) {
+    return res.status(400).json({ error: "Numéro SIREN manquant." });
+  }
+
+  try {
+    const url = `https://api.pappers.fr/v2/entreprise?api_token=${PAPPERS_API_TOKEN}&siren=${siren}&targets=finances,dirigeants,beneficiaires_effectifs,etablissements`;
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      return res.status(response.status).json({ error: errData.message || "Erreur API Pappers" });
+    }
+
+    const data = await response.json();
+    return res.status(200).json(data);
+  } catch (error) {
+    return res.status(500).json({ error: "Erreur serveur : " + error.message });
+  }
+}
