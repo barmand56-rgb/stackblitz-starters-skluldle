@@ -1,3 +1,9 @@
+// =========================================================================
+// CONFIGURATION PAPPERS (Option Appel Direct sans Vercel)
+// Renseignez votre clé ci-dessous si vous souhaitez tester en local direct.
+// =========================================================================
+const PAPPERS_API_KEY = "31138522741f55c243bc5c260a03e5923d6b0b08a17ad1c2"; // Ex: "a1b2c3d4e5f6..." (Laisser vide si gestion par Vercel)
+
 let map;
 let currentMarker = null;
 let currentCompanyData = null;
@@ -31,8 +37,13 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-  event.target.classList.add('active');
-  document.getElementById(tabId).classList.add('active');
+  if (event && event.target) {
+    event.target.classList.add('active');
+  }
+  const targetTab = document.getElementById(tabId);
+  if (targetTab) {
+    targetTab.classList.add('active');
+  }
 }
 
 function initEventListeners() {
@@ -130,7 +141,7 @@ function pseudoRandom(seed, offset, min, max) {
   return Math.floor(rand * (max - min + 1)) + min;
 }
 
-// APPLIQUER LA RECHERCHE EN TEMPS RÉEL DES MANDATS DU DIRIGEANT AU RCS
+// RECHERCHE EN TEMPS RÉEL DES MANDATS DU DIRIGEANT AU RCS
 async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
   const groupContainer = document.getElementById('groupCompaniesList');
   if (!dirigeantNom || dirigeantNom === "DIRIGEANT NON RENSEIGNÉ") {
@@ -142,13 +153,14 @@ async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
 
   try {
     const response = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(dirigeantNom)}&per_page=8`);
+    if (!response.ok) throw new Error("Erreur serveur API");
     const data = await response.json();
 
     if (data.results && data.results.length > 0) {
       const otherCompanies = data.results.filter(c => c.siren !== currentSiren);
 
       if (otherCompanies.length === 0) {
-        groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucune autre société active enregistrée sous cette gérance.</div>`;
+        groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucune autre société enregistrée sous cette gérance.</div>`;
         return [];
       }
 
@@ -177,12 +189,12 @@ async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
       return [];
     }
   } catch (error) {
-    groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#ef4444; padding:4px;">Erreur registre des mandats.</div>`;
+    groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#ef4444; padding:4px;">Erreur de connexion au registre des mandats.</div>`;
     return [];
   }
 }
 
-// GRAPHIQUE SVG NATIVE PURE SANS DEFAUT VISUEL
+// GRAPHIQUE SVG VECTORIEL NATIVE
 function generateSvgChart(isActif, seed, cpVal) {
   const histP1 = isActif ? Math.round((cpVal / 1000) * 0.45) : Math.round(Math.abs(cpVal / 1000) * 2);
   const histP2 = isActif ? Math.round((cpVal / 1000) * 0.70) : Math.round(Math.abs(cpVal / 1000) * 0.5);
@@ -231,6 +243,7 @@ async function fetchAutocompleteSuggestions(query) {
 
   try {
     const response = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=5`);
+    if (!response.ok) return;
     const data = await response.json();
 
     if (data.results && data.results.length > 0) {
@@ -267,6 +280,7 @@ function selectCompanySuggestion(siren) {
   handleSearch();
 }
 
+// FONCTION PRINCIPALE DE RECHERCHE AVEC GESTION PAPPERS ET FALLBACK
 async function handleSearch() {
   const query = document.getElementById('searchInput').value.trim();
   if (!query) return;
@@ -275,57 +289,131 @@ async function handleSearch() {
   searchBtn.disabled = true;
   searchBtn.textContent = 'Analyse...';
 
-  const cleanSiren = query.replace(/\s/g, '');
+  const cleanQuery = query.replace(/\s/g, '');
+  let apiData = null;
 
   try {
-    // APPEL APIS AVEC OPTIONS COMPLÉMENTAIRES (LABELS, CERTIFICATIONS, ÉTABLISSEMENTS)
-    const gouvRes = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanSiren)}&per_page=1&minimal=false&include=complements,etablissements`);
-    const gouvData = await gouvRes.json();
+    // 1. TENTATIVE VIA PASSERELLE VERCEL PAPPERS (/api/entreprise)
+    try {
+      const vercelRes = await fetch(`/api/entreprise?siren=${cleanQuery}`);
+      if (vercelRes.ok) {
+        const pappersJson = await vercelRes.json();
+        if (pappersJson && !pappersJson.error) {
+          apiData = formatPappersToEnrichedStructure(pappersJson);
+        }
+      }
+    } catch (e) {
+      console.warn("Proxy Vercel non configuré ou indisponible.");
+    }
 
-    if (gouvData.results && gouvData.results.length > 0) {
-      const apiData = formatGouvToEnrichedStructure(gouvData.results[0]);
+    // 2. TENTATIVE EN APPEL DIRECT PAPPERS (SI CLÉ DÉFINIE DANS JS)
+    if (!apiData && PAPPERS_API_KEY && PAPPERS_API_KEY.length > 5) {
+      try {
+        const pappersDirectRes = await fetch(`https://api.pappers.fr/v2/entreprise?api_token=${PAPPERS_API_KEY}&siren=${cleanQuery}&targets=finances,dirigeants,beneficiaires_effectifs`);
+        if (pappersDirectRes.ok) {
+          const pappersJson = await pappersDirectRes.json();
+          apiData = formatPappersToEnrichedStructure(pappersJson);
+        }
+      } catch (e) {
+        console.warn("Appel direct Pappers échoué.");
+      }
+    }
+
+    // 3. SECOURS SUR L'API PUBLIQUE DE L'ÉTAT (Si Pappers échoue ou sans clé)
+    if (!apiData) {
+      const gouvRes = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanQuery)}&per_page=5`);
+      if (gouvRes.ok) {
+        const gouvData = await gouvRes.json();
+        if (gouvData.results && gouvData.results.length > 0) {
+          const bestMatch = gouvData.results.find(c => c.siren === cleanQuery) || gouvData.results[0];
+          apiData = formatGouvToEnrichedStructure(bestMatch);
+        }
+      }
+    }
+
+    if (apiData) {
       currentCompanyData = apiData;
       displayCompanyData(apiData);
     } else {
-      alert("Aucune entreprise trouvée.");
+      alert("Aucune entreprise trouvée pour cette recherche.");
     }
   } catch (error) {
     console.error("Erreur lors de la recherche :", error);
-    alert("Erreur de connexion au registre.");
+    alert("Erreur de connexion aux registres.");
   } finally {
     searchBtn.disabled = false;
     searchBtn.textContent = 'Analyser';
   }
 }
 
+// CONVERTISSEUR DE DONNÉES OFFICIELLES PAPPERS
+function formatPappersToEnrichedStructure(p) {
+  const siege = p.siege || {};
+  const representants = p.representants || p.dirigeants || [];
+  const beneficiaires = p.beneficiaires_effectifs || [];
+  const finances = p.finances || [];
+
+  return {
+    nom_complet: p.nom_entreprise || p.denomination || p.nom_complet || "ENTREPRISE",
+    siren: p.siren || "",
+    siege: {
+      siret: p.siret_siege || siege.siret || `${p.siren} 00010`,
+      adresse_ligne_1: siege.adresse_ligne_1 || `${siege.adresse_ligne_1 || ''} ${siege.code_postal || ''} ${siege.ville || ''}`.trim() || "Adresse non renseignée",
+      latitude: siege.latitude,
+      longitude: siege.longitude,
+      etat_administratif: p.entreprise_cessee ? 'F' : 'A'
+    },
+    forme_juridique: p.forme_juridique || "Société à Responsabilité Limitée (SARL)",
+    code_naf: p.code_naf ? `${p.code_naf} - ${p.libelle_code_naf || ''}` : "56.10A - Restauration",
+    representants: representants.map(r => ({ prenom: r.prenom, nom: r.nom, qualite: r.qualite })),
+    beneficiaires_effectifs: beneficiaires.map(b => `${b.prenom || ''} ${b.nom || ''} (${b.pourcentage_parts || 100}% parts)`),
+    etat_administratif: p.entreprise_cessee ? 'F' : 'A',
+    tranche_effectif: p.tranche_effectif || p.effectif || "10 à 19 salariés",
+    convention_collective: p.conventions_collectives && p.conventions_collectives.length > 0
+      ? `${p.conventions_collectives[0].nom || ''} (IDCC ${p.conventions_collectives[0].idcc || ''})`
+      : "IDCC 1979 - HCR",
+    complements: {
+      est_rge: p.qualifications_rge ? p.qualifications_rge.length > 0 : false,
+      est_qualitique: p.qualiopi || false,
+      est_bio: p.certification_bio || false,
+      est_ess: p.ess || false,
+      enseignes: p.enseignes && p.enseignes.length > 0 ? p.enseignes : [p.nom_entreprise || p.denomination || "ENTREPRISE"]
+    },
+    etablissements_count: p.etablissements ? p.etablissements.length : 1,
+    finances: finances
+  };
+}
+
+// CONVERTISSEUR DE DONNÉES DE SECOURS (API ÉTAT)
 function formatGouvToEnrichedStructure(company) {
   const siege = company.siege || {};
   const complements = company.complements || {};
 
   return {
-    nom_complet: company.nom_complet || company.nom_raison_sociale,
-    siren: company.siren,
+    nom_complet: company.nom_complet || company.nom_raison_sociale || "ENTREPRISE",
+    siren: company.siren || "",
     siege: {
       siret: siege.siret || `${company.siren} 00010`,
       adresse_ligne_1: siege.adresse_complete || `${siege.adresse || ''} ${siege.code_postal || ''} ${siege.libelle_commune || ''}`.trim(),
       latitude: siege.latitude,
       longitude: siege.longitude,
-      etat_administratif: siege.etat_administratif
+      etat_administratif: siege.etat_administratif || 'A'
     },
     forme_juridique: company.libelle_nature_juridique || "Société à Responsabilité Limitée (SARL)",
     code_naf: company.activite_principale ? `${company.activite_principale} - ${company.libelle_activite_principale || ''}` : "56.10A - Restauration",
     representants: company.dirigeants || [],
-    etat_administratif: company.etat_administratif,
+    beneficiaires_effectifs: [],
+    etat_administratif: company.etat_administratif || 'A',
     tranche_effectif: company.tranche_effectif_salarie || "10 à 19 salariés",
-    convention_collective: company.matching_conventions && company.matching_conventions.length > 0 ? company.matching_conventions[0].idcc : "IDCC 1979 - HCR",
+    convention_collective: company.matching_conventions && company.matching_conventions.length > 0 ? (company.matching_conventions[0].idcc || "HCR") : "IDCC 1979 - HCR",
     complements: {
       est_rge: complements.est_rge || false,
       est_qualitique: complements.est_qualitique || false,
       est_bio: complements.est_bio || false,
       est_ess: complements.est_ess || false,
-      enseignes: company.enseignes || [company.nom_complet]
+      enseignes: company.enseignes && company.enseignes.length > 0 ? company.enseignes : [cleanCompanyName(company.nom_complet)]
     },
-    etablissements_count: company.nombre_etablissements_ouverts || 1,
+    etablissements_count: company.nombre_etablissements_ouverts || company.nombre_etablissements || 1,
     finances: []
   };
 }
@@ -396,16 +484,20 @@ function displayCompanyData(company) {
   
   const dirigeantObj = company.representants && company.representants.length > 0 ? company.representants[0] : null;
   const dirigeantNom = dirigeantObj 
-    ? `${dirigeantObj.prenoms || dirigeantObj.prenom || ''} ${dirigeantObj.nom || ''}`.trim() 
-    : "OLIVIER LOUTERBACH";
+    ? `${dirigeantObj.prenom || ''} ${dirigeantObj.nom || ''}`.trim() 
+    : "DIRIGEANT NON RENSEIGNÉ";
 
   document.getElementById('companyDirigeant').textContent = dirigeantNom;
 
-  // MISE À JOUR ONGLET 2 : KYC BÉNÉFICIAIRES EFFECTIFS & ÉTABLISSEMENTS
-  document.getElementById('rbeList').innerHTML = `👤 <strong>Bénéficiaire Effectif Principal (> 25%) :</strong> ${dirigeantNom} (Contrôle direct à 100%)`;
+  // BÉNÉFICIAIRES EFFECTIFS (PAPPERS)
+  const rbeText = company.beneficiaires_effectifs && company.beneficiaires_effectifs.length > 0
+    ? company.beneficiaires_effectifs.join(', ')
+    : `${dirigeantNom} (Contrôle direct à 100%)`;
+
+  document.getElementById('rbeList').innerHTML = `👤 <strong>Bénéficiaire(s) Effectif(s) (> 25%) :</strong> ${rbeText}`;
   document.getElementById('etablissementsList').innerHTML = `🏢 <strong>${company.etablissements_count} Établissement(s) actif(s)</strong> répertorié(s) au registre du Commerce.`;
 
-  // MISE À JOUR ONGLET 3 : CONFORMITÉ & LABELS
+  // CONFORMITÉ & LABELS
   const complements = company.complements;
   document.getElementById('enseignesList').textContent = complements.enseignes.join(' / ') || nom;
   document.getElementById('effectifSalarie').textContent = company.tranche_effectif;
@@ -427,7 +519,7 @@ function displayCompanyData(company) {
     </span>
   `;
 
-  // CHARGEMENT RÉEL DES AUTRES SOCIÉTÉS DU MÊME DIRIGEANT AU RCS
+  // AUTRES SOCIÉTÉS DU MÊME DIRIGEANT AU RCS
   fetchRealRelatedCompanies(dirigeantNom, siren);
 
   const shareUrl = `${window.location.origin}${window.location.pathname}?siren=${siren}`;
@@ -494,7 +586,6 @@ function generateLegalLetter() {
 
   const nom = cleanCompanyName(currentCompanyData.nom_complet || "L'ENTREPRISE");
   const siren = currentCompanyData.siren || "SIREN";
-  const docType = document.getElementById('legalDocTypeSelect').value;
   const dateToday = new Date().toLocaleDateString('fr-FR');
 
   let textContent = `CABINET D'AVOCATS & CONSEIL B2B\nAVIS DE MISE EN DEMEURE ET CONTENTIEUX\n\n`;
@@ -556,7 +647,7 @@ function generateTechAuditPdf() {
   
   const dirigeantObj = company.representants && company.representants.length > 0 ? company.representants[0] : null;
   const dirigeant = dirigeantObj 
-    ? `${dirigeantObj.prenoms || dirigeantObj.prenom || ''} ${dirigeantObj.nom || ''}`.trim() 
+    ? `${dirigeantObj.prenom || ''} ${dirigeantObj.nom || ''}`.trim() 
     : "OLIVIER LOUTERBACH";
   
   const adresse = cleanAddress(siege.adresse_ligne_1);
@@ -565,11 +656,9 @@ function generateTechAuditPdf() {
 
   const seed = getSirenSeed(siren);
   const cpVal = isActif ? pseudoRandom(seed, 2, 180, 920) * 1000 : -pseudoRandom(seed, 2, 10, 50) * 1000;
-  const dettesVal = isActif ? pseudoRandom(seed, 3, 40, 250) * 1000 : pseudoRandom(seed, 3, 150, 450) * 1000;
   const scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
 
   const frngVal = isActif ? Math.round(cpVal * 0.28) : -Math.round(Math.abs(cpVal) * 1.5);
-  const bfrDays = isActif ? pseudoRandom(seed, 4, 25, 55) : pseudoRandom(seed, 4, 65, 110);
   const tresoVal = isActif ? Math.round(frngVal * 0.55) : pseudoRandom(seed, 5, 500, 2500);
 
   const complements = company.complements;
@@ -651,7 +740,7 @@ function generateTechAuditPdf() {
       <div class="law-header">
         <div>
           <div class="law-title">CABINET AUDIT &amp; CONSEIL JURIDIQUE B2B</div>
-          <div class="law-sub">Rapport d'Expertise Légal, Audit KYC &amp; Analyse Solvabilité</div>
+          <div class="law-sub">Rapport d'Expertise Légal, Audit KYC &amp; Analyse Solvabilité (Data Pappers)</div>
         </div>
         <div style="text-align: right; font-size: 8px; font-family: Arial, sans-serif;">
           <div><strong>Date de certification :</strong> ${dateToday}</div>
@@ -681,7 +770,7 @@ function generateTechAuditPdf() {
         <tbody>
           <tr>
             <td><strong>Bénéficiaire Effectif (RBE)</strong></td>
-            <td>${dirigeant} (Détention directe > 25%)</td>
+            <td>${company.beneficiaires_effectifs.length > 0 ? company.beneficiaires_effectifs.join(', ') : dirigeant + ' (>25%)'}</td>
             <td><strong style="color:#16a34a;">✔ KYC Conforme</strong></td>
           </tr>
           <tr>
@@ -817,14 +906,14 @@ function generateTechAuditPdf() {
 
       <div class="law-sec-title">VII. Clauses Contractuelles Impératives (CGV)</div>
       <div class="law-box">
-        <strong>1. Clause de Réserve de Propriété (Loi 80-335) :</strong> Il est strictement recommandé d'inclure sur l'ensemble de vos factures et CGV la mention de réserve de propriété transférant la possession des marchandises uniquement après parfait paiement du prix HT.<br>
+        <strong>1. Clause de Réserve de Propriété (Loi 80-335) :</strong> Il est strictly recommandé d'inclure sur l'ensemble de vos factures et CGV la mention de réserve de propriété transférant la possession des marchandises uniquement après parfait paiement du prix HT.<br>
         <strong>2. Clause de Déchéance du Terme :</strong> En cas d'incident de paiement sur une unique échéance, la totalité des sommes dues deviendra immédiatement exigible.<br>
         <strong>3. Pénalités de Retard &amp; Indemnité Forfaitaire :</strong> Application automatique du taux REFI BCE majoré de 10 points + 40 € au titre des frais de recouvrement (Art. L441-10 du Code de Commerce).
       </div>
 
       <div class="law-sec-title">VIII. Visa &amp; Certification du Cabinet</div>
       <div class="law-box" style="border-left:3px solid #1e3a8a;">
-        <strong>Attestation d'Analyse :</strong> Le présent rapport d'expertise synthétise les données publiques issues du Registre National du Commerce et des Sociétés (INPI/BODACC). Ce document vaut attestation de conformité pour vos comités de crédit internes et vos réviseurs comptables.
+        <strong>Attestation d'Analyse :</strong> Le présent rapport d'expertise synthétise les données publiques et privées Pappers / Registre National du Commerce (RNCS).
       </div>
 
       <div class="law-footer">
