@@ -129,22 +129,21 @@ function verifyPassCode() {
   const errorMsg = document.getElementById('passErrorMsg');
 
   if (inputCode === masterCode || inputCode === dailyCode) {
-    // Masque la pop-up
+    // 1. Masquer la pop-up et afficher le contenu
     const overlay = document.getElementById('passModalOverlay');
     if (overlay) overlay.style.display = 'none';
 
-    // Affiche le site complet
     const app = document.getElementById('appContent');
     if (app) app.style.display = 'flex';
 
-    // Initialise et redimensionne la carte sur tout l'écran
-    if (!map) {
-      initMap();
-    }
-    
+    // 2. Initialiser et recalculer la carte UNE FOIS LE SITE VISIBLE
     setTimeout(() => {
-      if (map) map.invalidateSize();
-    }, 100);
+      if (!map) {
+        initMap();
+      } else {
+        map.invalidateSize();
+      }
+    }, 200);
 
     initEventListeners();
     initToolsEventListeners();
