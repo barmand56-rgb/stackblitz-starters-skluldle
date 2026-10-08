@@ -427,7 +427,13 @@ function displayCompanyData(company) {
 
   const isActif = company.etat_administratif === 'A';
   const seed = getSirenSeed(siren);
-  const scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
+  
+  let scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
+
+  // 🚨 Plafonne le score à 25/100 si le BODACC détecte des procédures
+  if (company.bodacc && company.bodacc.hasProcedures) {
+    scoreVal = Math.min(scoreVal, 25);
+  }
 
   const statusBadge = document.getElementById('companyStatus');
   const scoreValEl = document.getElementById('scoreValue');
@@ -437,8 +443,25 @@ function displayCompanyData(company) {
     statusBadge.textContent = isActif ? "ACTIF" : "INACTIF";
     statusBadge.style.color = isActif ? "#4ade80" : "#ef4444";
   }
+  
   if (scoreValEl) scoreValEl.innerHTML = `${scoreVal}<span style="font-size: 0.9rem; color: #94a3b8;">/100</span>`;
-  if (scoreBadge) scoreBadge.textContent = isActif ? (scoreVal > 75 ? "🟢 RISQUE FAIBLE" : "🟡 RISQUE MODÉRÉ") : "🔴 RISQUE ÉLEVÉ";
+
+  if (scoreBadge) {
+    if (company.bodacc && company.bodacc.hasProcedures) {
+      scoreBadge.textContent = "🔴 ALERTES DÉTECTÉES (BODACC)";
+      scoreBadge.style.color = "#ef4444";
+      scoreBadge.style.borderColor = "#ef4444";
+    } else if (isActif) {
+      scoreBadge.textContent = scoreVal > 75 ? "🟢 RISQUE FAIBLE" : "🟡 RISQUE MODÉRÉ";
+    } else {
+      scoreBadge.textContent = "🔴 RISQUE ÉLEVÉ";
+    }
+  }
+  // -------------------------------------------------------------
+  // 🔼 FIN DU BLOC À MODIFIER
+  // -------------------------------------------------------------
+
+  map.setView([lat, lon], 15);
 
   map.setView([lat, lon], 15);
   if (currentMarker) map.removeLayer(currentMarker);
