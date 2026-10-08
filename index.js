@@ -222,28 +222,45 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =========================================================================
-// 5. SÉCURITÉ À CHAQUE CONNEXION (SESSION STORAGE)
+// 5. SÉCURITÉ À CHAQUE CONNEXION (SESSION STORAGE + CSS DYNAMIQUE)
 // =========================================================================
-function generateDailyHash(dateStr) {
-  let hash = 0;
-  const str = dateStr + SECRET_SALT;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
-  }
-  const positiveHash = Math.abs(hash).toString(36).toUpperCase();
-  return "EES-" + (positiveHash + "X9Y8Z7W6V5").substring(0, 6);
-}
-
-function getTodayValidCodes() {
-  const today = new Date();
-  const dayStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-  const dailyCode = generateDailyHash(dayStr);
-  const masterCode = "EURO2026";
-  return { dailyCode, masterCode };
-}
-
 function initSecurityPassSystem() {
+  // Injection du style CSS de la modale de sécurité
+  if (!document.getElementById('passSystemStyles')) {
+    const style = document.createElement('style');
+    style.id = 'passSystemStyles';
+    style.innerHTML = `
+      .pass-overlay {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(10px);
+        z-index: 99999; display: flex; align-items: center; justify-content: center;
+        font-family: Arial, sans-serif; color: #ffffff;
+      }
+      .pass-card {
+        background: #1e293b; border: 1px solid #38bdf8; border-radius: 12px;
+        padding: 30px; width: 90%; max-width: 420px; text-align: center;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+      }
+      .pass-title { font-size: 1.25rem; font-weight: bold; color: #38bdf8; margin-bottom: 8px; }
+      .pass-sub { font-size: 0.82rem; color: #94a3b8; margin-bottom: 20px; line-height: 1.4; }
+      .pass-input {
+        width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #475569;
+        background: #0f172a; color: #ffffff; font-size: 1rem; text-align: center;
+        letter-spacing: 2px; font-weight: bold; margin-bottom: 15px; box-sizing: border-box;
+      }
+      .pass-input:focus { border-color: #38bdf8; outline: none; }
+      .pass-btn {
+        width: 100%; padding: 12px; border-radius: 6px; border: none;
+        background: #0284c7; color: #ffffff; font-size: 0.95rem; font-weight: bold;
+        cursor: pointer; transition: background 0.2s;
+      }
+      .pass-btn:hover { background: #0369a1; }
+      .pass-error { color: #ef4444; font-size: 0.78rem; margin-top: 10px; display: none; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // Vérification de la session
   const isSessionActive = sessionStorage.getItem('ees_pass_authenticated');
   if (!isSessionActive) {
     showPassModal();
