@@ -118,12 +118,11 @@ function verifyPassCode() {
 window.verifyPassCode = verifyPassCode;
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Récupération des codes valides du jour (calculé en arrière-plan)
   const { dailyCode, masterCode } = getTodayValidCodes();
-  const dailyCodeEl = document.getElementById('dailyCodeDisplay');
-  if (dailyCodeEl) {
-    dailyCodeEl.textContent = dailyCode;
-  }
-  console.log(`[EES Admin] Code du jour : ${dailyCode} | Master : ${masterCode}`);
+
+  // Log réservé à l'administrateur dans la console (F12)
+  console.log(`[EES Admin] Code du jour : ${dailyCode} | Code Master : ${masterCode}`);
 
   initEventListeners();
   initToolsEventListeners();

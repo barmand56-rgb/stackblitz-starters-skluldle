@@ -19,23 +19,19 @@
 <body>
 
   <!-- ÉCRAN DE VERROUILLAGE -->
-  <div id="passModalOverlay">
-    <div class="pass-card">
-      <div class="pass-title">🛡️ Euro Expert Solvabilité</div>
-      <div class="pass-sub">Accès sécurisé. Saisissez votre mot de passe pour ouvrir la session.</div>
-      
-      <input type="password" id="passCodeInput" class="pass-input" placeholder="Saisir le mot de passe" autocomplete="off" onkeydown="if(event.key==='Enter') verifyPassCode()" />
-      
-      <button type="button" id="validatePassBtn" class="pass-btn" onclick="verifyPassCode()">Se connecter</button>
-      
-      <!-- AFFICHAGE DU CODE DU JOUR -->
-      <div style="margin-top: 12px; font-size: 0.78rem; color: #94a3b8; background: rgba(56, 189, 248, 0.08); padding: 8px; border-radius: 6px; border: 1px dashed #0284c7;">
-        🔑 Code du jour : <strong id="dailyCodeDisplay" style="color: #38bdf8; font-size: 0.85rem;">Génération...</strong>
-      </div>
+<!-- FENÊTRE POP-UP D'ACCÈS INITIALE -->
+<div id="passModalOverlay">
+  <div class="pass-card">
+    <div class="pass-title">🛡️ Euro Expert Solvabilité</div>
+    <div class="pass-sub">Accès sécurisé. Veuillez saisir votre mot de passe pour ouvrir la session.</div>
+    
+    <input type="password" id="passCodeInput" class="pass-input" placeholder="Saisir le mot de passe" autocomplete="off" onkeydown="if(event.key==='Enter') verifyPassCode()" />
+    
+    <button type="button" id="validatePassBtn" class="pass-btn" onclick="verifyPassCode()">Se connecter</button>
 
-      <div id="passErrorMsg" class="pass-error">❌ Mot de passe incorrect</div>
-    </div>
+    <div id="passErrorMsg" class="pass-error">❌ Mot de passe incorrect</div>
   </div>
+</div>
 
   <!-- APPLICATION PRINCIPALE -->
   <div id="appContent">
