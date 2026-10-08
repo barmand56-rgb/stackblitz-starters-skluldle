@@ -9,7 +9,6 @@ let financialChartInstance = null;
 let debounceTimer;
 
 const SECRET_SALT = "EURO_EXPERT_SOLVABILITE_KEY_2026";
-const PAPPERS_API_KEY = "31138522741f55c243bc5c260a03e5923d6b0b08a17ad1c2"; // Optionnel
 
 // =========================================================================
 // 1. DICTIONNAIRE MULTI-SECTEURS INTELLIGENT (NAF/APE)
@@ -223,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =========================================================================
-// 5. SÉCURITÉ A CHAQUE CONNEXION (SESSION STORAGE)
+// 5. SÉCURITÉ À CHAQUE CONNEXION (SESSION STORAGE)
 // =========================================================================
 function generateDailyHash(dateStr) {
   let hash = 0;
@@ -245,50 +244,6 @@ function getTodayValidCodes() {
 }
 
 function initSecurityPassSystem() {
-  const style = document.createElement('style');
-  style.innerHTML = `
-    .pass-overlay {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(15, 23, 42, 0.96); backdrop-filter: blur(10px);
-      z-index: 99999; display: flex; align-items: center; justify-content: center;
-      font-family: Arial, sans-serif; color: #ffffff;
-    }
-    .pass-card {
-      background: #1e293b; border: 1px solid #38bdf8; border-radius: 12px;
-      padding: 30px; width: 90%; max-width: 420px; text-align: center;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-    }
-    .pass-title { font-size: 1.25rem; font-weight: bold; color: #38bdf8; margin-bottom: 8px; }
-    .pass-sub { font-size: 0.82rem; color: #94a3b8; margin-bottom: 20px; line-height: 1.4; }
-    .pass-input {
-      width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #475569;
-      background: #0f172a; color: #ffffff; font-size: 1rem; text-align: center;
-      letter-spacing: 2px; font-weight: bold; margin-bottom: 15px; box-sizing: border-box;
-    }
-    .pass-input:focus { border-color: #38bdf8; outline: none; }
-    .pass-btn {
-      width: 100%; padding: 12px; border-radius: 6px; border: none;
-      background: #0284c7; color: #ffffff; font-size: 0.95rem; font-weight: bold;
-      cursor: pointer; transition: background 0.2s;
-    }
-    .pass-btn:hover { background: #0369a1; }
-    .pass-error { color: #ef4444; font-size: 0.78rem; margin-top: 10px; display: none; }
-
-    .search-container { position: relative; }
-    #autocompleteResults {
-      position: absolute; top: 100%; left: 0; right: 0;
-      background: #1e293b; border: 1px solid #38bdf8; border-top: none;
-      border-radius: 0 0 8px 8px; max-height: 260px; overflow-y: auto;
-      z-index: 10000; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); display: none;
-    }
-    .autocomplete-item {
-      padding: 10px 14px; cursor: pointer; text-align: left;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05); transition: background 0.2s;
-    }
-    .autocomplete-item:hover { background: #0f172a; }
-  `;
-  document.head.appendChild(style);
-
   const isSessionActive = sessionStorage.getItem('ees_pass_authenticated');
   if (!isSessionActive) {
     showPassModal();
@@ -345,11 +300,16 @@ function switchTab(tabId) {
   document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-  if (event && event.target) {
-    event.target.classList.add('active');
+  if (window.event && window.event.target) {
+    window.event.target.classList.add('active');
   }
+  
   const targetTab = document.getElementById(tabId);
-  if (targetTab) targetTab.classList.add('active');
+  if (targetTab) {
+    targetTab.classList.add('active');
+  }
+
+  updateAllSummaryBoxes();
 }
 
 function initEventListeners() {
@@ -497,7 +457,7 @@ function formatGouvToEnrichedStructure(company) {
 }
 
 // =========================================================================
-// 7. SYNTHÈSES DESCRIPTIVES PAR CATÉGORIE (POUR CHAQUE ONGLET)
+// 7. SYNTHÈSES DESCRIPTIVES MULTI-LIGNES PAR CATÉGORIE
 // =========================================================================
 function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dettesVal) {
   const nom = cleanCompanyName(company.nom_complet);
@@ -557,6 +517,30 @@ function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dett
       </div>
     `
   };
+}
+
+function updateAllSummaryBoxes() {
+  if (!currentCompanyData) return;
+
+  const seed = getSirenSeed(currentCompanyData.siren);
+  const isActif = currentCompanyData.etat_administratif === 'A' || currentCompanyData.statut_rcs === 'Inscrit';
+  const cpVal = isActif ? pseudoRandom(seed, 2, 180, 920) * 1000 : -pseudoRandom(seed, 2, 10, 50) * 1000;
+  const dettesVal = isActif ? pseudoRandom(seed, 3, 40, 250) * 1000 : pseudoRandom(seed, 3, 150, 450) * 1000;
+  const scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
+
+  const summaries = generateCategorySummaries(currentCompanyData, isActif, scoreVal, seed, cpVal, dettesVal);
+
+  const idMapping = {
+    'summaryGroupeBox': summaries.groupe,
+    'summaryFinanceBox': summaries.finance,
+    'summaryConformiteBox': summaries.conformite,
+    'summaryDecisionBox': summaries.decision
+  };
+
+  for (const [id, htmlContent] of Object.entries(idMapping)) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = htmlContent;
+  }
 }
 
 // =========================================================================
@@ -647,8 +631,26 @@ async function handleSearch() {
 }
 
 // =========================================================================
-// 10. FONCTION COPIE DE LIEN PARTAGÉ
+// 10. LIEN DIRECT ET COPIE DANS LE PRESSE-PAPIER
 // =========================================================================
+function updateShareUrl(siren) {
+  const shareUrl = `${window.location.origin}${window.location.pathname}?siren=${siren}`;
+  const shareContainer = document.getElementById('shareUrlContainer');
+
+  if (shareContainer) {
+    shareContainer.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; background: #0f172a; padding: 8px 12px; border: 1px solid #38bdf8; border-radius: 6px;">
+        <a href="${shareUrl}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-size: 0.78rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
+          ${shareUrl}
+        </a>
+        <button type="button" onclick="copyShareUrl('${shareUrl}')" style="padding: 6px 12px; background: #0284c7; color: #ffffff; border: none; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer; white-space: nowrap;">
+          📋 Copier le lien
+        </button>
+      </div>
+    `;
+  }
+}
+
 function copyShareUrl(url) {
   if (navigator.clipboard && window.isSecureContext) {
     navigator.clipboard.writeText(url).then(() => {
@@ -688,20 +690,11 @@ function displayCompanyData(company) {
   const isActif = company.etat_administratif === 'A' || company.statut_rcs === 'Inscrit';
   const seed = getSirenSeed(siren);
 
-  const cpVal = isActif ? pseudoRandom(seed, 2, 180, 920) * 1000 : -pseudoRandom(seed, 2, 10, 50) * 1000;
-  const dettesVal = isActif ? pseudoRandom(seed, 3, 40, 250) * 1000 : pseudoRandom(seed, 3, 150, 450) * 1000;
-  const scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
-
-  const summaries = generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dettesVal);
-
-  if (document.getElementById('summaryGroupeBox')) document.getElementById('summaryGroupeBox').innerHTML = summaries.groupe;
-  if (document.getElementById('summaryFinanceBox')) document.getElementById('summaryFinanceBox').innerHTML = summaries.finance;
-  if (document.getElementById('summaryConformiteBox')) document.getElementById('summaryConformiteBox').innerHTML = summaries.conformite;
-  if (document.getElementById('summaryDecisionBox')) document.getElementById('summaryDecisionBox').innerHTML = summaries.decision;
-
   const statusBadge = document.getElementById('companyStatus');
   const scoreValEl = document.getElementById('scoreValue');
   const scoreBadge = document.getElementById('scoreBadge');
+
+  const scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
 
   if (!isActif) {
     if (statusBadge) {
@@ -711,12 +704,13 @@ function displayCompanyData(company) {
       statusBadge.style.background = "rgba(239, 68, 68, 0.2)";
     }
     if (scoreValEl) {
-      scoreValEl.innerHTML = `${scoreVal}<span class="score-max">/100</span>`;
+      scoreValEl.innerHTML = `${scoreVal}<span style="font-size: 0.9rem; color: #94a3b8;">/100</span>`;
       scoreValEl.style.color = "#ef4444";
     }
     if (scoreBadge) {
       scoreBadge.textContent = "🔴 RISQUE ÉLEVÉ";
-      scoreBadge.className = "score-badge high-risk";
+      scoreBadge.style.borderColor = "#ef4444";
+      scoreBadge.style.color = "#ef4444";
     }
   } else {
     if (statusBadge) {
@@ -726,12 +720,13 @@ function displayCompanyData(company) {
       statusBadge.style.background = "rgba(34, 197, 94, 0.2)";
     }
     if (scoreValEl) {
-      scoreValEl.innerHTML = `${scoreVal}<span class="score-max">/100</span>`;
+      scoreValEl.innerHTML = `${scoreVal}<span style="font-size: 0.9rem; color: #94a3b8;">/100</span>`;
       scoreValEl.style.color = "#38bdf8";
     }
     if (scoreBadge) {
       scoreBadge.textContent = scoreVal > 75 ? "🟢 RISQUE FAIBLE" : "🟡 RISQUE MODÉRÉ";
-      scoreBadge.className = "score-badge low-risk";
+      scoreBadge.style.borderColor = "#38bdf8";
+      scoreBadge.style.color = "#38bdf8";
     }
   }
 
@@ -761,28 +756,9 @@ function displayCompanyData(company) {
 
   fetchRealRelatedCompanies(dirigeantNom, siren);
 
-  // Lien direct d'accès dossier
-  const shareUrl = `${window.location.origin}${window.location.pathname}?siren=${siren}`;
-  const shareContainer = document.getElementById('shareUrlContainer') || document.getElementById('shareUrlInput');
-
-  if (shareContainer) {
-    shareContainer.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px; background: rgba(15, 23, 42, 0.8); padding: 8px 12px; border: 1px solid #334155; border-radius: 6px;">
-        <span style="font-size: 0.8rem; color: #94a3b8; white-space: nowrap;">🌐 Lien direct :</span>
-        <a href="${shareUrl}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-size: 0.8rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
-          ${shareUrl}
-        </a>
-        <button onclick="copyShareUrl('${shareUrl}')" style="padding: 6px 12px; background: #0284c7; color: #ffffff; border: none; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer; white-space: nowrap; transition: background 0.2s;">
-          📋 Copier le lien
-        </button>
-      </div>
-    `;
-  }
-
-  const pdfBtn = document.getElementById('downloadPdfBtn');
-  if (pdfBtn) {
-    pdfBtn.textContent = "Télécharger le Rapport Juridique & Financier (PDF 4 Pages HD)";
-  }
+  // Mettre à jour les synthèses et le lien direct
+  updateAllSummaryBoxes();
+  updateShareUrl(siren);
 
   calculateCreditLimit();
   calculateDsoImpact();
@@ -946,7 +922,7 @@ function generateSvgChart(isActif, seed, cpVal) {
 }
 
 // =========================================================================
-// 13. GENERATION DU DOSSIER D'AUDIT COMPLET DE 4 PAGES A4 EXACTES
+// 13. GENERATION DU DOSSIER D'AUDIT DE 4 PAGES
 // =========================================================================
 function generateTechAuditPdf() {
   if (!currentCompanyData) return;

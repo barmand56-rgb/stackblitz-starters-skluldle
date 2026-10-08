@@ -1,200 +1,214 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TECH AUDIT B2B — Cabinet d'Expertise & Scoring Solvabilité</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Euro Expert Solvabilité - Audit B2B</title>
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%230284c7'><path d='M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-5.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z'/></svg>">
+  <!-- Leaflet (Carte) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- CSS Leaflet & Style Principal -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-  <link rel="stylesheet" href="style.css">
-
-  <!-- Librairies JS (Leaflet, Chart.js & HTML2PDF HD) -->
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <!-- Chart.js (Graphique financier) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- html2pdf (Générateur PDF) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #0f172a; color: #ffffff; min-height: 100vh; display: flex; flex-direction: column; }
+
+    header { background: #1e293b; padding: 15px 20px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-size: 1.2rem; font-weight: bold; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+
+    .search-container { position: relative; max-width: 500px; width: 100%; margin: 20px auto; padding: 0 15px; }
+    .search-box { display: flex; gap: 8px; }
+    .search-input { flex: 1; padding: 12px 16px; border-radius: 8px; border: 1px solid #475569; background: #1e293b; color: #fff; font-size: 0.95rem; }
+    .search-input:focus { border-color: #38bdf8; outline: none; }
+    .search-btn { padding: 12px 20px; background: #0284c7; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+    .search-btn:hover { background: #0369a1; }
+
+    #autocompleteResults { position: absolute; top: 100%; left: 15px; right: 15px; background: #1e293b; border: 1px solid #38bdf8; border-top: none; border-radius: 0 0 8px 8px; max-height: 260px; overflow-y: auto; z-index: 10000; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    .autocomplete-item { padding: 10px 14px; cursor: pointer; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .autocomplete-item:hover { background: #0f172a; }
+
+    #map { width: 100%; height: 300px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #334155; z-index: 1; }
+
+    /* Panel d'audit modal / overlay */
+    .audit-panel { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15,23,42,0.85); backdrop-filter: blur(6px); z-index: 9000; display: none; justify-content: center; align-items: center; padding: 20px; }
+    .audit-card { background: #1e293b; border: 1px solid #38bdf8; border-radius: 12px; width: 100%; max-width: 850px; max-height: 90vh; overflow-y: auto; padding: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); position: relative; }
+    .close-btn { position: absolute; top: 15px; right: 20px; background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; }
+    .close-btn:hover { color: #ffffff; }
+
+    .company-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 12px; }
+    .company-title { font-size: 1.3rem; font-weight: bold; color: #ffffff; }
+    .company-status { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; border: 1px solid; }
+    .score-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; background: rgba(56, 189, 248, 0.1); border: 1px solid #38bdf8; color: #38bdf8; }
+
+    /* Onglets */
+    .tabs-nav { display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 8px; overflow-x: auto; }
+    .tab-btn { padding: 8px 16px; background: #0f172a; border: 1px solid #334155; color: #94a3b8; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; white-space: nowrap; }
+    .tab-btn.active { background: #0284c7; color: #ffffff; border-color: #38bdf8; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Badges de labels */
+    .labels-container { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+    .label-badge-item { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; background: #0f172a; border: 1px solid #334155; color: #cbd5e1; }
+    .label-badge-item.active { border-color: #22c55e; color: #4ade80; }
+
+    /* Outils interactifs */
+    .tool-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+    .tool-title { font-size: 0.85rem; font-weight: bold; color: #38bdf8; margin-bottom: 8px; }
+    .form-group { margin-bottom: 8px; }
+    .form-group label { display: block; font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; }
+    .form-input { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #475569; background: #1e293b; color: #fff; font-size: 0.85rem; }
+
+    .btn-primary { width: 100%; padding: 12px; background: #0284c7; color: #ffffff; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9rem; cursor: pointer; margin-top: 10px; }
+    .btn-primary:hover { background: #0369a1; }
+  </style>
 </head>
 <body>
 
-  <!-- CARTE INTERACTIVE LEAFLET -->
-  <div id="map"></div>
+  <header>
+    <div class="logo">🛡️ Euro Expert Solvabilité <span>2026</span></div>
+  </header>
 
-  <!-- BARRE DE RECHERCHE FLOTTANTE -->
-  <div class="search-container">
-    <div class="search-box">
-      <span class="search-icon">🔍</span>
-      <input type="text" id="searchInput" placeholder="Rechercher une entreprise, SIREN, dirigeant..." autocomplete="off">
-      <button id="searchBtn">Analyser</button>
-    </div>
-    <div id="autocompleteResults" class="autocomplete-results"></div>
-  </div>
-
-  <!-- PANNEAU D'AUDIT INTERACTIF (STRUCTURE EN ONGLET) -->
-  <div id="auditPanel" class="audit-panel" style="display: none;">
-    <div class="panel-header">
-      <div class="title-group">
-        <h2 id="companyName">Nom de l'Entreprise</h2>
-        <span id="companyStatus" class="badge">ACTIF</span>
+  <main style="flex: 1; padding: 20px;">
+    <div class="search-container">
+      <div class="search-box">
+        <input type="text" id="searchInput" class="search-input" placeholder="Saisissez un Nom ou Numéro SIREN..." autocomplete="off" />
+        <button id="searchBtn" class="search-btn">Analyser</button>
       </div>
+      <div id="autocompleteResults"></div>
+    </div>
+
+    <div id="map"></div>
+  </main>
+
+  <!-- PANEL DE RESTITUTION D'AUDIT -->
+  <div id="auditPanel" class="audit-panel">
+    <div class="audit-card">
       <button id="closePanelBtn" class="close-btn">&times;</button>
-    </div>
 
-    <!-- NAVIGATION MENU D'EXPERTISE (4 ONGLET-STRATÉGIQUES) -->
-    <div class="panel-tabs">
-      <button class="tab-btn active" onclick="switchTab('tab-finance')">📊 Finance</button>
-      <button class="tab-btn" onclick="switchTab('tab-kyc')">🏢 Groupe &amp; KYC</button>
-      <button class="tab-btn" onclick="switchTab('tab-conformite')">🛡️ Conformité</button>
-      <button class="tab-btn" onclick="switchTab('tab-legal')">⚖️ Légal &amp; Contentieux</button>
-    </div>
-
-    <div class="panel-body">
-      
-      <!-- ================= ONGLET 1 : FINANCE & SOLVABILITÉ ================= -->
-      <div id="tab-finance" class="tab-content active">
-        <div class="score-card">
-          <div class="score-value" id="scoreValue">88<span class="score-max">/100</span></div>
-          <div class="score-details">
-            <span class="score-title">Score de Solvabilité Cabinet</span>
-            <span class="score-badge low-risk" id="scoreBadge">🟢 Risque Faible</span>
+      <div class="company-header">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div id="companyName" class="company-title">ENTREPRISE</div>
+            <span id="companyStatus" class="company-status">ACTIF</span>
+          </div>
+          <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px;">
+            SIREN / SIRET : <span id="companySiren" style="color: #ffffff;">-</span>
+          </div>
+          <div style="font-size: 0.78rem; color: #94a3b8;">
+            Forme : <span id="companyForme" style="color: #cbd5e1;">-</span> • NAF : <span id="companyNaf" style="color: #cbd5e1;">-</span>
+          </div>
+          <div style="font-size: 0.78rem; color: #94a3b8;">
+            Gérance : <span id="companyDirigeant" style="color: #cbd5e1;">-</span>
           </div>
         </div>
-
-        <div class="info-grid">
-          <div class="info-card"><span class="label">SIREN / SIRET</span><span class="value" id="companySiren">-</span></div>
-          <div class="info-card"><span class="label">Forme Juridique</span><span class="value" id="companyForme">-</span></div>
-          <div class="info-card"><span class="label">Activité NAF</span><span class="value" id="companyNaf">-</span></div>
-          <div class="info-card"><span class="label">Dirigeant</span><span class="value" id="companyDirigeant">-</span></div>
+        <div style="text-align: right;">
+          <div id="scoreValue" style="font-size: 1.6rem; font-weight: bold; color: #38bdf8;">--<span style="font-size: 0.9rem; color: #94a3b8;">/100</span></div>
+          <div id="scoreBadge" class="score-badge">RISQUE NEUTRE</div>
         </div>
+      </div>
 
-        <div class="tool-card">
-          <div class="tool-title">🧮 Calculator de Limite de Crédit</div>
-          <div class="tool-grid">
-            <div>
-              <label class="tool-label">Votre CA Annuel (€) :</label>
-              <input type="number" id="userTurnoverInput" value="500000" class="tool-input">
+      <div id="labelsContainer" class="labels-container"></div>
+
+      <!-- Navigation par Onglets -->
+      <div class="tabs-nav">
+        <button class="tab-btn active" onclick="switchTab('tabFinance')">📊 Finance</button>
+        <button class="tab-btn" onclick="switchTab('tabGroupe')">🏢 Groupe &amp; KYC</button>
+        <button class="tab-btn" onclick="switchTab('tabConformite')">📋 Conformité</button>
+        <button class="tab-btn" onclick="switchTab('tabDecision')">💡 Légal &amp; Contentieux</button>
+      </div>
+
+      <!-- Contenu Onglet 1 : Finance -->
+      <div id="tabFinance" class="tab-content active">
+        <div id="summaryFinanceBox"></div>
+        <div class="tool-box">
+          <div class="tool-title">📈 Trajectoire Financière Historique</div>
+          <canvas id="financialChart" height="120"></canvas>
+        </div>
+      </div>
+
+      <!-- Contenu Onglet 2 : Groupe & KYC -->
+      <div id="tabGroupe" class="tab-content">
+        <div id="summaryGroupeBox"></div>
+        <div class="tool-box">
+          <div class="tool-title">🔗 Sociétés Sœurs &amp; Participations Directes</div>
+          <div id="groupCompaniesList">Recherche en cours...</div>
+        </div>
+      </div>
+
+      <!-- Contenu Onglet 3 : Conformité -->
+      <div id="tabConformite" class="tab-content">
+        <div id="summaryConformiteBox"></div>
+        <div class="tool-box">
+          <div class="tool-title">🔐 Vérification RIB / IBAN Anti-Fraude</div>
+          <div class="form-group">
+            <input type="text" id="ibanInput" class="form-input" placeholder="FR76 3000 2005 5000 0000 0000 000" />
+          </div>
+          <button id="checkIbanBtn" class="search-btn" style="width: 100%;">Vérifier la conformité de l'IBAN</button>
+          <div id="ibanResultBox" style="margin-top: 8px; font-size: 0.8rem; display: none;"></div>
+        </div>
+      </div>
+
+      <!-- Contenu Onglet 4 : Légal & Contentieux -->
+      <div id="tabDecision" class="tab-content">
+        <div id="summaryDecisionBox"></div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="tool-box">
+            <div class="tool-title">🧮 Plafond d'Encours Conseillé</div>
+            <div class="form-group">
+              <label>Votre CA Annuel avec ce client (€)</label>
+              <input type="number" id="userTurnoverInput" class="form-input" value="500000" />
             </div>
-            <div>
-              <label class="tool-label">Tolérance Risque :</label>
-              <select id="riskToleranceSelect" class="tool-input">
-                <option value="prudent">Prudente (2%)</option>
-                <option value="normal" selected>Modérée (5%)</option>
-                <option value="agressif">Offensive (10%)</option>
+            <div class="form-group">
+              <label>Tolérance au risque</label>
+              <select id="riskToleranceSelect" class="form-input">
+                <option value="prudent">Prudent (2%)</option>
+                <option value="modere" selected>Modéré (5%)</option>
+                <option value="agressif">Agressif (10%)</option>
               </select>
             </div>
+            <div style="font-size: 0.85rem; font-weight: bold; margin-top: 6px;">
+              Plafond recommandé : <span id="calcCreditLimit" style="color: #38bdf8;">- €</span>
+            </div>
           </div>
-          <div class="tool-result-box">
-            Plafond conseillé : <strong id="calcCreditLimit" style="color:#38bdf8;">25 000 € HT</strong>
+
+          <div class="tool-box">
+            <div class="tool-title">⏱️ Simulateur d'Impact Cash / DSO</div>
+            <div class="form-group">
+              <label>Montant Facture HT (€)</label>
+              <input type="number" id="invoiceAmountInput" class="form-input" value="25000" />
+            </div>
+            <div class="form-group">
+              <label>Jours de retard de paiement</label>
+              <input type="number" id="delayDaysInput" class="form-input" value="30" />
+            </div>
+            <div style="font-size: 0.85rem; font-weight: bold; margin-top: 6px;">
+              Coût du retard en trésorerie : <span id="cashFlowCost" style="color: #ef4444;">0.00 €</span>
+            </div>
           </div>
         </div>
 
-        <div class="chart-box">
-          <h3>Évolution Historique (CA k€)</h3>
-          <canvas id="financialChart"></canvas>
-        </div>
+        <button id="generateLegalDocBtn" class="search-btn" style="width: 100%; background: #475569;">📄 Générer une Mise en Demeure Sommation de Payer</button>
       </div>
 
-      <!-- ================= ONGLET 2 : GROUPE, HOLDING & KYC (BENEFICIAIRES) ================= -->
-      <div id="tab-kyc" class="tab-content">
-        <div class="info-card full-width highlight-box" style="margin-bottom:10px;">
-          <span class="label">🔍 Contrôle KYC — Bénéficiaires Effectifs (RBE)</span>
-          <div id="rbeList" class="value" style="margin-top:4px; font-size:0.75rem;">
-            <!-- Rempli dynamiquement -->
-          </div>
-        </div>
-
-        <div class="info-card full-width">
-          <span class="label">🏢 Groupe, Holdings &amp; Sociétés sous la même gérance</span>
-          <div id="groupCompaniesList" class="group-companies-list" style="margin-top:6px;">
-            <!-- Rempli dynamiquement -->
-          </div>
-        </div>
-
-        <div class="info-card full-width" style="margin-top:10px;">
-          <span class="label">📍 Réseau d'Établissements &amp; Agences</span>
-          <div id="etablissementsList" class="value" style="margin-top:4px; font-size:0.72rem;">
-            <!-- Rempli dynamiquement -->
-          </div>
-        </div>
+      <!-- Zone Lien Direct -->
+      <div style="margin-top: 15px;">
+        <span style="font-size: 0.8rem; color: #94a3b8;">🌐 Lien direct d'accès dossier :</span>
+        <div id="shareUrlContainer"></div>
       </div>
 
-      <!-- ================= ONGLET 3 : CONFORMITÉ, LABELS & PROFIL SOCIAL ================= -->
-      <div id="tab-conformite" class="tab-content">
-        <div class="info-card full-width" style="margin-bottom:10px;">
-          <span class="label">🏷️ Enseignes, Marque &amp; Noms Commerciaux</span>
-          <div id="enseignesList" class="value" style="margin-top:4px; font-size:0.75rem; color:#38bdf8;">-</div>
-        </div>
+      <!-- Bouton Génération PDF -->
+      <button id="downloadPdfBtn" class="btn-primary">Télécharger le Rapport Juridique &amp; Financier (PDF 4 Pages HD)</button>
 
-        <div class="tool-card">
-          <div class="tool-title">🏅 Certifications, Labels &amp; Qualifications Fournisseur</div>
-          <div id="labelsContainer" class="labels-grid">
-            <!-- Badges dynamiques (Qualiopi, RGE, Bio, ESS) -->
-          </div>
-        </div>
-
-        <div class="info-grid">
-          <div class="info-card">
-            <span class="label">👥 Tranche d'Effectif Salarié</span>
-            <span class="value" id="effectifSalarie">-</span>
-          </div>
-          <div class="info-card">
-            <span class="label">📜 Convention Collective (IDCC)</span>
-            <span class="value" id="conventionCollective">-</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ================= ONGLET 4 : LÉGAL, BODACC & ACTION CONTENTIEUSE ================= -->
-      <div id="tab-legal" class="tab-content">
-        <div class="tool-card">
-          <div class="tool-title">⚡ Contrôle Anti-Fraude RIB / IBAN (KYC)</div>
-          <input type="text" id="ibanInput" placeholder="FR76 3000 1007 9412 3456 7890 123" class="tool-input" style="margin-bottom:6px;">
-          <button id="checkIbanBtn" class="btn-secondary-sm">Vérifier la Conformité</button>
-          <div id="ibanResultBox" class="tool-result-box" style="display:none; margin-top:6px;"></div>
-        </div>
-
-        <div class="tool-card">
-          <div class="tool-title">📊 Calculateur d'Impact Trésorerie &amp; DSO</div>
-          <div class="tool-grid">
-            <div><label class="tool-label">Facture (€) :</label><input type="number" id="invoiceAmountInput" value="15000" class="tool-input"></div>
-            <div><label class="tool-label">Retard (Jours) :</label><input type="number" id="delayDaysInput" value="45" class="tool-input"></div>
-          </div>
-          <div class="tool-result-box">Immobilisation : <strong id="cashFlowCost" style="color:#f59e0b;">184,93 €</strong></div>
-        </div>
-
-        <div class="tool-card">
-          <div class="tool-title">🚨 Rédaction de Sommation &amp; Courrier Legal</div>
-          <select id="legalDocTypeSelect" class="tool-input" style="margin-bottom:8px;">
-            <option value="mise_en_demeure">Mise en Demeure de Payer</option>
-            <option value="comptant">Sommation - Règlement Comptant Exigé</option>
-          </select>
-          <button id="generateLegalDocBtn" class="btn-secondary-sm">Générer le Courrier (.TXT)</button>
-        </div>
-      </div>
-
-      <section class="ai-section" style="margin-top:10px;">
-        <div class="ai-header">
-          <span class="ai-icon">⚖️</span>
-          <h3>Synthèse d'Expertise &amp; Recommandation Cabinet</h3>
-        </div>
-        <div id="aiContent" class="ai-content">Veuillez analyser une entreprise...</div>
-      </section>
-
-      <div class="share-box">
-        <span>🌐 Lien direct d'accès dossier :</span>
-        <input type="text" id="shareUrlInput" readonly>
-      </div>
-
-      <div class="action-bar">
-        <button id="downloadPdfBtn" class="btn-primary">Télécharger le Rapport Juridique &amp; Financier (PDF 2 Pages HD)</button>
-      </div>
     </div>
-  </div>
-
-  <div id="pdfContainer" style="position: absolute; top: -9999px; left: -9999px; width: 794px;">
-    <div id="pdfTemplate"></div>
   </div>
 
   <script src="index.js"></script>
