@@ -278,7 +278,9 @@ window.selectAutocompleteSuggestion = selectAutocompleteSuggestion;
 function initMap() {
   map = L.map('map', { center: [-21.0924, 55.2289], zoom: 12, zoomControl: true });
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
-  setTimeout(() => map.invalidateSize(), 500);
+  
+  // Force l'ajustement de la carte à tout l'écran
+  setTimeout(() => { if (map) map.invalidateSize(); }, 300);
 }
 
 function switchTab(tabId) {
