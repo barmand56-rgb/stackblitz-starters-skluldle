@@ -9,7 +9,7 @@ let financialChartInstance = null;
 let debounceTimer;
 
 const SECRET_SALT = "EURO_EXPERT_SOLVABILITE_KEY_2026";
-const PAPPERS_API_KEY = ""; // Optionnel
+const PAPPERS_API_KEY = "31138522741f55c243bc5c260a03e5923d6b0b08a17ad1c2"; // Optionnel
 
 // =========================================================================
 // 1. DICTIONNAIRE MULTI-SECTEURS INTELLIGENT (NAF/APE)
