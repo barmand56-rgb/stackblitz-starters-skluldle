@@ -1,19 +1,19 @@
 html, body {
-  margin: 0;
-  padding: 0;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
-  background-color: #0f172a;
-  color: #ffffff;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+  background-color: #0f172a !important;
+  color: #ffffff !important;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
 }
 
 * {
-  box-sizing: border-box;
+  box-sizing: border-box !important;
 }
 
-/* FENÊTRE POP-UP D'ACCÈS INITIALE */
+/* FENÊTRE D'ACCÈS SÉCURISÉE */
 #passModalOverlay {
   position: fixed;
   top: 0;
@@ -27,6 +27,7 @@ html, body {
   align-items: center;
   justify-content: center;
 }
+
 .pass-card {
   background: #1e293b;
   border: 1px solid #38bdf8;
@@ -37,56 +38,77 @@ html, body {
   text-align: center;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
 }
+
 .pass-title { font-size: 1.25rem; font-weight: bold; color: #38bdf8; margin-bottom: 8px; }
 .pass-sub { font-size: 0.82rem; color: #94a3b8; margin-bottom: 20px; line-height: 1.4; }
+
 .pass-input {
-  width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #475569;
-  background: #0f172a; color: #ffffff; font-size: 1rem; text-align: center;
-  letter-spacing: 2px; font-weight: bold; margin-bottom: 15px; box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #475569;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 1rem;
+  text-align: center;
+  letter-spacing: 2px;
+  font-weight: bold;
+  margin-bottom: 15px;
+  box-sizing: border-box;
 }
 .pass-input:focus { border-color: #38bdf8; outline: none; }
+
 .pass-btn {
-  width: 100%; padding: 12px; border-radius: 6px; border: none;
-  background: #0284c7; color: #ffffff; font-size: 0.95rem; font-weight: bold; cursor: pointer;
+  width: 100%;
+  padding: 12px;
+  border-radius: 6px;
+  border: none;
+  background: #0284c7;
+  color: #ffffff;
+  font-size: 0.95rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
 }
 .pass-btn:hover { background: #0369a1; }
+
 .pass-error { color: #ef4444; font-size: 0.8rem; margin-top: 12px; display: none; }
 
-/* CONTENU PRINCIPAL MASQUÉ JUSQU'À VALIDATION DU CODE */
+/* APPLICATION PRINCIPALE PLEIN ÉCRAN */
 #appContent {
-  width: 100vw;
-  height: 100vh;
+  width: 100vw !important;
+  height: 100vh !important;
   display: none; /* Basculé en flex par JS */
-  flex-direction: column;
+  flex-direction: column !important;
 }
 
 header {
-  flex-shrink: 0;
-  background: #1e293b;
-  padding: 12px 20px;
-  border-bottom: 1px solid #334155;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-shrink: 0 !important;
+  background: #1e293b !important;
+  padding: 12px 20px !important;
+  border-bottom: 1px solid #334155 !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
 }
 .logo { font-size: 1.2rem; font-weight: bold; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
 
 main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 10px;
-  min-height: 0;
-  position: relative;
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 10px !important;
+  min-height: 0 !important;
+  position: relative !important;
 }
 
 .search-container {
-  flex-shrink: 0;
-  position: relative;
-  max-width: 600px;
-  width: 100%;
-  margin: 0 auto 10px auto;
-  z-index: 1000;
+  flex-shrink: 0 !important;
+  position: relative !important;
+  max-width: 600px !important;
+  width: 100% !important;
+  margin: 0 auto 10px auto !important;
+  z-index: 1000 !important;
 }
 .search-box { display: flex; gap: 8px; }
 .search-input { flex: 1; padding: 12px 16px; border-radius: 8px; border: 1px solid #475569; background: #1e293b; color: #fff; font-size: 0.95rem; }
@@ -94,30 +116,61 @@ main {
 .search-btn { padding: 12px 20px; background: #0284c7; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
 
 #autocompleteResults {
-  position: absolute; top: 100%; left: 0; right: 0; background: #1e293b;
-  border: 1px solid #38bdf8; border-top: none; border-radius: 0 0 8px 8px;
-  max-height: 260px; overflow-y: auto; z-index: 10000; display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #1e293b;
+  border: 1px solid #38bdf8;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  z-index: 10000;
+  display: none;
 }
 .autocomplete-item { padding: 10px 14px; cursor: pointer; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
 .autocomplete-item:hover { background: #0f172a; }
 
-/* LA CARTE EN PLEINE HAUTEUR SANS BANDES NI BUG */
+/* CARTE LEAFLET */
 #map {
-  width: 100%;
-  height: 100%;
-  flex: 1;
-  min-height: 0;
-  border-radius: 8px;
-  border: 1px solid #334155;
+  width: 100% !important;
+  height: 100% !important;
+  flex: 1 !important;
+  min-height: 0 !important;
+  border-radius: 8px !important;
+  border: 1px solid #334155 !important;
 }
 
-/* AUDIT PANEL */
+/* PANNEAU D'AUDIT */
 .audit-panel {
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-  background: rgba(15,23,42,0.85); backdrop-filter: blur(6px); z-index: 9000;
-  display: none; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15,23,42,0.85);
+  backdrop-filter: blur(6px);
+  z-index: 9000;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  box-sizing: border-box;
 }
-.audit-card { background: #1e293b; border: 1px solid #38bdf8; border-radius: 12px; width: 100%; max-width: 880px; max-height: 92vh; overflow-y: auto; padding: 22px; position: relative; }
+
+.audit-card {
+  background: #1e293b;
+  border: 1px solid #38bdf8;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 880px;
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 22px;
+  position: relative;
+}
+
 .close-btn { position: absolute; top: 15px; right: 20px; background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; }
 .company-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 12px; }
 .company-title { font-size: 1.3rem; font-weight: bold; color: #ffffff; }
