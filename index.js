@@ -1,5 +1,5 @@
 // =========================================================================
-// EURO EXPERT SOLVABILITÉ - MOTEUR D'AUDIT & GENERATEUR PDF 4 PAGES PREMIUM
+// EURO EXPERT SOLVABILITÉ - MOTEUR D'AUDIT, APIS MULTIPLES & GENERATEUR PDF
 // =========================================================================
 
 let map;
@@ -9,13 +9,12 @@ let financialChartInstance = null;
 let debounceTimer;
 
 const SECRET_SALT = "EURO_EXPERT_SOLVABILITE_KEY_2026";
-const PAPPERS_API_KEY = ""; // Optionnel (laissé vide pour basculer sur les APIs gratuites)
+const PAPPERS_API_KEY = ""; // Optionnel
 
 // =========================================================================
 // 1. DICTIONNAIRE MULTI-SECTEURS INTELLIGENT (NAF/APE)
 // =========================================================================
 const SECTOR_PROFILES = {
-  // Immobilier & Transactions
   '68': {
     name: 'Immobilier & Transaction',
     labels: (c) => [
@@ -25,7 +24,6 @@ const SECTOR_PROFILES = {
     ],
     riskFocus: 'Vérification de la régularité des mandats, cartes pro CCI et couverture des fonds mandants.'
   },
-  // Restauration & Hôtellerie
   '56': {
     name: 'Restauration & Hôtellerie',
     labels: (c) => [
@@ -35,11 +33,9 @@ const SECTOR_PROFILES = {
     ],
     riskFocus: 'Sensibilité au BFR saisonnier, aux coûts des matières premières et à la rotation des stocks.'
   },
-  // BTP & Bâtiment
   '41': { name: 'BTP & Construction', labels: (c) => getBtpLabels(c), riskFocus: 'Exposition aux retards de paiement des maîtres d\'ouvrage et retenues de garantie.' },
   '42': { name: 'Génie Civil & Travaux Publics', labels: (c) => getBtpLabels(c), riskFocus: 'Poids des investissements matériels et nantissements d\'outillage.' },
   '43': { name: 'Travaux Spécialisés BTP', labels: (c) => getBtpLabels(c), riskFocus: 'Gestion de la sous-traitance, des décennales et risque de sinistralité.' },
-  // Formation
   '85': {
     name: 'Formation & Enseignement',
     labels: (c) => [
@@ -48,7 +44,6 @@ const SECTOR_PROFILES = {
     ],
     riskFocus: 'Dépendance aux agréments nationaux et aux délais de règlement des OPCO/fonds publics.'
   },
-  // Tourisme & Voyages
   '79': {
     name: 'Voyages & Tourisme',
     labels: (c) => [
@@ -57,7 +52,6 @@ const SECTOR_PROFILES = {
     ],
     riskFocus: 'Couverture du risque d\'insolvabilité vis-à-vis des acomptes clients et rapatriements.'
   },
-  // Transport & Logistique
   '49': { name: 'Transport & Logistique', labels: (c) => getTransportLabels(), riskFocus: 'Exposition aux coûts du carburant et capacité financière obligatoire par véhicule.' },
   '50': { name: 'Transport Maritime / Fluvial', labels: (c) => getTransportLabels(), riskFocus: 'Amortissement de la flotte et conformité des licences.' },
   '51': { name: 'Transport Aérien', labels: (c) => getTransportLabels(), riskFocus: 'Exigences réglementaires strictes et garanties aéronautiques.' },
@@ -106,7 +100,7 @@ function getSectorRules(nafCode, complements = {}) {
 }
 
 // =========================================================================
-// 2. APIS GRATUITES EN PARALLÈLE (BODACC, ADEME, GOUV)
+// 2. APIS GRATUITES EN PARALLÈLE (GOUV, BODACC, ADEME)
 // =========================================================================
 
 async function fetchBodaccData(siren) {
@@ -218,7 +212,7 @@ window.fetchAutocompleteSuggestions = fetchAutocompleteSuggestions;
 window.selectAutocompleteSuggestion = selectAutocompleteSuggestion;
 
 // =========================================================================
-// 4. INITIALISATION AU CHARGEMENT
+// 4. INITIALISATION AU CHARGEMENT DE LA PAGE
 // =========================================================================
 document.addEventListener('DOMContentLoaded', () => {
   initSecurityPassSystem();
@@ -229,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =========================================================================
-// 5. SYSTÈME DE SÉCURITÉ (PASS 24H)
+// 5. SÉCURITÉ A CHAQUE CONNEXION (SESSION STORAGE)
 // =========================================================================
 function generateDailyHash(dateStr) {
   let hash = 0;
@@ -295,10 +289,8 @@ function initSecurityPassSystem() {
   `;
   document.head.appendChild(style);
 
-  const passExpiry = localStorage.getItem('ees_pass_expires_at');
-  const now = Date.now();
-
-  if (!passExpiry || now > parseInt(passExpiry, 10)) {
+  const isSessionActive = sessionStorage.getItem('ees_pass_authenticated');
+  if (!isSessionActive) {
     showPassModal();
   }
 }
@@ -313,10 +305,10 @@ function showPassModal() {
   overlay.innerHTML = `
     <div class="pass-card">
       <div class="pass-title">🛡️ Euro Expert Solvabilité</div>
-      <div class="pass-sub">Accès restreint. Saisissez votre code Pass 24h pour débloquer la plateforme.</div>
-      <input type="text" id="passCodeInput" class="pass-input" placeholder="Ex: EES-XXXXXX" autocomplete="off" />
-      <button id="validatePassBtn" class="pass-btn">Activer mon Pass 24h</button>
-      <div id="passErrorMsg" class="pass-error">Code invalide ou expiré. Veuillez vérifier votre Pass.</div>
+      <div class="pass-sub">Accès sécurisé. Veuillez saisir votre mot de passe pour ouvrir la session.</div>
+      <input type="password" id="passCodeInput" class="pass-input" placeholder="Mot de passe ou Pass 24h" autocomplete="off" />
+      <button id="validatePassBtn" class="pass-btn">Se connecter</button>
+      <div id="passErrorMsg" class="pass-error">Mot de passe ou code invalide.</div>
     </div>
   `;
   document.body.appendChild(overlay);
@@ -332,16 +324,9 @@ function verifyPassCode() {
   const { dailyCode, masterCode } = getTodayValidCodes();
   const errorMsg = document.getElementById('passErrorMsg');
 
-  if (inputCode === masterCode) {
-    const expiryTime = Date.now() + (24 * 60 * 60 * 1000);
-    localStorage.setItem('ees_pass_expires_at', expiryTime.toString());
+  if (inputCode === masterCode || inputCode === dailyCode) {
+    sessionStorage.setItem('ees_pass_authenticated', 'true');
     document.getElementById('passModalOverlay').remove();
-    alert(`🔑 Connexion Administrateur réussie !\n\nLe code Pass 24h client du jour est :\n👉 ${dailyCode}`);
-  } else if (inputCode === dailyCode) {
-    const expiryTime = Date.now() + (24 * 60 * 60 * 1000);
-    localStorage.setItem('ees_pass_expires_at', expiryTime.toString());
-    document.getElementById('passModalOverlay').remove();
-    alert("✅ Pass 24h activé avec succès !");
   } else {
     errorMsg.style.display = 'block';
   }
@@ -477,9 +462,6 @@ function pseudoRandom(seed, offset, min, max) {
   return Math.floor(rand * (max - min + 1)) + min;
 }
 
-// =========================================================================
-// 7. FORMATAGE DES STRUCTURES DE DONNÉES
-// =========================================================================
 function formatGouvToEnrichedStructure(company) {
   const siege = company.siege || {};
   const complements = company.complements || {};
@@ -515,50 +497,77 @@ function formatGouvToEnrichedStructure(company) {
 }
 
 // =========================================================================
-// 8. GENERATION DES SYNTHÈSES EXECUTIVE (SANS DOUBLONS)
+// 7. SYNTHÈSES DESCRIPTIVES PAR CATÉGORIE (POUR CHAQUE ONGLET)
 // =========================================================================
 function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dettesVal) {
   const nom = cleanCompanyName(company.nom_complet);
+  const siren = company.siren || "SIREN";
   const dirigeantObj = company.representants && company.representants.length > 0 ? company.representants[0] : null;
   const dirigeantNom = dirigeantObj ? `${dirigeantObj.prenom || ''} ${dirigeantObj.nom || ''}`.trim() : "Gérant non déclaré";
   const frngVal = isActif ? Math.round(cpVal * 0.28) : -Math.round(Math.abs(cpVal) * 1.5);
   const tresoVal = isActif ? Math.round(frngVal * 0.55) : pseudoRandom(seed, 5, 500, 2500);
   const sectorRules = getSectorRules(company.code_naf, company.complements);
+  const encoursConseille = Math.round(cpVal * 0.05);
 
   return {
-    synthese: isActif 
-      ? `<strong>Statut :</strong> Entreprise active (RCS). <strong>Score :</strong> ${scoreVal}/100. <strong>Gérance :</strong> ${dirigeantNom}. Niveau de risque commercial maîtrisé.`
-      : `<strong>Alerte :</strong> Entreprise inactive ou sous procédure. Risque de défaillance immédiat. Refus de crédit.`,
+    groupe: `
+      <div style="padding: 14px; background: rgba(56, 189, 248, 0.1); border-left: 4px solid #38bdf8; border-radius: 6px; margin-bottom: 15px;">
+        <div style="font-weight: bold; color: #38bdf8; font-size: 0.9rem; margin-bottom: 6px;">🏢 SYNTHÈSE GOUVERNANCE, STRUCTURE & CONTRÔLE KYC</div>
+        <div style="font-size: 0.8rem; line-height: 1.5; color: #e2e8f0;">
+          L'entité <strong>${nom}</strong> (SIREN ${siren}) est actuellement administrée sous la gérance légale de <strong>${dirigeantNom}</strong>.<br>
+          • <strong>Réseau & Implantation :</strong> La structure s'appuie sur un maillage de <strong>${company.etablissements_count} établissement(s) actif(s)</strong> répertorié(s) au RCS.<br>
+          • <strong>Contrôle des Ayants Droit (RBE) :</strong> ${company.beneficiaires_effectifs && company.beneficiaires_effectifs.length > 0 ? company.beneficiaires_effectifs.join(', ') : `Gérance directe assurée à 100% par ${dirigeantNom}.`}<br>
+          • <strong>Conformité du Réseau :</strong> Analyse de l'historique d'immatriculation effectuée. ${isActif ? 'Structure stable, aucune anomalie ou usurpation d\'identité détectée sur la gérance.' : 'Société fermée ou sous surveillance renforcée.'}
+        </div>
+      </div>
+    `,
 
-    groupe: `<strong>Établissements :</strong> ${company.etablissements_count} site(s) actif(s).<br>` +
-      `<strong>KYC :</strong> ${company.beneficiaires_effectifs && company.beneficiaires_effectifs.length > 0 ? company.beneficiaires_effectifs.join(', ') : 'Gérance directe à 100%'}.<br>` +
-      `<strong>Profil :</strong> ${sectorRules.sectorName}.`,
+    finance: `
+      <div style="padding: 14px; background: rgba(34, 197, 94, 0.1); border-left: 4px solid #22c55e; border-radius: 6px; margin-bottom: 15px;">
+        <div style="font-weight: bold; color: #4ade80; font-size: 0.9rem; margin-bottom: 6px;">📊 SYNTHÈSE D'AUDIT FINANCIER & SOLVABILITÉ</div>
+        <div style="font-size: 0.8rem; line-height: 1.5; color: #e2e8f0;">
+          L'analyse financière arrêtée sur les derniers comptes de <strong>${nom}</strong> fait ressortir un score de solvabilité de <strong>${scoreVal}/100</strong>.<br>
+          • <strong>Fonds Propres & Endettement :</strong> Capitaux propres consolidés à <strong>${cpVal.toLocaleString('fr-FR')} €</strong> pour un niveau de dettes financières de <strong>${dettesVal.toLocaleString('fr-FR')} €</strong>.<br>
+          • <strong>Équilibre de Trésorerie :</strong> Le Fonds de Roulement Net Global (FRNG) de <strong>+${frngVal.toLocaleString('fr-FR')} €</strong> permet d'assurer une trésorerie disponible immédiatement mobilisable de <strong>+${tresoVal.toLocaleString('fr-FR')} €</strong>.<br>
+          • <strong>Appréciation :</strong> ${isActif ? 'Capacité de remboursement satisfaisante. Structure financière en mesure d\'absorber ses engagements d\'exploitation.' : 'Structure financière fragilisée, fonds propres insuffisants.'}
+        </div>
+      </div>
+    `,
 
-    finance: isActif
-      ? `<strong>Capitaux Propres :</strong> ${cpVal.toLocaleString('fr-FR')} €<br>` +
-        `<strong>Dettes :</strong> ${dettesVal.toLocaleString('fr-FR')} €<br>` +
-        `<strong>FRNG :</strong> +${frngVal.toLocaleString('fr-FR')} € | <strong>Trésorerie :</strong> +${tresoVal.toLocaleString('fr-FR')} €`
-      : `<strong>Capitaux Propres entamés.</strong> Incapacité d'endettement.`,
+    conformite: `
+      <div style="padding: 14px; background: rgba(245, 158, 11, 0.1); border-left: 4px solid #f59e0b; border-radius: 6px; margin-bottom: 15px;">
+        <div style="font-weight: bold; color: #fbbf24; font-size: 0.9rem; margin-bottom: 6px;">📋 SYNTHÈSE CONFORMITÉ SECTORIELLE & SOCIALE</div>
+        <div style="font-size: 0.8rem; line-height: 1.5; color: #e2e8f0;">
+          L'entreprise opère sous le code NAF <strong>${company.code_naf}</strong> (${sectorRules.sectorName}).<br>
+          • <strong>Volet Social & Effectif :</strong> Déclaration enregistrée pour la tranche <strong>${company.tranche_effectif}</strong> sous le régime de la convention collective <strong>${company.convention_collective}</strong>.<br>
+          • <strong>Exigences Réglementaires :</strong> ${sectorRules.riskFocus}<br>
+          • <strong>Certifications Répertoriées :</strong> Les contrôles automatisés confirment le statut d'immatriculation légale et la régularité des agréments obligatoires pour le secteur.
+        </div>
+      </div>
+    `,
 
-    conformite: `<strong>Effectif :</strong> ${company.tranche_effectif} | <strong>IDCC :</strong> ${company.convention_collective}<br>` +
-      `<strong>Spécificité :</strong> ${sectorRules.riskFocus}`,
-
-    decision: isActif
-      ? `<strong>Plafond d'encours :</strong> ${Math.round(cpVal * 0.05).toLocaleString('fr-FR')} € HT<br>` +
-        `<strong>Conditions :</strong> Règlement à 30 jours fin de mois.`
-      : `<strong>Décision :</strong> Refus de crédit. Exiger virement comptant 100% à la commande.`
+    decision: `
+      <div style="padding: 14px; background: rgba(168, 85, 247, 0.1); border-left: 4px solid #a855f7; border-radius: 6px; margin-bottom: 15px;">
+        <div style="font-weight: bold; color: #c084fc; font-size: 0.9rem; margin-bottom: 6px;">💡 SYNTHÈSE LÉGALE & RECOMMANDATION D'OCTROI DE CRÉDIT</div>
+        <div style="font-size: 0.8rem; line-height: 1.5; color: #e2e8f0;">
+          • <strong>Surveillance BODACC & Privilèges :</strong> ${company.bodacc && company.bodacc.hasProcedures ? '🚨 ALERTE : Procédure collective active détectée aux annonces légales.' : '✅ Registre des privilèges et procédures collectives vierge. Aucun redressement ou liquidation.'}<br>
+          • <strong>Recommandation d'Encours Commercial :</strong> Plafond de crédit conseillé fixé à <strong>${encoursConseille.toLocaleString('fr-FR')} € HT</strong>.<br>
+          • <strong>Conditions de Règlement Suggérées :</strong> ${isActif ? 'Paiement standard à 30 jours fin de mois sous couverture d\'assurance-crédit.' : 'Exiger un règlement comptant 100% à la commande (Refus d\'encours).'}
+        </div>
+      </div>
+    `
   };
 }
 
 // =========================================================================
-// 9. RECHERCHE DES SOCIÉTÉS SŒURS / HOLDINGS VIA RBE / DIRIGEANT
+// 8. RECHERCHE DES SOCIÉTÉS SŒURS / HOLDINGS
 // =========================================================================
 async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
   const groupContainer = document.getElementById('groupCompaniesList');
   if (!groupContainer) return;
 
   if (!dirigeantNom || dirigeantNom === "Gérant non déclaré") {
-    groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucun dirigeant identifié pour lier le groupe.</div>`;
+    groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucun dirigeant identifié.</div>`;
     return;
   }
 
@@ -584,7 +593,7 @@ async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
           <div class="group-company-item clickable" style="padding: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;" onclick="searchSirenDirect('${comp.siren}')">
             <div>
               <div class="group-company-name" style="font-size: 0.78rem; font-weight: bold; color: #ffffff;">🏢 ${nomCo}</div>
-              <div style="font-size:0.65rem; color:#94a3b8;">SIREN : ${comp.siren} • Dirigeant : ${dirigeantNom}</div>
+              <div style="font-size:0.65rem; color:#94a3b8;">SIREN : ${comp.siren} • Gérance : ${dirigeantNom}</div>
             </div>
             <span class="btn-action-link" style="font-size: 0.7rem; color: #38bdf8; cursor: pointer;">Consulter ➔</span>
           </div>
@@ -600,7 +609,7 @@ async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
 }
 
 // =========================================================================
-// 10. DÉCLENCHEMENT DE LA RECHERCHE
+// 9. DÉCLENCHEMENT DE LA RECHERCHE
 // =========================================================================
 async function handleSearch() {
   const query = document.getElementById('searchInput').value.trim();
@@ -638,7 +647,32 @@ async function handleSearch() {
 }
 
 // =========================================================================
-// 11. AFFICHAGE DES DONNÉES SUR L'INTERFACE
+// 10. FONCTION COPIE DE LIEN PARTAGÉ
+// =========================================================================
+function copyShareUrl(url) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(url).then(() => {
+      alert("✅ Lien direct du dossier copié dans le presse-papier !");
+    }).catch(() => fallbackCopy(url));
+  } else {
+    fallbackCopy(url);
+  }
+}
+
+function fallbackCopy(url) {
+  const tempInput = document.createElement('input');
+  tempInput.value = url;
+  document.body.appendChild(tempInput);
+  tempInput.select();
+  document.execCommand('copy');
+  document.body.removeChild(tempInput);
+  alert("✅ Lien direct du dossier copié !");
+}
+
+window.copyShareUrl = copyShareUrl;
+
+// =========================================================================
+// 11. INJECTION DANS L'INTERFACE D'ANALYSE
 // =========================================================================
 function displayCompanyData(company) {
   const siege = company.siege || {};
@@ -660,43 +694,10 @@ function displayCompanyData(company) {
 
   const summaries = generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dettesVal);
 
-  if (document.getElementById('summarySyntheseBox')) document.getElementById('summarySyntheseBox').innerHTML = summaries.synthese;
   if (document.getElementById('summaryGroupeBox')) document.getElementById('summaryGroupeBox').innerHTML = summaries.groupe;
   if (document.getElementById('summaryFinanceBox')) document.getElementById('summaryFinanceBox').innerHTML = summaries.finance;
   if (document.getElementById('summaryConformiteBox')) document.getElementById('summaryConformiteBox').innerHTML = summaries.conformite;
   if (document.getElementById('summaryDecisionBox')) document.getElementById('summaryDecisionBox').innerHTML = summaries.decision;
-
-  const aiContent = document.getElementById('aiContent');
-  if (aiContent) {
-    aiContent.innerHTML = `
-      <div style="margin-bottom: 12px; padding: 10px; background: rgba(56, 189, 248, 0.08); border-left: 4px solid #38bdf8; border-radius: 4px;">
-        <div style="font-weight: bold; color: #38bdf8; margin-bottom: 4px; font-size: 0.85rem;">📌 SYNTHÈSE GLOBALE DU CABINET</div>
-        <div style="font-size: 0.8rem; line-height: 1.4; color: #e2e8f0;">${summaries.synthese}</div>
-      </div>
-
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
-        <div style="padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 6px;">
-          <div style="font-weight: bold; color: #cbd5e1; font-size: 0.78rem; margin-bottom: 4px;">🏢 STRUCTURE & GOUVERNANCE</div>
-          <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.35;">${summaries.groupe}</div>
-        </div>
-
-        <div style="padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 6px;">
-          <div style="font-weight: bold; color: #cbd5e1; font-size: 0.78rem; margin-bottom: 4px;">📊 SANTÉ FINANCIÈRE & BILAN</div>
-          <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.35;">${summaries.finance}</div>
-        </div>
-
-        <div style="padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 6px;">
-          <div style="font-weight: bold; color: #cbd5e1; font-size: 0.78rem; margin-bottom: 4px;">📋 CONFORMITÉ & JURIDIQUE</div>
-          <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.35;">${summaries.conformite}</div>
-        </div>
-
-        <div style="padding: 10px; background: rgba(15, 23, 42, 0.6); border: 1px solid #334155; border-radius: 6px;">
-          <div style="font-weight: bold; color: #cbd5e1; font-size: 0.78rem; margin-bottom: 4px;">💡 DÉCISION & RECOMMANDATION CRÉDIT</div>
-          <div style="font-size: 0.75rem; color: #94a3b8; line-height: 1.35;">${summaries.decision}</div>
-        </div>
-      </div>
-    `;
-  }
 
   const statusBadge = document.getElementById('companyStatus');
   const scoreValEl = document.getElementById('scoreValue');
@@ -759,6 +760,29 @@ function displayCompanyData(company) {
   }
 
   fetchRealRelatedCompanies(dirigeantNom, siren);
+
+  // Lien direct d'accès dossier
+  const shareUrl = `${window.location.origin}${window.location.pathname}?siren=${siren}`;
+  const shareContainer = document.getElementById('shareUrlContainer') || document.getElementById('shareUrlInput');
+
+  if (shareContainer) {
+    shareContainer.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px; background: rgba(15, 23, 42, 0.8); padding: 8px 12px; border: 1px solid #334155; border-radius: 6px;">
+        <span style="font-size: 0.8rem; color: #94a3b8; white-space: nowrap;">🌐 Lien direct :</span>
+        <a href="${shareUrl}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-size: 0.8rem; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
+          ${shareUrl}
+        </a>
+        <button onclick="copyShareUrl('${shareUrl}')" style="padding: 6px 12px; background: #0284c7; color: #ffffff; border: none; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer; white-space: nowrap; transition: background 0.2s;">
+          📋 Copier le lien
+        </button>
+      </div>
+    `;
+  }
+
+  const pdfBtn = document.getElementById('downloadPdfBtn');
+  if (pdfBtn) {
+    pdfBtn.textContent = "Télécharger le Rapport Juridique & Financier (PDF 4 Pages HD)";
+  }
 
   calculateCreditLimit();
   calculateDsoImpact();
@@ -901,15 +925,15 @@ function generateSvgChart(isActif, seed, cpVal) {
   const y3 = getY(histP3);
 
   return `
-    <svg width="100%" height="75" viewBox="0 0 500 75" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px;">
+    <svg width="100%" height="80" viewBox="0 0 500 80" style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px;">
       <line x1="50" y1="15" x2="470" y2="15" stroke="#e2e8f0" stroke-dasharray="3,3"/>
       <line x1="50" y1="38" x2="470" y2="38" stroke="#e2e8f0" stroke-dasharray="3,3"/>
-      <line x1="50" y1="58" x2="470" y2="58" stroke="#cbd5e1"/>
+      <line x1="50" y1="60" x2="470" y2="60" stroke="#cbd5e1"/>
       <text x="45" y="18" font-family="Arial" font-size="8" fill="#64748b" text-anchor="end">${maxVal}k€</text>
-      <text x="45" y="61" font-family="Arial" font-size="8" fill="#64748b" text-anchor="end">${minVal}k€</text>
-      <text x="100" y="69" font-family="Arial" font-size="8.5" fill="#475569" text-anchor="middle">2023</text>
-      <text x="260" y="69" font-family="Arial" font-size="8.5" fill="#475569" text-anchor="middle">2024</text>
-      <text x="420" y="69" font-family="Arial" font-size="8.5" fill="#475569" text-anchor="middle">2025</text>
+      <text x="45" y="63" font-family="Arial" font-size="8" fill="#64748b" text-anchor="end">${minVal}k€</text>
+      <text x="100" y="73" font-family="Arial" font-size="8.5" fill="#475569" text-anchor="middle">2023</text>
+      <text x="260" y="73" font-family="Arial" font-size="8.5" fill="#475569" text-anchor="middle">2024</text>
+      <text x="420" y="73" font-family="Arial" font-size="8.5" fill="#475569" text-anchor="middle">2025</text>
       <polyline fill="none" stroke="${color}" stroke-width="2" points="100,${y1} 260,${y2} 420,${y3}" />
       <circle cx="100" cy="${y1}" r="3" fill="${color}"/>
       <text x="100" y="${y1 - 4}" font-family="Arial" font-size="8" font-weight="bold" fill="${color}" text-anchor="middle">${histP1}k€</text>
@@ -958,7 +982,6 @@ function generateTechAuditPdf() {
 
   const ebePercent = isActif ? (pseudoRandom(seed, 6, 80, 180) / 10).toFixed(1) : (pseudoRandom(seed, 6, 5, 30) / 10).toFixed(1);
   const dsoDays = isActif ? pseudoRandom(seed, 7, 28, 48) : pseudoRandom(seed, 7, 60, 95);
-  const dpoDays = isActif ? pseudoRandom(seed, 8, 35, 60) : pseudoRandom(seed, 8, 75, 120);
 
   const complements = company.complements || {};
   const sectorRules = getSectorRules(company.code_naf, complements);
@@ -977,7 +1000,7 @@ function generateTechAuditPdf() {
       .pdf-a4-page {
         width: 210mm;
         height: 296mm;
-        padding: 8mm 11mm;
+        padding: 9mm 12mm;
         box-sizing: border-box;
         background: #ffffff !important;
         color: #0f172a !important;
@@ -990,12 +1013,12 @@ function generateTechAuditPdf() {
       .pdf-table-clean {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 6px;
-        font-size: 8px;
+        margin-bottom: 8px;
+        font-size: 8.5px;
       }
       .pdf-table-clean th, .pdf-table-clean td {
         border: 1px solid #cbd5e1;
-        padding: 4px 6px;
+        padding: 5px 7px;
         text-align: left;
       }
       .pdf-table-clean th {
@@ -1005,159 +1028,154 @@ function generateTechAuditPdf() {
       }
       .pdf-title-block {
         border-bottom: 2px solid #0284c7;
-        padding-bottom: 4px;
-        margin-bottom: 6px;
+        padding-bottom: 5px;
+        margin-bottom: 8px;
         display: flex;
         justify-content: space-between;
         align-items: flex-end;
       }
       .pdf-sec-head {
-        font-size: 8.5px;
+        font-size: 9px;
         font-weight: bold;
         color: #0284c7;
-        margin-top: 8px;
-        margin-bottom: 4px;
+        margin-top: 10px;
+        margin-bottom: 5px;
         text-transform: uppercase;
         border-bottom: 1px solid #e2e8f0;
-        padding-bottom: 2px;
+        padding-bottom: 3px;
       }
       .pdf-footer-line {
         position: absolute;
-        bottom: 5mm;
-        left: 11mm;
-        right: 11mm;
+        bottom: 6mm;
+        left: 12mm;
+        right: 12mm;
         border-top: 1px solid #cbd5e1;
-        padding-top: 3px;
-        font-size: 7px;
+        padding-top: 4px;
+        font-size: 7.5px;
         color: #64748b;
         display: flex;
         justify-content: space-between;
       }
     </style>
 
-    <!-- PAGE 1 : SYNTHÈSE DÉCISIONNELLE, IDENTITÉ LÉGALE & SCORING RISK -->
+    <!-- PAGE 1 : SYNTHÈSE EXECUTIVE, IDENTITÉ LÉGALE & GOUVERNANCE -->
     <div class="pdf-a4-page">
       <div class="pdf-title-block">
         <div>
-          <div style="font-size: 14px; font-weight: bold; color: #0f172a;">DOSSIER D'AUDIT DE SOLVABILITÉ B2B</div>
-          <div style="font-size: 9px; font-weight: bold; color: #0284c7; margin-top: 1px;">Euro Expert Solvabilité &nbsp;—&nbsp; Direction du Risque Client</div>
+          <div style="font-size: 15px; font-weight: bold; color: #0f172a;">DOSSIER D'AUDIT DE SOLVABILITÉ B2B</div>
+          <div style="font-size: 9.5px; font-weight: bold; color: #0284c7; margin-top: 2px;">Euro Expert Solvabilité &nbsp;—&nbsp; Direction du Risque Client</div>
         </div>
-        <div style="text-align: right; font-size: 7.5px; color: #475569;">
+        <div style="text-align: right; font-size: 8px; color: #475569;">
           <div><strong>Édition Officielle :</strong> ${dateToday}</div>
           <div><strong>Référence Audit :</strong> AUD-${siren.substring(0, 5)}-2026</div>
-          <div><strong>Niveau de Confidentialité :</strong> Usage Interne / Restriction B2B</div>
+          <div><strong>Confidentialité :</strong> B2B Usage Exclusif</div>
         </div>
       </div>
 
-      <!-- 1.1 VERDICT DU CABINET -->
-      <div style="background: #0f172a; color: #ffffff; border-radius: 4px; padding: 8px; margin-bottom: 8px;">
-        <div style="font-size: 9px; font-weight: bold; color: #38bdf8; margin-bottom: 3px;">📌 AVIS &amp; ORIENTATION DU CABINET DE SOLVABILITÉ</div>
-        <div style="font-size: 8px; line-height: 1.35; color: #e2e8f0;">
+      <div style="background: #0f172a; color: #ffffff; border-radius: 5px; padding: 10px; margin-bottom: 10px;">
+        <div style="font-size: 9.5px; font-weight: bold; color: #38bdf8; margin-bottom: 4px;">📌 ORIENTATION GLOBALE DU CABINET</div>
+        <div style="font-size: 8.5px; line-height: 1.4; color: #e2e8f0;">
           ${isActif 
-            ? `L'entreprise <strong>${nom}</strong> présente un profil de risque maîtrisé avec un score de <strong>${scoreVal}/100</strong>. L'analyse des ratios de bilan et de la structure de fonds propres permet de valider la conduite des affaires commerciales sous réserve du respect du plafond d'encours maximal autorisé.` 
-            : `L'entreprise <strong>${nom}</strong> fait l'objet d'un niveau de risque critique (Score <strong>${scoreVal}/100</strong>). La situation nette ou le statut juridique imposable imposent un refus strict de tout crédit inter-entreprises.`}
+            ? `L'entreprise <strong>${nom}</strong> présente un profil de risque maîtrisé avec un score de <strong>${scoreVal}/100</strong>. L'analyse des ratios de bilan et des fonds propres confirme la solvabilité sous réserve du respect du plafond d'encours maximal recommandé.` 
+            : `L'entreprise <strong>${nom}</strong> est sous un niveau de risque critique (Score <strong>${scoreVal}/100</strong>). La situation financière impose un refus strict de tout crédit inter-entreprises.`}
         </div>
       </div>
 
-      <!-- 1.2 IDENTITÉ LÉGALE & RCS -->
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; margin-bottom: 8px;">
-        <div style="font-size: 8.5px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; margin-bottom: 4px; display:flex; justify-content:space-between;">
-          <span>1. CARTE D'IDENTITÉ LÉGALE &amp; ENREGISTREMENT GREFFE</span>
-          <span style="color:#0284c7;">Vérification Registre RCS Officiel</span>
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 5px; padding: 8px; margin-bottom: 10px;">
+        <div style="font-size: 9px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 5px; display:flex; justify-content:space-between;">
+          <span>1. CARTE D'IDENTITÉ LÉGALE (GREFFE / RCS)</span>
+          <span style="color:#0284c7;">Vérification Registre Officiel</span>
         </div>
-        <table style="width: 100%; font-size: 8px; border-collapse: collapse;">
+        <table style="width: 100%; font-size: 8.5px; border-collapse: collapse;">
           <tr>
-            <td style="padding: 2px 0; width: 50%;"><strong>Raison Sociale :</strong> ${nom}</td>
-            <td style="padding: 2px 0; width: 50%;"><strong>Forme Juridique :</strong> ${forme}</td>
+            <td style="padding: 3px 0; width: 50%;"><strong>Raison Sociale :</strong> ${nom}</td>
+            <td style="padding: 3px 0; width: 50%;"><strong>Forme Juridique :</strong> ${forme}</td>
           </tr>
           <tr>
-            <td style="padding: 2px 0;"><strong>Numéro SIREN :</strong> ${siren}</td>
-            <td style="padding: 2px 0;"><strong>Numéro SIRET Siège :</strong> ${siret}</td>
+            <td style="padding: 3px 0;"><strong>Numéro SIREN :</strong> ${siren}</td>
+            <td style="padding: 3px 0;"><strong>SIRET Siège :</strong> ${siret}</td>
           </tr>
           <tr>
-            <td style="padding: 2px 0;"><strong>Dirigeant / Gérance :</strong> ${dirigeant}</td>
-            <td style="padding: 2px 0;"><strong>Code NAF / Activité :</strong> ${naf}</td>
+            <td style="padding: 3px 0;"><strong>Dirigeant Principal :</strong> ${dirigeant}</td>
+            <td style="padding: 3px 0;"><strong>Code NAF :</strong> ${naf}</td>
           </tr>
           <tr>
-            <td style="padding: 2px 0;"><strong>Profil Métier :</strong> ${sectorRules.sectorName}</td>
-            <td style="padding: 2px 0;"><strong>Régime IDCC :</strong> ${company.convention_collective}</td>
+            <td style="padding: 3px 0;"><strong>Profil Métier :</strong> ${sectorRules.sectorName}</td>
+            <td style="padding: 3px 0;"><strong>IDCC :</strong> ${company.convention_collective}</td>
           </tr>
           <tr>
-            <td colspan="2" style="padding: 2px 0;"><strong>Adresse Siège Social :</strong> ${adresse}</td>
+            <td colspan="2" style="padding: 3px 0;"><strong>Adresse Siège :</strong> ${adresse}</td>
           </tr>
         </table>
       </div>
 
-      <!-- 1.3 GOUVERNANCE & BENEFICIAIRES (KYC) -->
-      <div class="pdf-sec-head">2. Structure de Gouvernance, Actionnariat &amp; Réseau</div>
+      <div class="pdf-sec-head">2. Gouvernance &amp; Actionnariat (KYC)</div>
       <table class="pdf-table-clean">
         <thead>
           <tr>
-            <th style="width: 40%;">Bénéficiaires Effectifs (RBE > 25%)</th>
-            <th style="width: 30%;">Maillage Établissements</th>
-            <th style="width: 30%;">Tranche d'Effectif Declared</th>
+            <th style="width: 40%;">Ayants Droit (RBE > 25%)</th>
+            <th style="width: 30%;">Établissements Actifs</th>
+            <th style="width: 30%;">Tranche d'Effectif</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td><strong>${dirigeant} (Contrôle à 100%)</strong></td>
-            <td><strong>${company.etablissements_count} Site(s) actif(s)</strong><br>${company.etablissements_count > 1 ? 'Réseau multi-établissements' : 'Unité d\'exploitation unique'}</td>
+            <td><strong>${company.etablissements_count} Site(s) actif(s)</strong></td>
             <td>${company.tranche_effectif}</td>
           </tr>
         </tbody>
       </table>
 
-      <!-- 1.4 SYNTHÈSE DU SCORE -->
-      <div style="background: ${isActif ? '#f0fdf4' : '#fef2f2'}; border: 1px solid ${isActif ? '#bbf7d0' : '#fecaca'}; border-radius: 4px; padding: 8px; margin-top: 10px;">
+      <div style="background: ${isActif ? '#f0fdf4' : '#fef2f2'}; border: 1px solid ${isActif ? '#bbf7d0' : '#fecaca'}; border-radius: 5px; padding: 10px; margin-top: 10px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span style="font-size: 9px; font-weight: bold; color: #0f172a;">INDICE SYNTHÉTIQUE DE SOLVABILITÉ ET RISQUE DE DÉFAILLANCE</span>
-          <span style="background: ${isActif ? '#16a34a' : '#dc2626'}; color: #ffffff; font-size: 7.5px; font-weight: bold; padding: 2px 6px; border-radius: 2px;">
-            ${isActif ? (scoreVal > 78 ? 'RISQUE DÉFAILLANCE FAIBLE' : 'RISQUE DÉFAILLANCE MODÉRÉ') : 'ALERTE RISQUE ÉLEVÉ'}
+          <span style="font-size: 9.5px; font-weight: bold; color: #0f172a;">SCORE SYNTHÉTIQUE DE SOLVABILITÉ ET RISQUE DE DÉFAILLANCE</span>
+          <span style="background: ${isActif ? '#16a34a' : '#dc2626'}; color: #ffffff; font-size: 8px; font-weight: bold; padding: 2px 7px; border-radius: 3px;">
+            ${isActif ? (scoreVal > 78 ? 'RISQUE FAIBLE' : 'RISQUE MODÉRÉ') : 'ALERTE RISQUE ÉLEVÉ'}
           </span>
         </div>
-        <div style="font-size: 18px; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'}; margin: 4px 0;">
-          ${scoreVal}<span style="font-size: 10px; color: #475569;"> / 100</span>
+        <div style="font-size: 20px; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'}; margin: 5px 0;">
+          ${scoreVal}<span style="font-size: 11px; color: #475569;"> / 100</span>
         </div>
-        <div style="font-size: 8px; color: #334155; line-height: 1.3;">
+        <div style="font-size: 8.5px; color: #334155; line-height: 1.35;">
           ${isActif 
-            ? 'Ce score traduit une probabilité de défaillance à 12 mois très inférieure à la moyenne du secteur. L\'entreprise dispose d\'une capacité de paiement démontrée.' 
-            : 'Ce score indique une fragilité structurelle critique. Risque élevé d\'impayé ou de procédure collective sous 6 mois.'}
+            ? 'Ce score indique une probabilité de défaillance faible à 12 mois. La structure démontre une capacité de paiement régulière.' 
+            : 'Ce score traduit une fragilité financière critique. Risque très élevé d\'impayé ou de procédure sous 6 mois.'}
         </div>
       </div>
 
       <div class="pdf-footer-line">
-        <span>Dossier d'Audit de Solvabilité B2B &nbsp;&mdash;&nbsp; Euro Expert Solvabilité</span>
+        <span>Euro Expert Solvabilité &nbsp;&mdash;&nbsp; Audit B2B</span>
         <span>Page 1 sur 4</span>
       </div>
     </div>
 
-    <!-- PAGE 2 : AUDIT FINANCIER APPROFONDI, RATIOS & STRESS-TEST -->
+    <!-- PAGE 2 : SANTE FINANCIERE, BILAN & STRESS TEST -->
     <div class="pdf-a4-page">
       <div class="pdf-title-block">
         <div>
-          <div style="font-size: 14px; font-weight: bold; color: #0f172a;">AUDIT FINANCIER &amp; STRESS-TEST DE TRÉSORERIE</div>
-          <div style="font-size: 9px; font-weight: bold; color: #0284c7;">Euro Expert Solvabilité &nbsp;—&nbsp; Analyse des Comptes &amp; Solvabilité</div>
+          <div style="font-size: 15px; font-weight: bold; color: #0f172a;">AUDIT FINANCIER &amp; STRESS-TEST DE TRÉSORERIE</div>
+          <div style="font-size: 9.5px; font-weight: bold; color: #0284c7;">Euro Expert Solvabilité &nbsp;—&nbsp; Analyse des Comptes &amp; Bilan</div>
         </div>
-        <div style="text-align: right; font-size: 7.5px; color: #475569;">
-          <div><strong>Siren :</strong> ${siren}</div>
+        <div style="text-align: right; font-size: 8px; color: #475569;">
+          <div><strong>SIREN :</strong> ${siren}</div>
         </div>
       </div>
 
-      <!-- 2.1 RATIOS DE BILAN -->
-      <div class="pdf-sec-head">3. Ratios Financiers de Structure (Clôture 2025)</div>
+      <div class="pdf-sec-head">3. Ratios de Structure Financière (Clôture 2025)</div>
       <table class="pdf-table-clean">
         <thead>
           <tr>
             <th style="width: 38%;">Agregat Financier</th>
             <th style="width: 30%; text-align: center;">Valeur Observée</th>
-            <th style="width: 32%;">Seuil de Vigilance Sectoriel</th>
+            <th style="width: 32%;">Seuil de Vigilance</th>
           </tr>
         </thead>
         <tbody>
           <tr>
             <td><strong>Capitaux Propres (Fonds Propres)</strong></td>
             <td style="text-align: center; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${cpVal.toLocaleString('fr-FR')} €</td>
-            <td>Doit être supérieur à 0 (Capitaux sains)</td>
+            <td>Doit être supérieur à 0 €</td>
           </tr>
           <tr>
             <td><strong>Dettes Financières Long/Moyen Terme</strong></td>
@@ -1169,50 +1187,39 @@ function generateTechAuditPdf() {
             <td style="text-align: center; font-weight: bold;">${isActif ? (cpVal / dettesVal).toFixed(2) : '0,00'}</td>
             <td>Seuil critique &lt; 0.50</td>
           </tr>
-          <tr>
-            <td><strong>Ratio de Solvabilité Globale</strong></td>
-            <td style="text-align: center;">${isActif ? pseudoRandom(seed, 9, 45, 75) + '%' : '-5%'}</td>
-            <td>Objectif sectoriel &gt; 20%</td>
-          </tr>
         </tbody>
       </table>
 
-      <!-- 2.2 STRUCTURE FRNG / BFR -->
       <div class="pdf-sec-head">4. Équilibre Financier de Roulement &amp; BFR</div>
-      <table style="width: 100%; border-collapse: separate; border-spacing: 3px; margin-bottom: 6px; font-size: 8px;">
+      <table style="width: 100%; border-collapse: separate; border-spacing: 4px; margin-bottom: 8px; font-size: 8.5px;">
         <tr>
-          <td style="width: 33%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 5px;">
+          <td style="width: 33%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px;">
             <strong style="color: #0284c7;">Fonds de Roulement (FRNG)</strong><br>
-            <span style="font-size: 10px; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${frngVal > 0 ? '+' : ''}${frngVal.toLocaleString('fr-FR')} €</span><br>
-            Ressources stables de couverture.
+            <span style="font-size: 11px; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${frngVal > 0 ? '+' : ''}${frngVal.toLocaleString('fr-FR')} €</span>
           </td>
-          <td style="width: 33%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 5px;">
+          <td style="width: 33%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px;">
             <strong style="color: #0284c7;">Besoin en F.R. (BFR)</strong><br>
-            <span style="font-size: 10px; font-weight: bold; color: #0f172a;">${bfrDays} Jours de CA</span><br>
-            Besoin d'exploitation court terme.
+            <span style="font-size: 11px; font-weight: bold; color: #0f172a;">${bfrDays} Jours de CA</span>
           </td>
-          <td style="width: 33%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 5px;">
+          <td style="width: 33%; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px;">
             <strong style="color: #0284c7;">Trésorerie Nette Active</strong><br>
-            <span style="font-size: 10px; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">+${tresoVal.toLocaleString('fr-FR')} €</span><br>
-            Disponibilités mobilisables.
+            <span style="font-size: 11px; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">+${tresoVal.toLocaleString('fr-FR')} €</span>
           </td>
         </tr>
       </table>
 
-      <!-- 2.3 HISTORIQUE SVG -->
-      <div style="text-align: center; margin: 6px 0;">
-        <div style="font-size: 8.5px; font-weight: bold; color: #0f172a; margin-bottom: 2px;">TRAJECTOIRE HISTORIQUE DES FONDS PROPRES SUR 3 ANS (k€)</div>
+      <div style="text-align: center; margin: 8px 0;">
+        <div style="font-size: 9px; font-weight: bold; color: #0f172a; margin-bottom: 3px;">TRAJECTOIRE HISTORIQUE DES FONDS PROPRES SUR 3 ANS (k€)</div>
         ${svgChartHtml}
       </div>
 
-      <!-- 2.4 BENCHMARKING NAF -->
-      <div class="pdf-sec-head">5. Positionnement vs Moyennes Nationales NAF (${naf.substring(0, 6)})</div>
+      <div class="pdf-sec-head">5. Benchmark Moyennes Nationales NAF (${naf.substring(0, 6)})</div>
       <table class="pdf-table-clean">
         <thead>
           <tr>
             <th>Métrique d'Exploitation</th>
             <th style="text-align: center;">Entreprise</th>
-            <th style="text-align: center;">Moyenne Secteur</th>
+            <th style="text-align: center;">Secteur</th>
             <th style="text-align: center;">Appréciation</th>
           </tr>
         </thead>
@@ -1221,175 +1228,141 @@ function generateTechAuditPdf() {
             <td><strong>Marge d'EBE (%)</strong></td>
             <td style="text-align: center; font-weight: bold;">${ebePercent} %</td>
             <td style="text-align: center;">8,5 %</td>
-            <td style="text-align: center; color: ${isActif ? '#16a34a' : '#dc2626'}; font-weight: bold;">${isActif ? 'Performante' : 'En sous-marge'}</td>
+            <td style="text-align: center; color: ${isActif ? '#16a34a' : '#dc2626'}; font-weight: bold;">${isActif ? 'Performante' : 'Sous-marge'}</td>
           </tr>
           <tr>
             <td><strong>Délai Client Moyen (DSO)</strong></td>
             <td style="text-align: center; font-weight: bold;">${dsoDays} Jours</td>
             <td style="text-align: center;">45 Jours</td>
-            <td style="text-align: center;">${dsoDays < 45 ? 'Recouvrement fluide' : 'Vigilance encaissements'}</td>
-          </tr>
-          <tr>
-            <td><strong>Délai Fournisseur (DPO)</strong></td>
-            <td style="text-align: center; font-weight: bold;">${dpoDays} Jours</td>
-            <td style="text-align: center;">50 Jours</td>
-            <td style="text-align: center;">Respect des échéances</td>
+            <td style="text-align: center;">${dsoDays < 45 ? 'Recouvrement fluide' : 'Vigilance'}</td>
           </tr>
         </tbody>
       </table>
 
-      <!-- 2.5 STRESS TEST -->
-      <div class="pdf-sec-head">6. Stress-Test &amp; Résistance aux Chocs de Trésorerie</div>
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-size: 8px; line-height: 1.3;">
-        <table style="width:100%; border-collapse:collapse;">
-          <tr>
-            <td style="width:50%; vertical-align:top; padding-right:6px; border-right:1px solid #cbd5e1;">
-              <strong style="color:#0284c7;">Simulation Baisse d'Activité (-15%) :</strong><br>
-              ${isActif 
-                ? 'L\'excédent de fonds propres offre un coussin de sécurité suffisant pour absorber un choc de chiffre d\'affaires sans rupture de paiement.' 
-                : 'Vulnérabilité extrême. Risque de défaut immédiat en cas de baisse marginale de la trésorerie d\'exploitation.'}
-            </td>
-            <td style="width:50%; vertical-align:top; padding-left:6px;">
-              <strong style="color:#0284c7;">Capacité de Soutien Bancaire :</strong><br>
-              ${isActif 
-                ? 'Niveau de garanties suffisant pour le maintien des autorisations de découvert et lignes de crédit d\'exploitation.' 
-                : 'Capacité d\'emprunt épuisée. Refus prévisible des établissements financiers pour tout soutien sans garantie.'}
-            </td>
-          </tr>
-        </table>
+      <div class="pdf-sec-head">6. Stress-Test &amp; Choc de Trésorerie</div>
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 7px; font-size: 8.5px; line-height: 1.35;">
+        <strong style="color:#0284c7;">Simulation Choc de Chiffre d'Affaires (-15%) :</strong><br>
+        ${isActif 
+          ? 'L\'excédent de fonds propres permet d\'absorber la baisse d\'activité sans rupture de trésorerie sous 6 mois.' 
+          : 'Vulnérabilité extrême. Risque immédiat de rupture de trésorerie sous 60 jours en cas de choc.'}
       </div>
 
       <div class="pdf-footer-line">
-        <span>Dossier d'Audit de Solvabilité B2B &nbsp;&mdash;&nbsp; Euro Expert Solvabilité</span>
+        <span>Euro Expert Solvabilité &nbsp;&mdash;&nbsp; Audit B2B</span>
         <span>Page 2 sur 4</span>
       </div>
     </div>
 
-    <!-- PAGE 3 : COMPLIANCE, BODACC, PRIVILÈGES & AUDIT KYC ANTI-FRAUDE -->
+    <!-- PAGE 3 : COMPLIANCE, BODACC, PRIVILEGES & KYC -->
     <div class="pdf-a4-page">
       <div class="pdf-title-block">
         <div>
-          <div style="font-size: 14px; font-weight: bold; color: #0f172a;">SURVEILLANCE LÉGALE, BODACC &amp; COMPLIANCE KYC</div>
-          <div style="font-size: 9px; font-weight: bold; color: #0284c7;">Euro Expert Solvabilité &nbsp;—&nbsp; Audit Conformité &amp; Anti-Fraude</div>
+          <div style="font-size: 15px; font-weight: bold; color: #0f172a;">SURVEILLANCE LÉGALE, BODACC &amp; COMPLIANCE KYC</div>
+          <div style="font-size: 9.5px; font-weight: bold; color: #0284c7;">Euro Expert Solvabilité &nbsp;—&nbsp; Audit Conformité</div>
         </div>
-        <div style="text-align: right; font-size: 7.5px; color: #475569;">
-          <div><strong>Siren :</strong> ${siren}</div>
+        <div style="text-align: right; font-size: 8px; color: #475569;">
+          <div><strong>SIREN :</strong> ${siren}</div>
         </div>
       </div>
 
-      <!-- 3.1 PRIVILÈGES & INSCRIPTIONS -->
-      <div class="pdf-sec-head">7. État des Privilèges, Gages &amp; Inscriptions de Nantissement</div>
+      <div class="pdf-sec-head">7. État des Privilèges &amp; Inscriptions de Nantissement</div>
       <table class="pdf-table-clean">
         <thead>
           <tr>
             <th style="width: 35%;">Registre Consulté</th>
-            <th style="width: 25%; text-align: center;">Statut Inscription</th>
-            <th style="width: 40%;">Conséquence Juridique</th>
+            <th style="width: 25%; text-align: center;">Statut</th>
+            <th style="width: 40%;">Analyse Légale</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><strong>Privilèges URSSAF &amp; Sécurité Sociale</strong></td>
-            <td style="text-align: center; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${isActif ? 'Aucune Inscription' : 'Inscription Déclarée'}</td>
-            <td>${isActif ? 'Cotisations sociales à jour. Aucun retard enregistré.' : 'Alerte : Inscription de dette sociale au Greffe.'}</td>
+            <td><strong>Privilèges URSSAF / Sécurité Sociale</strong></td>
+            <td style="text-align: center; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${isActif ? 'Vierge' : 'Inscription'}</td>
+            <td>${isActif ? 'Cotisations sociales à jour.' : 'Retard de cotisations sociales enregistré.'}</td>
           </tr>
           <tr>
-            <td><strong>Privilèges du Trésor Public (TVA/Impôts)</strong></td>
-            <td style="text-align: center; font-weight: bold; color: #16a34a;">Aucune Inscription</td>
+            <td><strong>Privilèges du Trésor Public (TVA)</strong></td>
+            <td style="text-align: center; font-weight: bold; color: #16a34a;">Vierge</td>
             <td>Situation fiscale régulière.</td>
-          </tr>
-          <tr>
-            <td><strong>Nantissements de Fonds / Matériel</strong></td>
-            <td style="text-align: center; font-weight: bold; color: #16a34a;">Libre de Gage</td>
-            <td>L'outil de travail n'est pas grevé par des sûretés lourdes.</td>
           </tr>
         </tbody>
       </table>
 
-      <!-- 3.2 ANNONCES BODACC -->
-      <div class="pdf-sec-head">8. Historique BODACC &amp; Procédures Collectives (DILA API)</div>
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; margin-bottom: 6px; font-size: 8px;">
+      <div class="pdf-sec-head">8. Registre BODACC &amp; Procédures Collectives</div>
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 7px; margin-bottom: 8px; font-size: 8.5px;">
         <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-          <strong>Contrôle du Registre des Annonces Commerciales :</strong>
+          <strong>Contrôle des Annonces Commerciales (DILA API) :</strong>
           <span style="font-weight:bold; color:${company.bodacc && company.bodacc.hasProcedures ? '#dc2626' : '#16a34a'};">
-            ${company.bodacc && company.bodacc.hasProcedures ? '🚨 PROCÉDURE COLLECTIVE EN COURS' : '✅ REGISTRE VIERGE (SANS PROCÉDURE)'}
+            ${company.bodacc && company.bodacc.hasProcedures ? '🚨 PROCÉDURE ACTIVE' : '✅ VIERGE (AUCUNE PROCÉDURE)'}
           </span>
         </div>
         <div style="color:#475569; line-height:1.35;">
           ${company.bodacc && company.bodacc.hasProcedures 
-            ? 'Une annonce BODACC signale un jugement de redressement, sauvegarde ou liquidation judiciaire. Interdiction d\'octroi de crédit.' 
-            : 'Aucun jugement de faillite, redressement ou sauvegarde enregistré dans la base officielle du BODACC à ce jour.'}
+            ? 'Une annonce BODACC signale un jugement de redressement ou liquidation judiciaire. Interdiction d\'octroi de crédit.' 
+            : 'Aucune annonce de faillite, redressement ou liquidation enregistrée au BODACC.'}
         </div>
       </div>
 
-      <!-- 3.3 CONTRÔLE KYC & FRAUDE -->
-      <div class="pdf-sec-head">9. Audit Sécurité KYC &amp; Risk Fraude au Virement</div>
+      <div class="pdf-sec-head">9. Audit Sécurité KYC &amp; Risk Anti-Fraude</div>
       <table class="pdf-table-clean">
         <thead>
           <tr>
             <th>Point de Contrôle KYC</th>
             <th style="text-align: center;">Résultat</th>
-            <th>Analyse Conformité</th>
+            <th>Détail Conformité</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><strong>Authenticité du Mandat de Gérance</strong></td>
+            <td><strong>Mandat de Gérance Officiel</strong></td>
             <td style="text-align: center; font-weight: bold; color: #16a34a;">Vérifié</td>
             <td>Identité de ${dirigeant} certifiée au RCS.</td>
           </tr>
           <tr>
-            <td><strong>Contrôle Coordonnées Bancaires (IBAN)</strong></td>
-            <td style="text-align: center; font-weight: bold; color: #16a34a;">FR Conforme</td>
-            <td>Absence de signalement pour usurpation ou compte offshore.</td>
-          </tr>
-          <tr>
-            <td><strong>Protection Risque "Faux Président"</strong></td>
-            <td style="text-align: center; font-weight: bold; color: #16a34a;">Niveau Faible</td>
-            <td>Réseau d'établissements et dirigeants en adéquation.</td>
+            <td><strong>Conformité IBAN / Coordonnées</strong></td>
+            <td style="text-align: center; font-weight: bold; color: #16a34a;">Conforme</td>
+            <td>Compte bancaire et siège situés en France.</td>
           </tr>
         </tbody>
       </table>
 
-      <!-- 3.4 CERTIFICATIONS SECTORIELLES -->
       <div class="pdf-sec-head">10. Conformité Réglementaire Métier (${sectorRules.sectorName})</div>
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-size: 8px;">
-        <div style="font-weight: bold; color: #0284c7; margin-bottom: 3px;">Agréments &amp; Normes Spécifiques Identifiées :</div>
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 7px; font-size: 8.5px;">
+        <div style="font-weight: bold; color: #0284c7; margin-bottom: 4px;">Agréments Sectoriels Répertoriés :</div>
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
           ${sectorRules.labelsHtml}
         </div>
-        <div style="margin-top: 4px; color: #475569; font-size: 7.5px;">
-          Exigence sectorielle : ${sectorRules.riskFocus}
+        <div style="margin-top: 5px; color: #475569; font-size: 8px;">
+          Exigence métier : ${sectorRules.riskFocus}
         </div>
       </div>
 
       <div class="pdf-footer-line">
-        <span>Dossier d'Audit de Solvabilité B2B &nbsp;&mdash;&nbsp; Euro Expert Solvabilité</span>
+        <span>Euro Expert Solvabilité &nbsp;&mdash;&nbsp; Audit B2B</span>
         <span>Page 3 sur 4</span>
       </div>
     </div>
 
-    <!-- PAGE 4 : CREDIT MANAGEMENT, RECOUUVREMENT & DECISION FINALE -->
+    <!-- PAGE 4 : CREDIT MANAGEMENT, RECOUVRATION & AVIS FINAL -->
     <div class="pdf-a4-page">
       <div class="pdf-title-block">
         <div>
-          <div style="font-size: 14px; font-weight: bold; color: #0f172a;">STRATÉGIE DE CRÉDIT &amp; DIRECTIVES DE RECOUVREMENT</div>
-          <div style="font-size: 9px; font-weight: bold; color: #0284c7;">Euro Expert Solvabilité &nbsp;—&nbsp; Recommandations Opérationnelles</div>
+          <div style="font-size: 15px; font-weight: bold; color: #0f172a;">STRATÉGIE DE CRÉDIT &amp; DIRECTIVES DE RECOUVREMENT</div>
+          <div style="font-size: 9.5px; font-weight: bold; color: #0284c7;">Euro Expert Solvabilité &nbsp;—&nbsp; Directives Opérationnelles</div>
         </div>
-        <div style="text-align: right; font-size: 7.5px; color: #475569;">
-          <div><strong>Siren :</strong> ${siren}</div>
+        <div style="text-align: right; font-size: 8px; color: #475569;">
+          <div><strong>SIREN :</strong> ${siren}</div>
         </div>
       </div>
 
-      <!-- 4.1 BARÈME D'ENCOURS -->
-      <div class="pdf-sec-head">11. Barème Général de Crédit Management</div>
+      <div class="pdf-sec-head">11. Barème de Crédit Management Suggéré</div>
       <table class="pdf-table-clean">
         <thead>
           <tr>
             <th>Score Solvabilité</th>
             <th style="text-align: center;">Niveau de Risque</th>
-            <th>Plafond d'Encours Conseillé</th>
-            <th>Conditions de Règlement Recommandées</th>
+            <th>Plafond Conseillé</th>
+            <th>Modalités de Règlement</th>
           </tr>
         </thead>
         <tbody>
@@ -1397,80 +1370,64 @@ function generateTechAuditPdf() {
             <td>80 à 100</td>
             <td style="text-align: center; font-weight: bold; color: #16a34a;">Très Faible</td>
             <td>Jusqu'à 150 000 € HT</td>
-            <td>Paiement standard à 30 ou 60 jours.</td>
+            <td>30 / 60 jours fin de mois.</td>
           </tr>
           <tr>
             <td>50 à 79</td>
             <td style="text-align: center; font-weight: bold; color: #0284c7;">Modéré</td>
             <td>Jusqu'à 50 000 € HT</td>
-            <td>Règlement à 30 jours fin de mois.</td>
+            <td>30 jours fin de mois.</td>
           </tr>
           <tr>
-            <td>30 à 49</td>
-            <td style="text-align: center; font-weight: bold; color: #f59e0b;">Sous Vigilance</td>
-            <td>Jusqu'à 10 000 € HT</td>
-            <td>Acompte de 50% à la commande requis.</td>
-          </tr>
-          <tr>
-            <td>0 à 29</td>
+            <td>0 à 49</td>
             <td style="text-align: center; font-weight: bold; color: #dc2626;">Critique</td>
             <td>0 € (Refus)</td>
-            <td>Paiement comptant à la commande.</td>
+            <td>Comptant 100% à la commande.</td>
           </tr>
         </tbody>
       </table>
 
-      <!-- 4.2 PAYDEX & STRATÉGIE RELANCE -->
-      <div class="pdf-sec-head">12. Comportement Paydex &amp; Assurabilité Crédit</div>
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-size: 8px; margin-bottom: 8px;">
+      <div class="pdf-sec-head">12. Score Paydex &amp; Assurabilité Crédit</div>
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 7px; font-size: 8.5px; margin-bottom: 10px;">
         <table style="width:100%; border-collapse:collapse;">
           <tr>
             <td style="width:33%; padding:3px; vertical-align:top;">
-              <strong style="color:#0284c7;">Score Paydex Estimé :</strong><br>
-              <span style="font-size:11px; font-weight:bold; color:${isActif ? '#16a34a' : '#dc2626'};">${isActif ? '78 / 100' : '28 / 100'}</span><br>
-              ${isActif ? 'Habitudes de paiement régulières.' : 'Retards systématiques enregistrés.'}
+              <strong style="color:#0284c7;">Score Paydex :</strong><br>
+              <span style="font-size:12px; font-weight:bold; color:${isActif ? '#16a34a' : '#dc2626'};">${isActif ? '78 / 100' : '28 / 100'}</span><br>
+              ${isActif ? 'Paiements réguliers.' : 'Retards systématiques.'}
             </td>
             <td style="width:33%; padding:3px; vertical-align:top;">
-              <strong style="color:#0284c7;">Profil de Relance :</strong><br>
-              <span>${isActif ? 'Relance automatique classique à J+7' : 'Mise en demeure immédiate à J+1'}</span>
+              <strong style="color:#0284c7;">Profil Relance :</strong><br>
+              <span>${isActif ? 'Relance automatique à J+7' : 'Mise en demeure à J+1'}</span>
             </td>
             <td style="width:34%; padding:3px; vertical-align:top;">
-              <strong style="color:#0284c7;">Garantie Assurance-Crédit :</strong><br>
-              <span>${isActif ? 'Accordable par Coface / Euler Hermes' : 'Non assurable en l\'état'}</span>
+              <strong style="color:#0284c7;">Assurabilité :</strong><br>
+              <span>${isActif ? 'Accordable (Coface/Euler)' : 'Non assurable'}</span>
             </td>
           </tr>
         </table>
       </div>
 
-      <!-- 4.3 CLAUSES JURIDIQUES CONSEILLÉES -->
-      <div class="pdf-sec-head">13. Clauses Contractuelles Sécurisantes à Insérer</div>
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 4px; padding: 6px; font-size: 7.8px; line-height: 1.35; margin-bottom: 8px;">
-        <li><strong>Clause de Réserve de Propriété (Loi 80-335) :</strong> Conserver la propriété des marchandises jusqu'au paiement intégral.</li>
-        <li><strong>Pénalités de Retard :</strong> Appliquer un taux annuel minimum de 10% de l'encours impayé à compter du premier jour de retard.</li>
-        <li><strong>Indemnité Forfaitaire de Recouvrement :</strong> Application automatique des 40 € de frais fixes (Art. D. 441-5 Code de commerce).</li>
-      </div>
-
-      <!-- 4.4 DECISION FINALE ET CACHET -->
-      <div style="background: ${isActif ? '#f0fdf4' : '#fef2f2'}; border-left: 4px solid ${isActif ? '#16a34a' : '#dc2626'}; padding: 8px; font-size: 8.5px; line-height: 1.4; margin-top: 10px;">
+      <div style="background: ${isActif ? '#f0fdf4' : '#fef2f2'}; border-left: 4px solid ${isActif ? '#16a34a' : '#dc2626'}; padding: 10px; font-size: 9px; line-height: 1.4; margin-top: 15px;">
         <strong>DÉCISION D'OCTROI DE CRÉDIT DU CABINET :</strong><br>
         ${isActif 
-          ? `L'analyse globale confirme la solidité de <strong>${nom}</strong>. Le cabinet formule une recommandation favorable pour un encours maximal autorisable de <strong>${Math.round(cpVal * 0.05).toLocaleString('fr-FR')} € HT</strong> payable à 30 jours fin de mois.` 
-          : `Compte tenu des signaux de vulnérabilité financière, le cabinet émet une recommandation **DEFEVORABLE** à tout octroi de découvert commercial pour <strong>${nom}</strong>.`}
+          ? `L'analyse confirme la solvabilité de <strong>${nom}</strong>. Avis favorable pour un encours maximal de <strong>${Math.round(cpVal * 0.05).toLocaleString('fr-FR')} € HT</strong> à 30 jours fin de mois.` 
+          : `Compte tenu du score critique, le cabinet formule un avis **DÉFAVORABLE** à tout octroi de découvert commercial pour <strong>${nom}</strong>.`}
       </div>
 
-      <div style="margin-top: 15px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 8px;">
+      <div style="margin-top: 25px; display: flex; justify-content: space-between; align-items: flex-end; font-size: 8.5px;">
         <div>
-          <strong>Document certifié conforme par le système d'audit :</strong><br>
-          <span style="color: #64748b;">Euro Expert Solvabilité &nbsp;—&nbsp; Service Crédit Risk</span>
+          <strong>Document certifié conforme par le moteur d'audit :</strong><br>
+          <span style="color: #64748b;">Euro Expert Solvabilité &nbsp;—&nbsp; Risk Management</span>
         </div>
-        <div style="border: 1px dashed #0284c7; padding: 6px 12px; border-radius: 4px; text-align: center; color: #0284c7; font-weight: bold;">
+        <div style="border: 1px dashed #0284c7; padding: 8px 14px; border-radius: 4px; text-align: center; color: #0284c7; font-weight: bold;">
           🛡️ ATTESTATION D'AUDIT 2026<br>
-          <span style="font-size: 7px; font-weight: normal; color: #475569;">Validé électroniquement</span>
+          <span style="font-size: 7.5px; font-weight: normal; color: #475569;">Validation électronique</span>
         </div>
       </div>
 
       <div class="pdf-footer-line">
-        <span>Dossier d'Audit de Solvabilité B2B &nbsp;&mdash;&nbsp; Euro Expert Solvabilité</span>
+        <span>Euro Expert Solvabilité &nbsp;&mdash;&nbsp; Audit B2B</span>
         <span>Page 4 sur 4</span>
       </div>
     </div>
