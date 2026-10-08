@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Euro Expert Solvabilité - Audit B2B</title>
 
+  <!-- Favicon Icône Bouclier pour l'onglet -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
+
   <!-- Leaflet (Carte) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -17,7 +20,37 @@
 
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: #0f172a; color: #ffffff; min-height: 100vh; display: flex; flex-direction: column; }
+    body { background-color: #0f172a; color: #ffffff; min-height: 100vh; }
+
+    /* FENÊTRE POP-UP D'ACCÈS OBLIGATOIRE */
+    #passModalOverlay {
+      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(12px);
+      z-index: 100000; display: flex; align-items: center; justify-content: center;
+    }
+    .pass-card {
+      background: #1e293b; border: 1px solid #38bdf8; border-radius: 12px;
+      padding: 30px; width: 90%; max-width: 420px; text-align: center;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    .pass-title { font-size: 1.25rem; font-weight: bold; color: #38bdf8; margin-bottom: 8px; }
+    .pass-sub { font-size: 0.82rem; color: #94a3b8; margin-bottom: 20px; line-height: 1.4; }
+    .pass-input {
+      width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #475569;
+      background: #0f172a; color: #ffffff; font-size: 1rem; text-align: center;
+      letter-spacing: 2px; font-weight: bold; margin-bottom: 15px;
+    }
+    .pass-input:focus { border-color: #38bdf8; outline: none; }
+    .pass-btn {
+      width: 100%; padding: 12px; border-radius: 6px; border: none;
+      background: #0284c7; color: #ffffff; font-size: 0.95rem; font-weight: bold;
+      cursor: pointer; transition: background 0.2s;
+    }
+    .pass-btn:hover { background: #0369a1; }
+    .pass-error { color: #ef4444; font-size: 0.8rem; margin-top: 12px; display: none; }
+
+    /* CONTENU DU SITE (MASQUÉ TANT QUE LE CODE N'EST PAS VALIDÉ) */
+    #appContent { display: none; flex-direction: column; min-height: 100vh; }
 
     header { background: #1e293b; padding: 15px 20px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
     .logo { font-size: 1.2rem; font-weight: bold; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
@@ -33,11 +66,10 @@
     .autocomplete-item { padding: 10px 14px; cursor: pointer; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
     .autocomplete-item:hover { background: #0f172a; }
 
-    #map { width: 100%; height: 300px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #334155; z-index: 1; }
+    #map { width: 100%; height: 320px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #334155; z-index: 1; }
 
-    /* Panel d'audit modal / overlay */
     .audit-panel { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15,23,42,0.85); backdrop-filter: blur(6px); z-index: 9000; display: none; justify-content: center; align-items: center; padding: 20px; }
-    .audit-card { background: #1e293b; border: 1px solid #38bdf8; border-radius: 12px; width: 100%; max-width: 850px; max-height: 90vh; overflow-y: auto; padding: 20px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); position: relative; }
+    .audit-card { background: #1e293b; border: 1px solid #38bdf8; border-radius: 12px; width: 100%; max-width: 880px; max-height: 92vh; overflow-y: auto; padding: 22px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); position: relative; }
     .close-btn { position: absolute; top: 15px; right: 20px; background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; }
     .close-btn:hover { color: #ffffff; }
 
@@ -46,7 +78,6 @@
     .company-status { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; border: 1px solid; }
     .score-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; background: rgba(56, 189, 248, 0.1); border: 1px solid #38bdf8; color: #38bdf8; }
 
-    /* Onglets */
     .tabs-nav { display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 8px; overflow-x: auto; }
     .tab-btn { padding: 8px 16px; background: #0f172a; border: 1px solid #334155; color: #94a3b8; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; white-space: nowrap; }
     .tab-btn.active { background: #0284c7; color: #ffffff; border-color: #38bdf8; }
@@ -54,12 +85,10 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* Badges de labels */
-    .labels-container { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+    .labels-container { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 15px 0; }
     .label-badge-item { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; background: #0f172a; border: 1px solid #334155; color: #cbd5e1; }
     .label-badge-item.active { border-color: #22c55e; color: #4ade80; }
 
-    /* Outils interactifs */
     .tool-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
     .tool-title { font-size: 0.85rem; font-weight: bold; color: #38bdf8; margin-bottom: 8px; }
     .form-group { margin-bottom: 8px; }
@@ -72,142 +101,156 @@
 </head>
 <body>
 
-  <header>
-    <div class="logo">🛡️ Euro Expert Solvabilité <span>2026</span></div>
-  </header>
-
-  <main style="flex: 1; padding: 20px;">
-    <div class="search-container">
-      <div class="search-box">
-        <input type="text" id="searchInput" class="search-input" placeholder="Saisissez un Nom ou Numéro SIREN..." autocomplete="off" />
-        <button id="searchBtn" class="search-btn">Analyser</button>
-      </div>
-      <div id="autocompleteResults"></div>
+  <!-- POP-UP SÉCURISÉE AU PREMIER PLAN -->
+  <div id="passModalOverlay">
+    <div class="pass-card">
+      <div class="pass-title">🛡️ Euro Expert Solvabilité</div>
+      <div class="pass-sub">Accès sécurisé. Veuillez saisir votre mot de passe pour ouvrir la session.</div>
+      <input type="password" id="passCodeInput" class="pass-input" placeholder="Saisir le mot de passe" autocomplete="off" onkeydown="if(event.key==='Enter') verifyPassCode()" />
+      <button type="button" id="validatePassBtn" class="pass-btn" onclick="verifyPassCode()">Se connecter</button>
+      <div id="passErrorMsg" class="pass-error">❌ Mot de passe incorrect (Code : EURO2026)</div>
     </div>
+  </div>
 
-    <div id="map"></div>
-  </main>
+  <!-- APPLICATION PRINCIPALE -->
+  <div id="appContent">
+    <header>
+      <div class="logo">🛡️ Euro Expert Solvabilité <span>2026</span></div>
+    </header>
 
-  <!-- PANEL DE RESTITUTION D'AUDIT -->
-  <div id="auditPanel" class="audit-panel">
-    <div class="audit-card">
-      <button id="closePanelBtn" class="close-btn">&times;</button>
-
-      <div class="company-header">
-        <div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <div id="companyName" class="company-title">ENTREPRISE</div>
-            <span id="companyStatus" class="company-status">ACTIF</span>
-          </div>
-          <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px;">
-            SIREN / SIRET : <span id="companySiren" style="color: #ffffff;">-</span>
-          </div>
-          <div style="font-size: 0.78rem; color: #94a3b8;">
-            Forme : <span id="companyForme" style="color: #cbd5e1;">-</span> • NAF : <span id="companyNaf" style="color: #cbd5e1;">-</span>
-          </div>
-          <div style="font-size: 0.78rem; color: #94a3b8;">
-            Gérance : <span id="companyDirigeant" style="color: #cbd5e1;">-</span>
-          </div>
+    <main style="flex: 1; padding: 20px;">
+      <div class="search-container">
+        <div class="search-box">
+          <input type="text" id="searchInput" class="search-input" placeholder="Saisissez un Nom ou Numéro SIREN..." autocomplete="off" />
+          <button id="searchBtn" class="search-btn">Analyser</button>
         </div>
-        <div style="text-align: right;">
-          <div id="scoreValue" style="font-size: 1.6rem; font-weight: bold; color: #38bdf8;">--<span style="font-size: 0.9rem; color: #94a3b8;">/100</span></div>
-          <div id="scoreBadge" class="score-badge">RISQUE NEUTRE</div>
-        </div>
+        <div id="autocompleteResults"></div>
       </div>
 
-      <div id="labelsContainer" class="labels-container"></div>
+      <div id="map"></div>
+    </main>
 
-      <!-- Navigation par Onglets -->
-      <div class="tabs-nav">
-        <button class="tab-btn active" onclick="switchTab('tabFinance')">📊 Finance</button>
-        <button class="tab-btn" onclick="switchTab('tabGroupe')">🏢 Groupe &amp; KYC</button>
-        <button class="tab-btn" onclick="switchTab('tabConformite')">📋 Conformité</button>
-        <button class="tab-btn" onclick="switchTab('tabDecision')">💡 Légal &amp; Contentieux</button>
-      </div>
+    <!-- PANEL DE RESTITUTION D'AUDIT -->
+    <div id="auditPanel" class="audit-panel">
+      <div class="audit-card">
+        <button id="closePanelBtn" class="close-btn">&times;</button>
 
-      <!-- Contenu Onglet 1 : Finance -->
-      <div id="tabFinance" class="tab-content active">
-        <div id="summaryFinanceBox"></div>
-        <div class="tool-box">
-          <div class="tool-title">📈 Trajectoire Financière Historique</div>
-          <canvas id="financialChart" height="120"></canvas>
-        </div>
-      </div>
-
-      <!-- Contenu Onglet 2 : Groupe & KYC -->
-      <div id="tabGroupe" class="tab-content">
-        <div id="summaryGroupeBox"></div>
-        <div class="tool-box">
-          <div class="tool-title">🔗 Sociétés Sœurs &amp; Participations Directes</div>
-          <div id="groupCompaniesList">Recherche en cours...</div>
-        </div>
-      </div>
-
-      <!-- Contenu Onglet 3 : Conformité -->
-      <div id="tabConformite" class="tab-content">
-        <div id="summaryConformiteBox"></div>
-        <div class="tool-box">
-          <div class="tool-title">🔐 Vérification RIB / IBAN Anti-Fraude</div>
-          <div class="form-group">
-            <input type="text" id="ibanInput" class="form-input" placeholder="FR76 3000 2005 5000 0000 0000 000" />
+        <div class="company-header">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div id="companyName" class="company-title">ENTREPRISE</div>
+              <span id="companyStatus" class="company-status">ACTIF</span>
+            </div>
+            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px;">
+              SIREN / SIRET : <span id="companySiren" style="color: #ffffff;">-</span>
+            </div>
+            <div style="font-size: 0.78rem; color: #94a3b8;">
+              Forme : <span id="companyForme" style="color: #cbd5e1;">-</span> • NAF : <span id="companyNaf" style="color: #cbd5e1;">-</span>
+            </div>
+            <div style="font-size: 0.78rem; color: #94a3b8;">
+              Gérance : <span id="companyDirigeant" style="color: #cbd5e1;">-</span>
+            </div>
           </div>
-          <button id="checkIbanBtn" class="search-btn" style="width: 100%;">Vérifier la conformité de l'IBAN</button>
-          <div id="ibanResultBox" style="margin-top: 8px; font-size: 0.8rem; display: none;"></div>
+          <div style="text-align: right;">
+            <div id="scoreValue" style="font-size: 1.6rem; font-weight: bold; color: #38bdf8;">--<span style="font-size: 0.9rem; color: #94a3b8;">/100</span></div>
+            <div id="scoreBadge" class="score-badge">RISQUE NEUTRE</div>
+          </div>
         </div>
-      </div>
 
-      <!-- Contenu Onglet 4 : Légal & Contentieux -->
-      <div id="tabDecision" class="tab-content">
-        <div id="summaryDecisionBox"></div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div id="labelsContainer" class="labels-container"></div>
+
+        <!-- Navigation par Onglets -->
+        <div class="tabs-nav">
+          <button class="tab-btn active" onclick="switchTab('tabFinance')">📊 Finance</button>
+          <button class="tab-btn" onclick="switchTab('tabGroupe')">🏢 Groupe &amp; KYC</button>
+          <button class="tab-btn" onclick="switchTab('tabConformite')">📋 Conformité</button>
+          <button class="tab-btn" onclick="switchTab('tabDecision')">💡 Légal &amp; Contentieux</button>
+        </div>
+
+        <!-- Onglet 1 : Finance -->
+        <div id="tabFinance" class="tab-content active">
+          <div id="summaryFinanceBox"></div>
           <div class="tool-box">
-            <div class="tool-title">🧮 Plafond d'Encours Conseillé</div>
-            <div class="form-group">
-              <label>Votre CA Annuel avec ce client (€)</label>
-              <input type="number" id="userTurnoverInput" class="form-input" value="500000" />
-            </div>
-            <div class="form-group">
-              <label>Tolérance au risque</label>
-              <select id="riskToleranceSelect" class="form-input">
-                <option value="prudent">Prudent (2%)</option>
-                <option value="modere" selected>Modéré (5%)</option>
-                <option value="agressif">Agressif (10%)</option>
-              </select>
-            </div>
-            <div style="font-size: 0.85rem; font-weight: bold; margin-top: 6px;">
-              Plafond recommandé : <span id="calcCreditLimit" style="color: #38bdf8;">- €</span>
-            </div>
-          </div>
-
-          <div class="tool-box">
-            <div class="tool-title">⏱️ Simulateur d'Impact Cash / DSO</div>
-            <div class="form-group">
-              <label>Montant Facture HT (€)</label>
-              <input type="number" id="invoiceAmountInput" class="form-input" value="25000" />
-            </div>
-            <div class="form-group">
-              <label>Jours de retard de paiement</label>
-              <input type="number" id="delayDaysInput" class="form-input" value="30" />
-            </div>
-            <div style="font-size: 0.85rem; font-weight: bold; margin-top: 6px;">
-              Coût du retard en trésorerie : <span id="cashFlowCost" style="color: #ef4444;">0.00 €</span>
-            </div>
+            <div class="tool-title">📈 Trajectoire Financière Historique</div>
+            <canvas id="financialChart" height="120"></canvas>
           </div>
         </div>
 
-        <button id="generateLegalDocBtn" class="search-btn" style="width: 100%; background: #475569;">📄 Générer une Mise en Demeure Sommation de Payer</button>
+        <!-- Onglet 2 : Groupe & KYC -->
+        <div id="tabGroupe" class="tab-content">
+          <div id="summaryGroupeBox"></div>
+          <div class="tool-box">
+            <div class="tool-title">🔗 Sociétés Sœurs &amp; Participations Directes</div>
+            <div id="groupCompaniesList">Recherche en cours...</div>
+          </div>
+        </div>
+
+        <!-- Onglet 3 : Conformité -->
+        <div id="tabConformite" class="tab-content">
+          <div id="summaryConformiteBox"></div>
+          <div class="tool-box">
+            <div class="tool-title">🔐 Vérification RIB / IBAN Anti-Fraude</div>
+            <div class="form-group">
+              <input type="text" id="ibanInput" class="form-input" placeholder="FR76 3000 2005 5000 0000 0000 000" />
+            </div>
+            <button id="checkIbanBtn" class="search-btn" style="width: 100%;">Vérifier la conformité de l'IBAN</button>
+            <div id="ibanResultBox" style="margin-top: 8px; font-size: 0.8rem; display: none;"></div>
+          </div>
+        </div>
+
+        <!-- Onglet 4 : Légal & Contentieux -->
+        <div id="tabDecision" class="tab-content">
+          <div id="summaryDecisionBox"></div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="tool-box">
+              <div class="tool-title">🧮 Plafond d'Encours Conseillé</div>
+              <div class="form-group">
+                <label>Votre CA Annuel avec ce client (€)</label>
+                <input type="number" id="userTurnoverInput" class="form-input" value="500000" />
+              </div>
+              <div class="form-group">
+                <label>Tolérance au risque</label>
+                <select id="riskToleranceSelect" class="form-input">
+                  <option value="prudent">Prudent (2%)</option>
+                  <option value="modere" selected>Modéré (5%)</option>
+                  <option value="agressif">Agressif (10%)</option>
+                </select>
+              </div>
+              <div style="font-size: 0.85rem; font-weight: bold; margin-top: 6px;">
+                Plafond recommandé : <span id="calcCreditLimit" style="color: #38bdf8;">- €</span>
+              </div>
+            </div>
+
+            <div class="tool-box">
+              <div class="tool-title">⏱️ Simulateur d'Impact Cash / DSO</div>
+              <div class="form-group">
+                <label>Montant Facture HT (€)</label>
+                <input type="number" id="invoiceAmountInput" class="form-input" value="25000" />
+              </div>
+              <div class="form-group">
+                <label>Jours de retard de paiement</label>
+                <input type="number" id="delayDaysInput" class="form-input" value="30" />
+              </div>
+              <div style="font-size: 0.85rem; font-weight: bold; margin-top: 6px;">
+                Coût du retard en trésorerie : <span id="cashFlowCost" style="color: #ef4444;">0.00 €</span>
+              </div>
+            </div>
+          </div>
+
+          <button id="generateLegalDocBtn" class="search-btn" style="width: 100%; background: #475569; margin-top: 6px;">📄 Générer une Mise en Demeure Sommation de Payer</button>
+        </div>
+
+        <!-- Zone Lien Direct -->
+        <div style="margin-top: 15px;">
+          <span style="font-size: 0.8rem; color: #94a3b8;">🌐 Lien direct d'accès dossier :</span>
+          <div id="shareUrlContainer"></div>
+        </div>
+
+        <!-- Bouton Génération PDF -->
+        <button id="downloadPdfBtn" class="btn-primary">Télécharger le Rapport Juridique &amp; Financier (PDF 4 Pages HD)</button>
+
       </div>
-
-      <!-- Zone Lien Direct -->
-      <div style="margin-top: 15px;">
-        <span style="font-size: 0.8rem; color: #94a3b8;">🌐 Lien direct d'accès dossier :</span>
-        <div id="shareUrlContainer"></div>
-      </div>
-
-      <!-- Bouton Génération PDF -->
-      <button id="downloadPdfBtn" class="btn-primary">Télécharger le Rapport Juridique &amp; Financier (PDF 4 Pages HD)</button>
-
     </div>
   </div>
 

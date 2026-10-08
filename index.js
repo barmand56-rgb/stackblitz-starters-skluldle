@@ -99,9 +99,65 @@ function getSectorRules(nafCode, complements = {}) {
 }
 
 // =========================================================================
-// 2. APIS GRATUITES EN PARALLÈLE (GOUV, BODACC, ADEME)
+// 2. VERIFICATION DU CODE DE SÉCURITÉ ET DÉVERROUILLAGE DU SITE
 // =========================================================================
+function generateDailyHash(dateStr) {
+  let hash = 0;
+  const str = dateStr + SECRET_SALT;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  const positiveHash = Math.abs(hash).toString(36).toUpperCase();
+  return "EES-" + (positiveHash + "X9Y8Z7W6V5").substring(0, 6);
+}
 
+function getTodayValidCodes() {
+  const today = new Date();
+  const dayStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+  const dailyCode = generateDailyHash(dayStr);
+  const masterCode = "EURO2026";
+  return { dailyCode, masterCode };
+}
+
+function verifyPassCode() {
+  const inputEl = document.getElementById('passCodeInput');
+  if (!inputEl) return;
+
+  const inputCode = inputEl.value.trim().toUpperCase();
+  const { dailyCode, masterCode } = getTodayValidCodes();
+  const errorMsg = document.getElementById('passErrorMsg');
+
+  if (inputCode === masterCode || inputCode === dailyCode) {
+    // Masquer la pop-up
+    const overlay = document.getElementById('passModalOverlay');
+    if (overlay) overlay.style.display = 'none';
+
+    // Afficher le site et initialiser la carte
+    const app = document.getElementById('appContent');
+    if (app) app.style.display = 'flex';
+
+    if (!map) {
+      initMap();
+    }
+    initEventListeners();
+    initToolsEventListeners();
+    checkUrlParams();
+  } else {
+    if (errorMsg) errorMsg.style.display = 'block';
+  }
+}
+
+window.verifyPassCode = verifyPassCode;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('passCodeInput');
+  if (input) input.focus();
+});
+
+// =========================================================================
+// 3. APIS GRATUITES EN PARALLÈLE (GOUV, BODACC, ADEME)
+// =========================================================================
 async function fetchBodaccData(siren) {
   try {
     const url = `https://bodacc-api.open-data.fr/api/explore/v2.1/catalog/datasets/annonces-commerciales/records?where=siren%3D"${siren}"&limit=5`;
@@ -162,7 +218,7 @@ async function fetchEnrichedCompanyData(siren) {
 }
 
 // =========================================================================
-// 3. AUTOCOMPLÉTION EN DIRECT
+// 4. AUTOCOMPLÉTION EN DIRECT
 // =========================================================================
 async function fetchAutocompleteSuggestions(query) {
   const autoBox = document.getElementById('autocompleteResults');
@@ -211,84 +267,7 @@ window.fetchAutocompleteSuggestions = fetchAutocompleteSuggestions;
 window.selectAutocompleteSuggestion = selectAutocompleteSuggestion;
 
 // =========================================================================
-// 4. INITIALISATION AU CHARGEMENT DE LA PAGE
-// =========================================================================
-document.addEventListener('DOMContentLoaded', () => {
-  initSecurityPassSystem();
-  initMap();
-  initEventListeners();
-  initToolsEventListeners();
-  checkUrlParams();
-});
-
-// =========================================================================
-// 5. SÉCURITÉ À CHAQUE CONNEXION (SESSION STORAGE)
-// =========================================================================
-function generateDailyHash(dateStr) {
-  let hash = 0;
-  const str = dateStr + SECRET_SALT;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash << 5) - hash + str.charCodeAt(i);
-    hash |= 0;
-  }
-  const positiveHash = Math.abs(hash).toString(36).toUpperCase();
-  return "EES-" + (positiveHash + "X9Y8Z7W6V5").substring(0, 6);
-}
-
-function getTodayValidCodes() {
-  const today = new Date();
-  const dayStr = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
-  const dailyCode = generateDailyHash(dayStr);
-  const masterCode = "EURO2026";
-  return { dailyCode, masterCode };
-}
-
-function initSecurityPassSystem() {
-  const isSessionActive = sessionStorage.getItem('ees_pass_authenticated');
-  if (!isSessionActive) {
-    showPassModal();
-  }
-}
-
-function showPassModal() {
-  const existingModal = document.getElementById('passModalOverlay');
-  if (existingModal) existingModal.remove();
-
-  const overlay = document.createElement('div');
-  overlay.id = 'passModalOverlay';
-  overlay.className = 'pass-overlay';
-  overlay.innerHTML = `
-    <div class="pass-card">
-      <div class="pass-title">🛡️ Euro Expert Solvabilité</div>
-      <div class="pass-sub">Accès sécurisé. Veuillez saisir votre mot de passe pour ouvrir la session.</div>
-      <input type="password" id="passCodeInput" class="pass-input" placeholder="Mot de passe ou Pass 24h" autocomplete="off" />
-      <button id="validatePassBtn" class="pass-btn">Se connecter</button>
-      <div id="passErrorMsg" class="pass-error">Mot de passe ou code invalide.</div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-
-  document.getElementById('validatePassBtn').addEventListener('click', verifyPassCode);
-  document.getElementById('passCodeInput').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') verifyPassCode();
-  });
-}
-
-function verifyPassCode() {
-  const inputCode = document.getElementById('passCodeInput').value.trim().toUpperCase();
-  const { dailyCode, masterCode } = getTodayValidCodes();
-  const errorMsg = document.getElementById('passErrorMsg');
-
-  if (inputCode === masterCode || inputCode === dailyCode) {
-    sessionStorage.setItem('ees_pass_authenticated', 'true');
-    document.getElementById('passModalOverlay').remove();
-  } else {
-    errorMsg.style.display = 'block';
-  }
-}
-
-// =========================================================================
-// 6. CARTE ET ÉVÉNEMENTS UI
+// 5. CARTE ET ÉVÉNEMENTS UI
 // =========================================================================
 function initMap() {
   map = L.map('map', { center: [-21.0924, 55.2289], zoom: 12, zoomControl: true });
@@ -311,6 +290,8 @@ function switchTab(tabId) {
 
   updateAllSummaryBoxes();
 }
+
+window.switchTab = switchTab;
 
 function initEventListeners() {
   const searchInput = document.getElementById('searchInput');
@@ -392,6 +373,8 @@ function searchSirenDirect(siren) {
   handleSearch();
 }
 
+window.searchSirenDirect = searchSirenDirect;
+
 function cleanAddress(addr) {
   if (!addr) return "ADRESSE NON RENSEIGNÉE";
   const words = addr.split(/\s+/);
@@ -457,7 +440,7 @@ function formatGouvToEnrichedStructure(company) {
 }
 
 // =========================================================================
-// 7. SYNTHÈSES DESCRIPTIVES MULTI-LIGNES PAR CATÉGORIE
+// 6. SYNTHÈSES DESCRIPTIVES MULTI-LIGNES PAR CATÉGORIE
 // =========================================================================
 function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dettesVal) {
   const nom = cleanCompanyName(company.nom_complet);
@@ -544,7 +527,7 @@ function updateAllSummaryBoxes() {
 }
 
 // =========================================================================
-// 8. RECHERCHE DES SOCIÉTÉS SŒURS / HOLDINGS
+// 7. RECHERCHE DES SOCIÉTÉS SŒURS / HOLDINGS
 // =========================================================================
 async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
   const groupContainer = document.getElementById('groupCompaniesList');
@@ -593,7 +576,7 @@ async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
 }
 
 // =========================================================================
-// 9. DÉCLENCHEMENT DE LA RECHERCHE
+// 8. DÉCLENCHEMENT DE LA RECHERCHE
 // =========================================================================
 async function handleSearch() {
   const query = document.getElementById('searchInput').value.trim();
@@ -631,7 +614,7 @@ async function handleSearch() {
 }
 
 // =========================================================================
-// 10. LIEN DIRECT ET COPIE DANS LE PRESSE-PAPIER
+// 9. LIEN DIRECT ET COPIE DANS LE PRESSE-PAPIER
 // =========================================================================
 function updateShareUrl(siren) {
   const shareUrl = `${window.location.origin}${window.location.pathname}?siren=${siren}`;
@@ -674,7 +657,7 @@ function fallbackCopy(url) {
 window.copyShareUrl = copyShareUrl;
 
 // =========================================================================
-// 11. INJECTION DANS L'INTERFACE D'ANALYSE
+// 10. INJECTION DANS L'INTERFACE D'ANALYSE
 // =========================================================================
 function displayCompanyData(company) {
   const siege = company.siege || {};
@@ -756,7 +739,6 @@ function displayCompanyData(company) {
 
   fetchRealRelatedCompanies(dirigeantNom, siren);
 
-  // Mettre à jour les synthèses et le lien direct
   updateAllSummaryBoxes();
   updateShareUrl(siren);
 
@@ -768,7 +750,7 @@ function displayCompanyData(company) {
 }
 
 // =========================================================================
-// 12. CALCULATEURS INTERACTIFS
+// 11. CALCULATEURS INTERACTIFS
 // =========================================================================
 function calculateCreditLimit() {
   if (!currentCompanyData) return;
@@ -922,7 +904,7 @@ function generateSvgChart(isActif, seed, cpVal) {
 }
 
 // =========================================================================
-// 13. GENERATION DU DOSSIER D'AUDIT DE 4 PAGES
+// 12. GENERATION DU DOSSIER D'AUDIT DE 4 PAGES
 // =========================================================================
 function generateTechAuditPdf() {
   if (!currentCompanyData) return;
