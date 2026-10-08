@@ -279,9 +279,10 @@ function verifyPassCode() {
     // 3. Attendre que le navigateur dessine le site AVANT d'initialiser Leaflet
     requestAnimationFrame(() => {
       setTimeout(() => {
-        initMap();
-        if (map) map.invalidateSize();
-      }, 300);
+        if (map) {
+          map.invalidateSize();
+        }
+      }, 250);
     });
 
     initEventListeners();
