@@ -5,103 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Euro Expert Solvabilité - Audit B2B</title>
 
-  <!-- Favicon Icône Bouclier pour l'onglet -->
+  <!-- Favicon -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
 
-  <!-- Leaflet (Carte) -->
+  <!-- Style CSS Principal -->
+  <link rel="stylesheet" href="style.css" />
+
+  <!-- Leaflet (Carte) CSS + JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Chart.js (Graphique financier) -->
+  <!-- Chart.js & html2pdf -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-  <!-- html2pdf (Générateur PDF) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-    body { background-color: #0f172a; color: #ffffff; min-height: 100vh; }
-
-    /* FENÊTRE POP-UP D'ACCÈS OBLIGATOIRE */
-    #passModalOverlay {
-      position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-      background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(12px);
-      z-index: 100000; display: flex; align-items: center; justify-content: center;
-    }
-    .pass-card {
-      background: #1e293b; border: 1px solid #38bdf8; border-radius: 12px;
-      padding: 30px; width: 90%; max-width: 420px; text-align: center;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-    }
-    .pass-title { font-size: 1.25rem; font-weight: bold; color: #38bdf8; margin-bottom: 8px; }
-    .pass-sub { font-size: 0.82rem; color: #94a3b8; margin-bottom: 20px; line-height: 1.4; }
-    .pass-input {
-      width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #475569;
-      background: #0f172a; color: #ffffff; font-size: 1rem; text-align: center;
-      letter-spacing: 2px; font-weight: bold; margin-bottom: 15px;
-    }
-    .pass-input:focus { border-color: #38bdf8; outline: none; }
-    .pass-btn {
-      width: 100%; padding: 12px; border-radius: 6px; border: none;
-      background: #0284c7; color: #ffffff; font-size: 0.95rem; font-weight: bold;
-      cursor: pointer; transition: background 0.2s;
-    }
-    .pass-btn:hover { background: #0369a1; }
-    .pass-error { color: #ef4444; font-size: 0.8rem; margin-top: 12px; display: none; }
-
-    /* CONTENU DU SITE (MASQUÉ TANT QUE LE CODE N'EST PAS VALIDÉ) */
-    #appContent { display: none; flex-direction: column; min-height: 100vh; }
-
-    header { background: #1e293b; padding: 15px 20px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
-    .logo { font-size: 1.2rem; font-weight: bold; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
-
-    .search-container { position: relative; max-width: 500px; width: 100%; margin: 20px auto; padding: 0 15px; }
-    .search-box { display: flex; gap: 8px; }
-    .search-input { flex: 1; padding: 12px 16px; border-radius: 8px; border: 1px solid #475569; background: #1e293b; color: #fff; font-size: 0.95rem; }
-    .search-input:focus { border-color: #38bdf8; outline: none; }
-    .search-btn { padding: 12px 20px; background: #0284c7; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-    .search-btn:hover { background: #0369a1; }
-
-    #autocompleteResults { position: absolute; top: 100%; left: 15px; right: 15px; background: #1e293b; border: 1px solid #38bdf8; border-top: none; border-radius: 0 0 8px 8px; max-height: 260px; overflow-y: auto; z-index: 10000; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-    .autocomplete-item { padding: 10px 14px; cursor: pointer; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .autocomplete-item:hover { background: #0f172a; }
-
-    #map { width: 100%; height: 320px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #334155; z-index: 1; }
-
-    .audit-panel { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15,23,42,0.85); backdrop-filter: blur(6px); z-index: 9000; display: none; justify-content: center; align-items: center; padding: 20px; }
-    .audit-card { background: #1e293b; border: 1px solid #38bdf8; border-radius: 12px; width: 100%; max-width: 880px; max-height: 92vh; overflow-y: auto; padding: 22px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); position: relative; }
-    .close-btn { position: absolute; top: 15px; right: 20px; background: none; border: none; color: #94a3b8; font-size: 1.5rem; cursor: pointer; }
-    .close-btn:hover { color: #ffffff; }
-
-    .company-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 12px; }
-    .company-title { font-size: 1.3rem; font-weight: bold; color: #ffffff; }
-    .company-status { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; border: 1px solid; }
-    .score-badge { padding: 6px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; background: rgba(56, 189, 248, 0.1); border: 1px solid #38bdf8; color: #38bdf8; }
-
-    .tabs-nav { display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 8px; overflow-x: auto; }
-    .tab-btn { padding: 8px 16px; background: #0f172a; border: 1px solid #334155; color: #94a3b8; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem; white-space: nowrap; }
-    .tab-btn.active { background: #0284c7; color: #ffffff; border-color: #38bdf8; }
-
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-
-    .labels-container { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 15px 0; }
-    .label-badge-item { padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; background: #0f172a; border: 1px solid #334155; color: #cbd5e1; }
-    .label-badge-item.active { border-color: #22c55e; color: #4ade80; }
-
-    .tool-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-    .tool-title { font-size: 0.85rem; font-weight: bold; color: #38bdf8; margin-bottom: 8px; }
-    .form-group { margin-bottom: 8px; }
-    .form-group label { display: block; font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; }
-    .form-input { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #475569; background: #1e293b; color: #fff; font-size: 0.85rem; }
-
-    .btn-primary { width: 100%; padding: 12px; background: #0284c7; color: #ffffff; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9rem; cursor: pointer; margin-top: 10px; }
-    .btn-primary:hover { background: #0369a1; }
-  </style>
 </head>
 <body>
 
-  <!-- POP-UP SÉCURISÉE AU PREMIER PLAN -->
+  <!-- ÉCRAN DE SÉCURITÉ AU PREMIER PLAN -->
   <div id="passModalOverlay">
     <div class="pass-card">
       <div class="pass-title">🛡️ Euro Expert Solvabilité</div>
@@ -118,7 +38,7 @@
       <div class="logo">🛡️ Euro Expert Solvabilité <span>2026</span></div>
     </header>
 
-    <main style="flex: 1; padding: 20px;">
+    <main>
       <div class="search-container">
         <div class="search-box">
           <input type="text" id="searchInput" class="search-input" placeholder="Saisissez un Nom ou Numéro SIREN..." autocomplete="off" />
@@ -130,7 +50,7 @@
       <div id="map"></div>
     </main>
 
-    <!-- PANEL DE RESTITUTION D'AUDIT -->
+    <!-- PANEL D'AUDIT -->
     <div id="auditPanel" class="audit-panel">
       <div class="audit-card">
         <button id="closePanelBtn" class="close-btn">&times;</button>
@@ -159,7 +79,6 @@
 
         <div id="labelsContainer" class="labels-container"></div>
 
-        <!-- Navigation par Onglets -->
         <div class="tabs-nav">
           <button class="tab-btn active" onclick="switchTab('tabFinance')">📊 Finance</button>
           <button class="tab-btn" onclick="switchTab('tabGroupe')">🏢 Groupe &amp; KYC</button>
@@ -167,7 +86,6 @@
           <button class="tab-btn" onclick="switchTab('tabDecision')">💡 Légal &amp; Contentieux</button>
         </div>
 
-        <!-- Onglet 1 : Finance -->
         <div id="tabFinance" class="tab-content active">
           <div id="summaryFinanceBox"></div>
           <div class="tool-box">
@@ -176,7 +94,6 @@
           </div>
         </div>
 
-        <!-- Onglet 2 : Groupe & KYC -->
         <div id="tabGroupe" class="tab-content">
           <div id="summaryGroupeBox"></div>
           <div class="tool-box">
@@ -185,7 +102,6 @@
           </div>
         </div>
 
-        <!-- Onglet 3 : Conformité -->
         <div id="tabConformite" class="tab-content">
           <div id="summaryConformiteBox"></div>
           <div class="tool-box">
@@ -198,10 +114,8 @@
           </div>
         </div>
 
-        <!-- Onglet 4 : Légal & Contentieux -->
         <div id="tabDecision" class="tab-content">
           <div id="summaryDecisionBox"></div>
-          
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
             <div class="tool-box">
               <div class="tool-title">🧮 Plafond d'Encours Conseillé</div>
@@ -241,13 +155,11 @@
           <button id="generateLegalDocBtn" class="search-btn" style="width: 100%; background: #475569; margin-top: 6px;">📄 Générer une Mise en Demeure Sommation de Payer</button>
         </div>
 
-        <!-- Zone Lien Direct -->
         <div style="margin-top: 15px;">
           <span style="font-size: 0.8rem; color: #94a3b8;">🌐 Lien direct d'accès dossier :</span>
           <div id="shareUrlContainer"></div>
         </div>
 
-        <!-- Bouton Génération PDF -->
         <button id="downloadPdfBtn" class="btn-primary">Télécharger le Rapport Juridique &amp; Financier (PDF 4 Pages HD)</button>
 
       </div>
