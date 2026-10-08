@@ -5,13 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Euro Expert Solvabilité - Audit B2B</title>
 
-  <!-- Favicon -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
-
-  <!-- Style CSS Principal -->
   <link rel="stylesheet" href="style.css" />
 
-  <!-- Leaflet (Carte) CSS + JS -->
+  <!-- Leaflet Carte CSS + JS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -21,7 +18,7 @@
 </head>
 <body>
 
-  <!-- ÉCRAN DE SÉCURITÉ AU PREMIER PLAN -->
+  <!-- ÉCRAN DE VERROUILLAGE -->
   <div id="passModalOverlay">
     <div class="pass-card">
       <div class="pass-title">🛡️ Euro Expert Solvabilité</div>
@@ -50,7 +47,7 @@
       <div id="map"></div>
     </main>
 
-    <!-- PANEL D'AUDIT -->
+    <!-- PANEL DE RESTITUTION D'AUDIT -->
     <div id="auditPanel" class="audit-panel">
       <div class="audit-card">
         <button id="closePanelBtn" class="close-btn">&times;</button>
@@ -79,6 +76,7 @@
 
         <div id="labelsContainer" class="labels-container"></div>
 
+        <!-- Onglets -->
         <div class="tabs-nav">
           <button class="tab-btn active" onclick="switchTab('tabFinance')">📊 Finance</button>
           <button class="tab-btn" onclick="switchTab('tabGroupe')">🏢 Groupe &amp; KYC</button>
