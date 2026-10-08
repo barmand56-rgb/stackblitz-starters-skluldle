@@ -673,14 +673,16 @@ async function generateTechAuditPdf() {
 
   pdfTemplate = document.createElement('div');
   pdfTemplate.id = 'pdfTemplate';
+  
+  // FIX CRITIQUE : Affichage temporaire au premier plan visible pour html2canvas
   pdfTemplate.style.cssText = `
-    position: absolute;
+    position: fixed;
     top: 0;
-    left: -9999px;
+    left: 0;
     width: 210mm;
     background: #ffffff !important;
     color: #0f172a !important;
-    z-index: -9999;
+    z-index: 999999;
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
@@ -789,7 +791,8 @@ async function generateTechAuditPdf() {
     </div>
   `;
 
-  await new Promise(resolve => setTimeout(resolve, 400));
+  // Délai de 500ms pour garantir le rendu complet par le navigateur
+  await new Promise(resolve => setTimeout(resolve, 500));
 
   const options = {
     margin: 0,
