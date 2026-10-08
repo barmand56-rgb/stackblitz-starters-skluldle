@@ -1,8 +1,9 @@
+/* Reset complet pour éliminer les bandes noires */
 html, body {
   margin: 0 !important;
   padding: 0 !important;
-  width: 100vw !important;
-  height: 100vh !important;
+  width: 100% !important;
+  height: 100% !important;
   overflow: hidden !important;
   background-color: #0f172a !important;
   color: #ffffff !important;
@@ -13,11 +14,11 @@ html, body {
   box-sizing: border-box !important;
 }
 
-/* CONTENEUR PRINCIPAL PLEIN ÉCRAN */
+/* Conteneur principal plein écran */
 #appContent {
   width: 100vw !important;
   height: 100vh !important;
-  display: none; /* Basculé en flex par JS après le mot de passe */
+  display: flex !important;
   flex-direction: column !important;
 }
 
@@ -33,7 +34,7 @@ main {
   display: flex !important;
   flex-direction: column !important;
   padding: 10px !important;
-  min-height: 0 !important; /* Force l'ajustement vertical */
+  min-height: 0 !important;
 }
 
 .search-container {
@@ -44,12 +45,12 @@ main {
   margin: 0 auto 10px auto !important;
 }
 
-/* LA CARTE RECOUVRE TOUTE LA HAUTEUR RESTANTE */
+/* La carte remplit tout l'espace restant */
 #map {
   width: 100% !important;
   height: 100% !important;
   flex: 1 !important;
-  min-height: 0 !important; /* Indispensable pour enlever la bande du bas */
+  min-height: 0 !important;
   border-radius: 8px !important;
   border: 1px solid #334155 !important;
 }
