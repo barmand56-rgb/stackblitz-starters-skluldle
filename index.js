@@ -120,38 +120,6 @@ function getTodayValidCodes() {
   return { dailyCode, masterCode };
 }
 
-function verifyPassCode() {
-  const inputEl = document.getElementById('passCodeInput');
-  if (!inputEl) return;
-
-  const inputCode = inputEl.value.trim().toUpperCase();
-  const { dailyCode, masterCode } = getTodayValidCodes();
-  const errorMsg = document.getElementById('passErrorMsg');
-
-  if (inputCode === masterCode || inputCode === dailyCode) {
-    // 1. Masquer la pop-up et afficher le contenu
-    const overlay = document.getElementById('passModalOverlay');
-    if (overlay) overlay.style.display = 'none';
-
-    const app = document.getElementById('appContent');
-    if (app) app.style.display = 'flex';
-
-    // 2. Initialiser et recalculer la carte UNE FOIS LE SITE VISIBLE
-    setTimeout(() => {
-      if (!map) {
-        initMap();
-      } else {
-        map.invalidateSize();
-      }
-    }, 200);
-
-    initEventListeners();
-    initToolsEventListeners();
-    checkUrlParams();
-  } else {
-    if (errorMsg) errorMsg.style.display = 'block';
-  }
-}
 
 window.verifyPassCode = verifyPassCode;
 
@@ -274,12 +242,54 @@ window.selectAutocompleteSuggestion = selectAutocompleteSuggestion;
 // =========================================================================
 // 5. CARTE ET ÉVÉNEMENTS UI
 // =========================================================================
+// INITIALISATION DE LA CARTE
 function initMap() {
-  map = L.map('map', { center: [-21.0924, 55.2289], zoom: 12, zoomControl: true });
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
-  
-  // Force l'ajustement de la carte à tout l'écran
-  setTimeout(() => { if (map) map.invalidateSize(); }, 300);
+  if (map) return; // Évite les doubles initialisations
+
+  map = L.map('map', { 
+    center: [-21.0924, 55.2289], 
+    zoom: 12, 
+    zoomControl: true 
+  });
+
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { 
+    maxZoom: 19, 
+    attribution: '&copy; OpenStreetMap' 
+  }).addTo(map);
+}
+
+// VALIDATION DU CODE ACCÈS
+function verifyPassCode() {
+  const inputEl = document.getElementById('passCodeInput');
+  if (!inputEl) return;
+
+  const inputCode = inputEl.value.trim().toUpperCase();
+  const { dailyCode, masterCode } = getTodayValidCodes();
+  const errorMsg = document.getElementById('passErrorMsg');
+
+  if (inputCode === masterCode || inputCode === dailyCode) {
+    // 1. Masquer la pop-up
+    const overlay = document.getElementById('passModalOverlay');
+    if (overlay) overlay.style.display = 'none';
+
+    // 2. Afficher le site
+    const app = document.getElementById('appContent');
+    if (app) app.style.display = 'flex';
+
+    // 3. Attendre que le navigateur dessine le site AVANT d'initialiser Leaflet
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        initMap();
+        if (map) map.invalidateSize();
+      }, 300);
+    });
+
+    initEventListeners();
+    initToolsEventListeners();
+    checkUrlParams();
+  } else {
+    if (errorMsg) errorMsg.style.display = 'block';
+  }
 }
 
 function switchTab(tabId) {
