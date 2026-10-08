@@ -128,14 +128,31 @@ document.addEventListener('DOMContentLoaded', () => {
 // RECHERCHES & APIS
 async function fetchBodaccData(siren) {
   try {
-    const url = `https://bodacc-api.open-data.fr/api/explore/v2.1/catalog/datasets/annonces-commerciales/records?where=siren%3D"${siren}"&limit=5`;
+    const url = `https://bodacc-api.open-data.fr/api/explore/v2.1/catalog/datasets/annonces-commerciales/records?where=siren%3D"${siren}"&limit=10`;
     const res = await fetch(url);
     if (!res.ok) return { hasProcedures: false, records: [] };
+    
     const data = await res.json();
     const records = data.results || [];
-    const alertKeywords = ['LIQUIDATION', 'REDRESSEMENT', 'SAUVEGARDE', 'FAILLITE', 'CESSATION'];
-    const hasProcedures = records.some(r => alertKeywords.some(kw => (r.familleavis_libelle || '').toUpperCase().includes(kw)));
-    return { hasProcedures, recordsCount: records.length, records };
+    
+    // Mots-clés d'alerte étendu (faillite, redressement, privilèges, nantissements)
+    const alertKeywords = [
+      'LIQUIDATION', 'REDRESSEMENT', 'SAUVEGARDE', 
+      'FAILLITE', 'CESSATION', 'NANTISSEMENT', 'PRIVILEGE',
+      'INSCRIPTION', 'INVENTAIRE', 'PROCEDURE'
+    ];
+
+    // Extraction des avis correspondants aux alertes
+    const matchingAlerts = records.filter(r => {
+      const libelle = (r.familleavis_libelle || '' ) + ' ' + (r.comptes_libelle || '');
+      return alertKeywords.some(kw => libelle.toUpperCase().includes(kw));
+    });
+
+    return {
+      hasProcedures: matchingAlerts.length > 0,
+      recordsCount: matchingAlerts.length,
+      records: matchingAlerts
+    };
   } catch (e) {
     return { hasProcedures: false, records: [] };
   }
