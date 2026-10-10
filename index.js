@@ -743,9 +743,16 @@ async function generateTechAuditPdf() {
     scoreVal = Math.min(scoreVal, 20);
   }
 
-  const complements = company.complements || {};
   const sectorRules = getSectorRules(company.code_naf, company);
   const svgChartHtml = generateSvgChart(isActif, seed, cpVal);
+
+  // Sauvegarde des styles originaux pour réinitialisation
+  const originalOverflow = document.body.style.overflow;
+  const originalHeight = document.body.style.height;
+
+  // Déblocage temporaire du body pour permettre la capture complète par html2canvas
+  document.body.style.setProperty('overflow', 'visible', 'important');
+  document.body.style.setProperty('height', 'auto', 'important');
 
   let pdfTemplate = document.getElementById('pdfTemplate');
   if (pdfTemplate) pdfTemplate.remove();
@@ -754,7 +761,7 @@ async function generateTechAuditPdf() {
   pdfTemplate.id = 'pdfTemplate';
   
   pdfTemplate.style.cssText = `
-    position: fixed;
+    position: absolute;
     top: 0;
     left: 0;
     width: 210mm;
@@ -872,13 +879,13 @@ async function generateTechAuditPdf() {
     </div>
   `;
 
-  await new Promise(resolve => setTimeout(resolve, 500));
+  await new Promise(resolve => setTimeout(resolve, 600));
 
   const options = {
     margin: 0,
     filename: `Audit_Solvabilite_${siren}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, logging: false, scrollX: 0, scrollY: 0 },
+    html2canvas: { scale: 2, useCORS: true, logging: false, scrollY: 0, scrollX: 0 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
   };
 
@@ -889,5 +896,8 @@ async function generateTechAuditPdf() {
     alert("Erreur lors de la génération du PDF.");
   } finally {
     pdfTemplate.remove();
+    // Restauration des règles CSS d'origine du body
+    document.body.style.overflow = originalOverflow;
+    document.body.style.height = originalHeight;
   }
 }
