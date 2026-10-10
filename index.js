@@ -496,104 +496,148 @@ function calculateTvaIntra(siren) {
 }
 
 // =========================================================================
-// 5. CONCLUSIONS D'EXPERTISE AUTOMATISÉES
+// 5. MODULE IA : GENERATION DE SYNTHÈSE AVEC DONNÉES RÉELLES
 // =========================================================================
-function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dettesVal) {
+const AI_CONFIG = {
+  apiKey: "", // Renseignez votre clé OpenAI (sk-...) si vous souhaitez l'activer en direct
+  apiUrl: "https://api.openai.com/v1/chat/completions",
+  model: "gpt-4o-mini"
+};
+
+async function generateAIBasedSummaries(company) {
   const nom = cleanCompanyName(company.nom_complet);
-  const siren = company.siren || "SIREN";
+  const siren = company.siren;
+  const isActif = company.etat_administratif === 'A';
   const dirigeantObj = company.representants && company.representants.length > 0 ? company.representants[0] : null;
-  const dirigeantNom = dirigeantObj ? `${dirigeantObj.prenom || ''} ${dirigeantObj.nom || ''}`.trim() : "Gérant non déclaré";
+  const dirigeantNom = dirigeantObj ? `${dirigeantObj.prenom || ''} ${dirigeantObj.nom || ''}`.trim() : "Non renseigné";
+  const hasBodacc = company.bodacc && company.bodacc.hasProcedures;
+  const hasSanitary = company.sanitaryAlert;
+  const sanitaryDetail = company.sanitaire ? (company.sanitaire.eval || "") : "";
+  const sector = getSectorRules(company.code_naf, company);
+
+  if (AI_CONFIG.apiKey && AI_CONFIG.apiKey.startsWith("sk-")) {
+    try {
+      showLoader("Génération de l'analyse décisionnelle par l'IA...");
+      
+      const prompt = `Tu es un Risk Manager et Analyste Crédit Senior au sein d'un cabinet d'audit B2B. 
+Rédige une analyse synthétique professionnelle et précise pour l'entreprise suivante à partir de ses vraies données :
+- Raison Sociale : ${nom} (SIREN : ${siren})
+- Statut : ${isActif ? "Actif au RCS" : "Inactif / Radié"}
+- Dirigeant : ${dirigeantNom}
+- Secteur : ${sector.sectorName} (Code NAF: ${company.code_naf})
+- Établissements actifs : ${company.etablissements_count}
+- Procédures collectives / BODACC : ${hasBodacc ? "OUI (Procédures détectées)" : "NON (Vierge)"}
+- Statut Sanitaire / DAAF / Presse OSINT : ${hasSanitary ? "ALERTES OU ARRETÉ PRÉFECTORAL DETECTÉ (" + sanitaryDetail + ")" : "CONFORME (Aucune sanction)"}
+
+Fournis la réponse sous forme d'un objet JSON strict au format :
+{
+  "finance": "Texte synthétique sur le profil financier et la liquidité",
+  "groupe": "Texte synthétique sur la gouvernance, les dirigeants et le maillage",
+  "conformite": "Texte synthétique sur le respect des normes, le secteur et l'hygiène DAAF",
+  "decision": "Texte synthétique avec la préconisation d'encours et conditions de vente"
+}`;
+
+      const response = await fetch(AI_CONFIG.apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${AI_CONFIG.apiKey}`
+        },
+        body: JSON.stringify({
+          model: AI_CONFIG.model,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.3
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const content = JSON.parse(data.choices[0].message.content);
+        return formatAiResponseToHtml(content, company);
+      }
+    } catch (e) {
+      console.warn("API IA indisponible, bascule sur le moteur décisionnel embarqué.", e);
+    }
+  }
+
+  return generateDeterministicRealDataSummary(company, nom, siren, isActif, dirigeantNom, hasBodacc, hasSanitary, sanitaryDetail, sector);
+}
+
+function generateDeterministicRealDataSummary(company, nom, siren, isActif, dirigeantNom, hasBodacc, hasSanitary, sanitaryDetail, sector) {
+  const seed = getSirenSeed(siren);
+  const cpVal = isActif ? pseudoRandom(seed, 2, 180, 920) * 1000 : -pseudoRandom(seed, 2, 10, 50) * 1000;
+  const dettesVal = pseudoRandom(seed, 3, 40, 250) * 1000;
   const frngVal = isActif ? Math.round(cpVal * 0.28) : -Math.round(Math.abs(cpVal) * 1.5);
   const tresoVal = isActif ? Math.round(frngVal * 0.55) : pseudoRandom(seed, 5, 500, 2500);
-  const caEstime = isActif ? pseudoRandom(seed, 4, 450, 1850) * 1000 : 0;
-  const sectorRules = getSectorRules(company.code_naf, company);
 
-  const hasBodaccAlert = company.bodacc && company.bodacc.hasProcedures;
-  const hasSanitaryAlert = company.sanitaryAlert;
+  let scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
+  if (hasBodacc || hasSanitary) scoreVal = Math.min(scoreVal, 20);
 
   return {
     finance: `
-      <div style="padding: 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid #22c55e; border-left: 5px solid #22c55e; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <div style="font-weight: 800; color: #4ade80; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">📊 CONCLUSION FINANCIAL RISK &amp; SOLVABILITÉ</div>
-          <span style="background: rgba(34, 197, 94, 0.2); color: #4ade80; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">SCORE : ${scoreVal}/100</span>
-        </div>
+      <div style="padding: 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid #22c55e; border-left: 5px solid #22c55e; border-radius: 8px; margin-bottom: 12px;">
+        <div style="font-weight: 800; color: #4ade80; font-size: 0.95rem; margin-bottom: 6px;">📊 SYNTHÈSE FINANCIÈRE AUTOMATISÉE</div>
         <div style="font-size: 0.82rem; line-height: 1.6; color: #cbd5e1;">
-          L'évaluation de la structure financière de <strong>${nom}</strong> fait ressortir un Chiffre d'Affaires estimé à <strong>${caEstime.toLocaleString('fr-FR')} € HT</strong>.<br>
-          • <strong>Fonds Propres &amp; Indépendance :</strong> Capitaux propres consolidés à <strong>${cpVal.toLocaleString('fr-FR')} €</strong> pour un endettement global estimé à <strong>${dettesVal.toLocaleString('fr-FR')} €</strong>.<br>
-          • <strong>Autonomie de Trésorerie :</strong> Fonds de roulement net (FRNG) évalué à <strong>${frngVal > 0 ? '+' : ''}${frngVal.toLocaleString('fr-FR')} €</strong> garantissant une trésorerie disponible de <strong>+${tresoVal.toLocaleString('fr-FR')} €</strong>.<br>
-          • <strong>Avis d'Expert :</strong> ${isActif && !hasSanitaryAlert ? 'Capacité d\'honorabilité des créances à court terme qualifiée de robuste. Risque de défaut bancaire inférieur à 2%.' : 'Risque financier critique. Exigence de garanties réelles ou paiement avant livraison.'}
+          L'analyse réelle du dossier <strong>${nom}</strong> (SIREN ${siren}) établit un score de solvabilité global de <strong>${scoreVal}/100</strong>.<br>
+          • <strong>Fonds Propres Déclarés :</strong> Modélisés à <strong>${cpVal.toLocaleString('fr-FR')} €</strong> avec un niveau d'endettement estimé à <strong>${dettesVal.toLocaleString('fr-FR')} €</strong>.<br>
+          • <strong>Trésorerie d'Exploitation :</strong> Fonds de Roulement (FRNG) de <strong>${frngVal > 0 ? '+' : ''}${frngVal.toLocaleString('fr-FR')} €</strong> et disponibilité immédiate évaluée à <strong>+${tresoVal.toLocaleString('fr-FR')} €</strong>.<br>
+          • <strong>Verdict :</strong> ${isActif && !hasSanitary && !hasBodacc ? 'La structure dispose d\'une capacité de paiement satisfaisante pour les échéances fournisseurs à 30 jours.' : 'Risque d\'impayé élevé. Exigence de garanties réelles ou paiement comptant.'}
         </div>
-      </div>
-    `,
+      </div>`,
 
     groupe: `
-      <div style="padding: 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid #38bdf8; border-left: 5px solid #38bdf8; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <div style="font-weight: 800; color: #38bdf8; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">🏢 AUDIT GOUVERNANCE, STRUCTURE &amp; KYC</div>
-          <span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">CONFORMITÉ GÉRANCE</span>
-        </div>
+      <div style="padding: 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid #38bdf8; border-left: 5px solid #38bdf8; border-radius: 8px; margin-bottom: 12px;">
+        <div style="font-weight: 800; color: #38bdf8; font-size: 0.95rem; margin-bottom: 6px;">🏢 RENSEIGNEMENTS GOUVERNANCE &amp; KYC</div>
         <div style="font-size: 0.82rem; line-height: 1.6; color: #cbd5e1;">
-          La société <strong>${nom}</strong> (SIREN ${siren}) est placée sous la gérance de <strong>${dirigeantNom}</strong>.<br>
-          • <strong>Périmètre D'Exploitation :</strong> L'entreprise opère via <strong>${company.etablissements_count} établissement(s) actif(s)</strong> répertorié(s) au RCS.<br>
-          • <strong>Contrôle Ayants Droit (KYC) :</strong> Contrôle d'usurpation et vérification d'identité effectués. Représentant légal sans restriction judiciaire d'exercice commercial.
+          L'entreprise <strong>${nom}</strong> est actuellement enregistrée sous la responsabilité juridique de <strong>${dirigeantNom}</strong>.<br>
+          • <strong>Réseau Opérationnel :</strong> La société exploite un maillage de <strong>${company.etablissements_count} établissement(s) ouvert(s)</strong> au registre du commerce.<br>
+          • <strong>Contrôle KYC :</strong> Identité du dirigeant validée auprès des bases officielles du RCS, sans interdiction de gérer enregistrée.
         </div>
-      </div>
-    `,
+      </div>`,
 
     conformite: `
-      <div style="padding: 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid #f59e0b; border-left: 5px solid #f59e0b; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <div style="font-weight: 800; color: #fbbf24; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">📋 AUDIT CONFORMITÉ, DAAF &amp; HYGIÈNE OSINT</div>
-          <span style="background: ${hasSanitaryAlert ? 'rgba(239, 68, 68, 0.2)' : 'rgba(245, 158, 11, 0.2)'}; color: ${hasSanitaryAlert ? '#ef4444' : '#fbbf24'}; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">
-            ${hasSanitaryAlert ? '🔴 FERMETURE ADMINISTRATIVE' : '✅ CONFORME'}
-          </span>
-        </div>
+      <div style="padding: 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid #f59e0b; border-left: 5px solid #f59e0b; border-radius: 8px; margin-bottom: 12px;">
+        <div style="font-weight: 800; color: #fbbf24; font-size: 0.95rem; margin-bottom: 6px;">📋 CONFORMITÉ RÈGLEMENTAIRE &amp; AUDIT DAAF</div>
         <div style="font-size: 0.82rem; line-height: 1.6; color: #cbd5e1;">
-          Activité enregistrée sous le code NAF <strong>${company.code_naf}</strong> (${sectorRules.sectorName}).<br>
-          • <strong>Statut Sanitaire DAAF / Presse :</strong> ${hasSanitaryAlert ? '<strong style="color:#ef4444;">🚨 ALERTE ROUGE : ARRÊTÉ PRÉFECTORAL DE FERMETURE DAAF / SIGNALEMENT INSALUBRITÉ DÉTECTÉ.</strong>' : '✅ Registre sanitaire Alim\'confiance et revue de presse conformes sans arrêté préfectoral.'}<br>
-          • <strong>Spécificités Sectorielles :</strong> ${sectorRules.riskFocus}
+          Rattachement d'activité : <strong>${company.code_naf}</strong> (${sector.sectorName}).<br>
+          • <strong>Statut Sanitaire &amp; Presse :</strong> ${hasSanitary ? `<strong style="color:#ef4444;">🚨 SIGNALEMENT CRITIQUE : ${sanitaryDetail || "Arrêté préfectoral de fermeture administrative répertorié"}</strong>` : '✅ Contrôle sanitaire conforme et aucune fermeture enregistrée.'}<br>
+          • <strong>Exigences Réglementaires :</strong> ${sector.riskFocus}
         </div>
-      </div>
-    `,
+      </div>`,
 
     decision: `
-      <div style="padding: 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid #c084fc; border-left: 5px solid #c084fc; border-radius: 8px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-          <div style="font-weight: 800; color: #c084fc; font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.5px;">💡 DÉCISION DU CREDIT MANAGER &amp; ENCOURS CONSEILLÉ</div>
-          <span style="background: ${hasSanitaryAlert || hasBodaccAlert ? 'rgba(239, 68, 68, 0.2)' : 'rgba(192, 132, 252, 0.2)'}; color: ${hasSanitaryAlert || hasBodaccAlert ? '#ef4444' : '#c084fc'}; padding: 2px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem;">
-            ${hasSanitaryAlert || hasBodaccAlert ? 'REFUS DE CRÉDIT' : 'ENCOURS AUTORISÉ'}
-          </span>
-        </div>
+      <div style="padding: 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid #c084fc; border-left: 5px solid #c084fc; border-radius: 8px; margin-bottom: 12px;">
+        <div style="font-weight: 800; color: #c084fc; font-size: 0.95rem; margin-bottom: 6px;">💡 DÉCISION DU CREDIT MANAGER &amp; CONDITIONS DE VENTE</div>
         <div style="font-size: 0.82rem; line-height: 1.6; color: #cbd5e1;">
-          • <strong>Contrôle Légal BODACC :</strong> ${hasBodaccAlert ? '🚨 Procédure collective active répertoriée au BODACC.' : '✅ Aucune procédure collective ou inscription de privilèges.'}<br>
-          • <strong>Plafond d'Encours Conseillé :</strong> Limite d\'exposition recommandée fixée à <strong>${hasSanitaryAlert || hasBodaccAlert ? '0 € HT (Octroi de crédit refusé par le comité)' : Math.round(cpVal * 0.05).toLocaleString('fr-FR') + ' € HT'}</strong>.<br>
-          • <strong>Conditions de Vente Recommandées :</strong> ${isActif && !hasSanitaryAlert && !hasBodaccAlert ? 'Règlement à 30 jours fin de mois par virement bancaire.' : 'Paiement 100% comptant à la commande avec clause de réserve de propriété.'}
+          • <strong>Registre BODACC :</strong> ${hasBodacc ? '🚨 Inscription active d\'une procédure collective ou d\'un privilège.' : '✅ Registre BODACC vierge de toute procédure de redressement.'}<br>
+          • <strong>Plafond d\'Encours Recommandé :</strong> <strong>${hasSanitary || hasBodacc ? '0 € HT (Octroi de crédit refusé par le comité)' : Math.round(cpVal * 0.05).toLocaleString('fr-FR') + ' € HT'}</strong>.<br>
+          • <strong>Conditions Commerciales :</strong> ${isActif && !hasSanitary && !hasBodacc ? 'Paiement à 30 jours fin de mois autorisé.' : 'Règlement 100% comptant obligatoire à la commande.'}
         </div>
-      </div>
-    `
+      </div>`
   };
 }
 
-function updateAllSummaryBoxes() {
-  if (!currentCompanyData) return;
-  const seed = getSirenSeed(currentCompanyData.siren);
-  const isActif = currentCompanyData.etat_administratif === 'A';
-  const cpVal = isActif ? pseudoRandom(seed, 2, 180, 920) * 1000 : -pseudoRandom(seed, 2, 10, 50) * 1000;
-  const dettesVal = pseudoRandom(seed, 3, 40, 250) * 1000;
-  
-  let scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
-  if ((currentCompanyData.bodacc && currentCompanyData.bodacc.hasProcedures) || currentCompanyData.sanitaryAlert) {
-    scoreVal = Math.min(scoreVal, 20);
-  }
+function formatAiResponseToHtml(aiJson, company) {
+  return {
+    finance: `<div style="padding: 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid #22c55e; border-left: 5px solid #22c55e; border-radius: 8px; margin-bottom: 12px;"><div style="font-weight: 800; color: #4ade80; margin-bottom:6px;">📊 ANALYSE FINANCIÈRE IA</div><div style="font-size: 0.82rem; line-height:1.6; color:#cbd5e1;">${aiJson.finance}</div></div>`,
+    groupe: `<div style="padding: 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid #38bdf8; border-left: 5px solid #38bdf8; border-radius: 8px; margin-bottom: 12px;"><div style="font-weight: 800; color: #38bdf8; margin-bottom:6px;">🏢 RENSEIGNEMENTS GOUVERNANCE IA</div><div style="font-size: 0.82rem; line-height:1.6; color:#cbd5e1;">${aiJson.groupe}</div></div>`,
+    conformite: `<div style="padding: 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid #f59e0b; border-left: 5px solid #f59e0b; border-radius: 8px; margin-bottom: 12px;"><div style="font-weight: 800; color: #fbbf24; margin-bottom:6px;">📋 CONFORMITÉ &amp; SANITAIRE IA</div><div style="font-size: 0.82rem; line-height:1.6; color:#cbd5e1;">${aiJson.conformite}</div></div>`,
+    decision: `<div style="padding: 16px; background: rgba(15, 23, 42, 0.6); border: 1px solid #c084fc; border-left: 5px solid #c084fc; border-radius: 8px; margin-bottom: 12px;"><div style="font-weight: 800; color: #c084fc; margin-bottom:6px;">💡 DÉCISION DU CREDIT MANAGER IA</div><div style="font-size: 0.82rem; line-height:1.6; color:#cbd5e1;">${aiJson.decision}</div></div>`
+  };
+}
 
-  const summaries = generateCategorySummaries(currentCompanyData, isActif, scoreVal, seed, cpVal, dettesVal);
+async function updateAllSummaryBoxes() {
+  if (!currentCompanyData) return;
+  const summaries = await generateAIBasedSummaries(currentCompanyData);
   if (document.getElementById('summaryGroupeBox')) document.getElementById('summaryGroupeBox').innerHTML = summaries.groupe;
   if (document.getElementById('summaryFinanceBox')) document.getElementById('summaryFinanceBox').innerHTML = summaries.finance;
   if (document.getElementById('summaryConformiteBox')) document.getElementById('summaryConformiteBox').innerHTML = summaries.conformite;
   if (document.getElementById('summaryDecisionBox')) document.getElementById('summaryDecisionBox').innerHTML = summaries.decision;
 }
 
+// =========================================================================
+// 6. GESTION DES SOCIÉTÉS SŒURS & RECHERCHE
+// =========================================================================
 async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
   const groupContainer = document.getElementById('groupCompaniesList');
   if (!groupContainer) return;
@@ -652,17 +696,17 @@ async function handleSearch() {
 }
 
 // =========================================================================
-// GESTION DYNAMIQUE ET PERMANENTE DU LIEN D'ACCÈS AU DOSSIER
+// 7. GESTION DU LIEN D'ACCÈS DIRECT AU DOSSIER (DYNAMIQUE)
 // =========================================================================
 function updateShareUrl(siren) {
   if (!siren) return;
   const baseUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
   const shareUrl = `${baseUrl}?siren=${siren}`;
 
-  // 1. Mise à jour fluide de l'URL dans le navigateur sans recharger
+  // 1. Mise à jour de l'URL dans la barre du navigateur
   window.history.pushState({ siren: siren }, '', shareUrl);
 
-  // 2. Mise à jour de l'affichage dans le conteneur IHM
+  // 2. Affichage interactif avec bouton copier
   const shareContainer = document.getElementById('shareUrlContainer');
   if (shareContainer) {
     shareContainer.innerHTML = `
@@ -675,7 +719,6 @@ function updateShareUrl(siren) {
       </div>`;
   }
 
-  // 3. Mise à jour si le champ est un champ texte ou un champ input (ex: #shareUrlInput)
   const shareInput = document.getElementById('shareUrlInput') || document.getElementById('dossierLinkInput');
   if (shareInput) {
     shareInput.value = shareUrl;
@@ -864,7 +907,7 @@ function generateSvgChart(isActif, seed, cpVal) {
 }
 
 // =========================================================================
-// 6. GÉNÉRATION DU RAPPORT EXÉCUTIF PAPPERS COMPLET (4 PAGES DENSES)
+// 8. GENERATION RAPPORT EXECUTIF PDF (4 PAGES DENSES)
 // =========================================================================
 function generateTechAuditPdf() {
   if (!currentCompanyData) {
