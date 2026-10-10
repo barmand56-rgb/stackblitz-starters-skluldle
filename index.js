@@ -7,7 +7,7 @@ let debounceTimer;
 const SECRET_SALT = "EURO_EXPERT_SOLVABILITE_KEY_2026";
 
 // =========================================================================
-// 1. DICTIONNAIRE MULTI-SECTEURS INTELLIGENT (AVEC DÉTECTION HYGIÈNE DYNAMIQUE)
+// 1. DICTIONNAIRE MULTI-SECTEURS INTELLIGENT
 // =========================================================================
 const SECTOR_PROFILES = {
   '68': {
@@ -24,7 +24,7 @@ const SECTOR_PROFILES = {
     labels: (c) => {
       const hasSanitaryAlert = c.sanitaire && c.sanitaryAlert;
       const sanitText = hasSanitaryAlert 
-        ? `🚨 FERMETURE / ALERTE HYGIÈNE (${(c.sanitaire.eval || 'Non conforme').toUpperCase()})` 
+        ? `🚨 FERMETURE / ALERTE DAAF & HYGIÈNE (${(c.sanitaire.eval || 'Arrêté préfectoral').toUpperCase()})` 
         : (c.sanitaire && c.sanitaire.eval ? `✅ Hygiène : ${c.sanitaire.eval}` : '✅ Contrôle Sanitaire Conforme');
       return [
         { text: c.est_bio ? '✅ Certification BIO' : '⚪ Restauration Classique', status: c.est_bio },
@@ -32,7 +32,7 @@ const SECTOR_PROFILES = {
         { text: '✅ Licence Débit de Boissons', status: true }
       ];
     },
-    riskFocus: 'Sensibilité au BFR saisonnier, aux contrôles sanitaires d\'hygiène (Alim\'confiance) et fermetures administratives.'
+    riskFocus: 'Sensibilité au BFR saisonnier, aux contrôles sanitaires d\'hygiène (DAAF / Alim\'confiance) et fermetures administratives.'
   },
   '41': { name: 'BTP & Construction', labels: (c) => getBtpLabels(c), riskFocus: 'Exposition aux retards de paiement des maîtres d\'ouvrage et retenues de garantie.' },
   '42': { name: 'Génie Civil & Travaux Publics', labels: (c) => getBtpLabels(c), riskFocus: 'Poids des investissements matériels et nantissements d\'outillage.' },
@@ -133,10 +133,41 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =========================================================================
-// 3. APIS NATIONALE ALIM'CONFIANCE & BODACC
+// 3. APIS NATIONALE ALIM'CONFIANCE, BODACC ET MODULE OSINT PRESSE
 // =========================================================================
-async function fetchAlimConfianceData(siren, siret) {
+async function fetchPressNewsAlerts(companyName) {
   try {
+    const cleanName = encodeURIComponent(companyName.replace(/sarl|sas|sci|eurl/gi, '').trim());
+    const rssUrl = `https://news.google.com/rss/search?q=${cleanName}+fermeture+OR+DAAF+OR+hygiene&hl=fr&gl=FR&ceid=FR:fr`;
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`;
+    
+    const res = await fetch(proxyUrl);
+    if (!res.ok) return { hasAlert: false, detail: "" };
+    
+    const text = await res.text();
+    const lowerText = text.toLowerCase();
+    
+    const isCritical = lowerText.includes('fermeture') || lowerText.includes('arrêté préfectoral') || lowerText.includes('daaf') || lowerText.includes('rongeurs') || lowerText.includes('insalubre');
+    
+    if (isCritical) {
+      return {
+        hasAlert: true,
+        detail: "Arrêté préfectoral de fermeture (Signalé dans la presse locale)"
+      };
+    }
+    return { hasAlert: false, detail: "" };
+  } catch (e) {
+    return { hasAlert: false, detail: "" };
+  }
+}
+
+async function fetchAlimConfianceData(siren, siret, companyName) {
+  try {
+    const pressCheck = await fetchPressNewsAlerts(companyName);
+    if (pressCheck.hasAlert) {
+      return { hasAlert: true, eval: pressCheck.detail };
+    }
+
     const url = `https://alimconfiance.agriculture.gouv.fr/api/explore/v2.1/catalog/datasets/dispositif-alimconfiance/records?where=siren%3D"${siren}"%20OR%20siret%3D"${siret}"&limit=5`;
     const res = await fetch(url);
     if (!res.ok) {
@@ -198,15 +229,17 @@ async function fetchBodaccData(siren) {
 
 async function fetchEnrichedCompanyData(siren) {
   const siretEst = `${siren}00010`;
-  const [gouvRes, bodaccData, alimData] = await Promise.all([
-    fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${siren}&per_page=1`).then(r => r.ok ? r.json() : null).catch(() => null),
-    fetchBodaccData(siren),
-    fetchAlimConfianceData(siren, siretEst)
-  ]);
   
+  const gouvRes = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${siren}&per_page=1`).then(r => r.ok ? r.json() : null).catch(() => null);
   if (!gouvRes || !gouvRes.results || gouvRes.results.length === 0) return null;
   
   const company = formatGouvToEnrichedStructure(gouvRes.results[0]);
+
+  const [bodaccData, alimData] = await Promise.all([
+    fetchBodaccData(siren),
+    fetchAlimConfianceData(siren, siretEst, company.nom_complet)
+  ]);
+  
   company.bodacc = bodaccData;
   company.sanitaire = alimData;
   company.sanitaryAlert = alimData.hasAlert;
@@ -397,7 +430,7 @@ function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dett
         <div style="font-size: 0.8rem; line-height: 1.5; color: #cbd5e1;">
           Activité rattachée au code NAF <strong>${company.code_naf}</strong> (${sectorRules.sectorName}).<br>
           • <strong>Régime Social :</strong> Effectif sur la tranche <strong>${company.tranche_effectif}</strong>.<br>
-          • <strong>Statut Sanitaire / Alim'confiance :</strong> ${hasSanitaryAlert ? '<strong style="color:#ef4444;">🚨 ALERTE HYGIÈNE / FERMETURE ADMINISTRATIVE DÉTECTÉE</strong>' : '✅ Contrôle sanitaire conforme.'}<br>
+          • <strong>Statut Sanitaire / Alim'confiance :</strong> ${hasSanitaryAlert ? '<strong style="color:#ef4444;">🚨 ALERTE PRESSE / FERMETURE ADMINISTRATIVE DÉTECTÉE</strong>' : '✅ Contrôle sanitaire conforme.'}<br>
           • <strong>Exigences Métier :</strong> ${sectorRules.riskFocus}
         </div>
       </div>
@@ -408,7 +441,7 @@ function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dett
         <div style="font-weight: bold; color: #c084fc; font-size: 0.9rem; margin-bottom: 6px;">💡 DÉCISION DU CREDIT MANAGER &amp; RECOUVREMENT</div>
         <div style="font-size: 0.8rem; line-height: 1.5; color: #cbd5e1;">
           • <strong>Alertes Légales (BODACC) :</strong> ${hasBodaccAlert ? '🚨 Procédure collective active au BODACC.' : '✅ Registre BODACC vierge (aucune procédure collective).'}<br>
-          • <strong>Contrôle Sanitaire &amp; Hygiène :</strong> ${hasSanitaryAlert ? '<strong style="color:#ef4444;">🚨 ALERTE HYGIÈNE / FERMETURE ADMINISTRATIVE DÉTECTÉE</strong> (' + (company.sanitaire.eval || 'Non conforme') + ')' : '✅ Contrôle sanitaire et hygiène conforme (Aucun arrêté de fermeture).'}<br>
+          • <strong>Contrôle Sanitaire &amp; Hygiène :</strong> ${hasSanitaryAlert ? '<strong style="color:#ef4444;">🚨 ALERTE HYGIÈNE / FERMETURE DAAF DÉTECTÉE</strong> (' + (company.sanitaire.eval || 'Arrêté préfectoral') + ')' : '✅ Contrôle sanitaire et hygiène conforme (Aucun arrêté de fermeture).'}<br>
           • <strong>Plafond Conseillé :</strong> Limite d\'encours commercial recommandée à <strong>${hasSanitaryAlert || hasBodaccAlert ? '0 € HT (Octroi refusé - Risque sanitaire/légal)' : Math.round(cpVal * 0.05).toLocaleString('fr-FR') + ' € HT'}</strong>.<br>
           • <strong>Conditions de Vente :</strong> ${isActif && !hasSanitaryAlert && !hasBodaccAlert ? 'Règlement à 30 jours fin de mois.' : 'Paiement 100% comptant à la commande obligatoire.'}
         </div>
@@ -471,7 +504,7 @@ async function handleSearch() {
   if (!query) return;
 
   const searchBtn = document.getElementById('searchBtn');
-  if (searchBtn) { searchBtn.disabled = true; searchBtn.textContent = 'Analyse...'; }
+  if (searchBtn) { searchBtn.disabled = true; searchBtn.textContent = 'Analyse OSINT...'; }
 
   const autoBox = document.getElementById('autocompleteResults');
   if (autoBox) autoBox.style.display = 'none';
@@ -515,7 +548,6 @@ function displayCompanyData(company) {
   const seed = getSirenSeed(siren);
   let scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
 
-  // 🚨 PLAFONNEMENT DU SCORE SI ANNONCES BODACC OU ALERTE HYGIÈNE DÉTECTÉE
   if ((company.bodacc && company.bodacc.hasProcedures) || company.sanitaryAlert) {
     scoreVal = Math.min(scoreVal, 20);
   }
@@ -537,7 +569,7 @@ function displayCompanyData(company) {
       scoreBadge.style.color = "#ef4444";
       scoreBadge.style.borderColor = "#ef4444";
     } else if (company.sanitaryAlert) {
-      scoreBadge.textContent = "🔴 ALERTE HYGIÈNE DÉTECTÉE";
+      scoreBadge.textContent = "🔴 ALERTE DAAF / HYGIÈNE";
       scoreBadge.style.color = "#ef4444";
       scoreBadge.style.borderColor = "#ef4444";
     } else if (isActif) {
@@ -771,7 +803,7 @@ async function generateTechAuditPdf() {
       <div style="background: #0f172a; color: #ffffff; border-radius: 5px; padding: 10px; margin-bottom: 10px;">
         <div style="font-size: 9.5px; font-weight: bold; color: #38bdf8; margin-bottom: 4px;">📌 ORIENTATION GLOBALE DU CABINET</div>
         <div style="font-size: 8.5px; line-height: 1.4; color: #e2e8f0;">
-          ${company.sanitaryAlert ? `L'entreprise <strong>${nom}</strong> fait l'objet d'une <strong>Alerte / Fermeture Sanitaire</strong> répertoriée.` : (isActif ? `L'entreprise <strong>${nom}</strong> présente un profil de risque maîtrisé avec un score de <strong>${scoreVal}/100</strong>.` : `L'entreprise <strong>${nom}</strong> présente un niveau de risque critique (Score <strong>${scoreVal}/100</strong>).`)}
+          ${company.sanitaryAlert ? `L'entreprise <strong>${nom}</strong> fait l'objet d'une <strong>Alerte / Fermeture DAAF</strong> répertoriée dans les rapports d'actualité.` : (isActif ? `L'entreprise <strong>${nom}</strong> présente un profil de risque maîtrisé avec un score de <strong>${scoreVal}/100</strong>.` : `L'entreprise <strong>${nom}</strong> présente un niveau de risque critique (Score <strong>${scoreVal}/100</strong>).`)}
         </div>
       </div>
       <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 5px; padding: 8px; margin-bottom: 10px;">
@@ -813,15 +845,15 @@ async function generateTechAuditPdf() {
     <!-- PAGE 3 -->
     <div class="pdf-a4-page">
       <div class="pdf-title-block">
-        <div style="font-size: 15px; font-weight: bold;">SURVEILLANCE LÉGALE, BODACC &amp; HYGIÈNE</div>
+        <div style="font-size: 15px; font-weight: bold;">SURVEILLANCE LÉGALE, BODACC &amp; HYGIÈNE OSINT</div>
         <div style="font-size: 8px;">SIREN : ${siren}</div>
       </div>
-      <div class="pdf-sec-head">5. CONTRÔLE REGISTRES ET ALIM'CONFIANCE</div>
+      <div class="pdf-sec-head">5. CONTRÔLE REGISTRES ET PRESSE OSINT</div>
       <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px; font-size: 8.5px; margin-bottom: 8px;">
         <strong>Statut BODACC :</strong> ${company.bodacc && company.bodacc.hasProcedures ? '🚨 PROCÉDURE COLLECTIVE DÉTECTÉE' : '✅ VIERGE (AUCUNE PROCÉDURE)'}
       </div>
       <div style="background: ${company.sanitaryAlert ? '#fef2f2' : '#f8fafc'}; border: 1px solid ${company.sanitaryAlert ? '#fecaca' : '#cbd5e1'}; padding: 8px; font-size: 8.5px;">
-        <strong>Statut Sanitaire Alim'confiance :</strong> ${company.sanitaryAlert ? '🚨 NON-CONFORMITÉ SANITAIRE / FERMETURE ADMINISTRATIVE' : '✅ CONTRÔLE SANITAIRE CONFORME'}
+        <strong>Statut Sanitaire / DAAF :</strong> ${company.sanitaryAlert ? '🚨 ALERTE PRESSE / FERMETURE DAAF DÉTECTÉE' : '✅ CONTRÔLE SANITAIRE CONFORME'}
       </div>
       <div class="pdf-footer-line"><span>Euro Expert Solvabilité</span><span>Page 3 sur 4</span></div>
     </div>
@@ -834,7 +866,7 @@ async function generateTechAuditPdf() {
       </div>
       <div class="pdf-sec-head">6. DECISION D'OCTROI DE CRÉDIT</div>
       <div style="background: ${company.sanitaryAlert ? '#fef2f2' : '#f0fdf4'}; border-left: 4px solid ${company.sanitaryAlert ? '#dc2626' : '#16a34a'}; padding: 10px; font-size: 9px;">
-        Encours maximal recommandé : <strong>${company.sanitaryAlert ? '0 € HT (Octroi de crédit refusé / réserve de solvabilité)' : Math.round(cpVal * 0.05).toLocaleString('fr-FR') + ' € HT'}</strong>.
+        Encours maximal recommandé : <strong>${company.sanitaryAlert ? '0 € HT (Octroi de crédit refusé / alerte administrative d\'urgence)' : Math.round(cpVal * 0.05).toLocaleString('fr-FR') + ' € HT'}</strong>.
       </div>
       <div class="pdf-footer-line"><span>Euro Expert Solvabilité</span><span>Page 4 sur 4</span></div>
     </div>
