@@ -1,5 +1,5 @@
 /* =========================================================================
-   EURO EXPERT SOLVABILITÉ - ENGINE INDEX.JS (100% COMPLET & SÉCURISÉ)
+   EURO EXPERT SOLVABILITÉ - ENGINE INDEX.JS (100% AUTONOME - MÉTHODE 1)
    ========================================================================= */
 
    let map = null;
@@ -11,7 +11,50 @@
    const SECRET_SALT = "EURO_EXPERT_SOLVABILITE_KEY_2026";
    
    // =========================================================================
-   // 1. UTILITAIRES DE SÉCURITÉ, NETTOYAGE & FAVICON
+   // 1. LOGO VECTORIEL PROFESSIONNEL AUTONOME (MÉTHODE 1 - SANS IMAGE NI EMOJI)
+   // =========================================================================
+   const BRAND_LOGO_SVG = `
+   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 110" fill="none">
+     <defs>
+       <linearGradient id="eesShieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+         <stop offset="0%" stop-color="#38bdf8"/>
+         <stop offset="100%" stop-color="#0284c7"/>
+       </linearGradient>
+       <linearGradient id="eesGreenGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+         <stop offset="0%" stop-color="#16a34a"/>
+         <stop offset="100%" stop-color="#4ade80"/>
+       </linearGradient>
+     </defs>
+     <!-- Bouclier de protection financier -->
+     <path d="M50 6 L88 22 V52 C88 76 50 98 50 98 C50 98 12 76 12 52 V22 Z" 
+           stroke="url(#eesShieldGrad)" stroke-width="6.5" stroke-linejoin="round" fill="#0f172a"/>
+     <!-- Barres de croissance financière -->
+     <rect x="31" y="54" width="8.5" height="20" rx="2.5" fill="#0284c7"/>
+     <rect x="45.5" y="45" width="8.5" height="29" rx="2.5" fill="#38bdf8"/>
+     <rect x="60" y="34" width="8.5" height="40" rx="2.5" fill="url(#eesGreenGrad)"/>
+     <!-- Flèche d'accélération commerciale -->
+     <path d="M25 50 L68 20" stroke="url(#eesGreenGrad)" stroke-width="5" stroke-linecap="round"/>
+     <path d="M55 19 H70 V34" stroke="url(#eesGreenGrad)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+   </svg>
+   `;
+   
+   // Conversion du SVG en Data URL utilisable universellement par le navigateur
+   const BRAND_LOGO_DATA_URL = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(BRAND_LOGO_SVG);
+   
+   // Injection automatique du Favicon dans l'onglet
+   function initBrandFavicon() {
+     const existingIcons = document.querySelectorAll("link[rel*='icon']");
+     existingIcons.forEach(el => el.remove());
+   
+     const link = document.createElement('link');
+     link.type = 'image/svg+xml';
+     link.rel = 'shortcut icon';
+     link.href = BRAND_LOGO_DATA_URL;
+     document.head.appendChild(link);
+   }
+   
+   // =========================================================================
+   // 2. UTILITAIRES DE SÉCURITÉ & NETTOYAGE
    // =========================================================================
    function escapeHtml(str) {
      if (str === null || str === undefined) return '';
@@ -64,24 +107,15 @@
      return `FR${keyStr}${clean}`;
    }
    
-   // Injection automatique du Favicon dans le <head>
-   function initBrandFavicon(logoUrl = "logo.png") {
-     let link = document.querySelector("link[rel*='icon']") || document.createElement('link');
-     link.type = 'image/png';
-     link.rel = 'shortcut icon';
-     link.href = logoUrl;
-     document.getElementsByTagName('head')[0].appendChild(link);
-   }
-   
    // =========================================================================
-   // 2. REGISTRE DE SÉCURITÉ LOCAL (ALERTES PRIORITAIRES DAAF & FERMETURES)
+   // 3. REGISTRE DE SÉCURITÉ LOCAL (ALERTES DAAF & FERMETURES)
    // =========================================================================
    const CRITICAL_SECURITY_REGISTER = {
      "815297270": "Arrêté préfectoral de fermeture administrative d'urgence (DAAF - Mars 2026)"
    };
    
    // =========================================================================
-   // 3. DICTIONNAIRE MULTI-SECTEURS INTELLIGENT
+   // 4. DICTIONNAIRE MULTI-SECTEURS INTELLIGENT
    // =========================================================================
    const SECTOR_PROFILES = {
      '68': {
@@ -156,7 +190,7 @@
    }
    
    // =========================================================================
-   // 4. INITIALISATION DE LA CARTE & ACCÈS SÉCURISÉ
+   // 5. INITIALISATION DE LA CARTE & ACCÈS SÉCURISÉ
    // =========================================================================
    function initMap() {
      const mapElement = document.getElementById('map');
@@ -220,7 +254,7 @@
    window.verifyPassCode = verifyPassCode;
    
    document.addEventListener('DOMContentLoaded', () => {
-     initBrandFavicon('logo.png');
+     initBrandFavicon();
      initEventListeners();
      initToolsEventListeners();
      setTimeout(() => { checkUrlParams(); }, 400);
@@ -239,7 +273,7 @@
    }
    
    // =========================================================================
-   // 5. LOADER PROFESSIONNEL AVEC LOGO & GLOW NEON
+   // 6. LOADER PROFESSIONNEL AVEC LOGO VECTORIEL ANIMÉ (SANS EMOJI)
    // =========================================================================
    function showLoader(message = "Analyse IA & Investigation des Registres...") {
      let loader = document.getElementById('eesLoaderOverlay');
@@ -251,7 +285,7 @@
            <div class="ees-spinner-container">
              <div class="ees-spinner-ring"></div>
              <div class="ees-spinner-core">
-               <img src="logo.png" alt="Euro Expert Logo" class="ees-brand-logo-img">
+               <img src="${BRAND_LOGO_DATA_URL}" alt="Euro Expert Logo" class="ees-brand-logo-img">
              </div>
            </div>
            <div class="ees-loader-title">EURO EXPERT SOLVABILITÉ</div>
@@ -286,7 +320,7 @@
          }
          .ees-brand-logo-img {
            width: 100%; height: 100%; object-fit: contain;
-           filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.5));
+           filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.6));
          }
          .ees-loader-title { color: #ffffff; font-weight: 800; font-size: 1.1rem; letter-spacing: 1px; margin-bottom: 8px; }
          .ees-loader-status { color: #38bdf8; font-size: 0.88rem; font-weight: 600; margin-bottom: 6px; }
@@ -314,7 +348,7 @@
    }
    
    // =========================================================================
-   // 6. COLLECTE DE DONNÉES RÉELLES (BODACC / DAAF / OSINT PRESSE / AUTOCOMPLETE)
+   // 7. COLLECTE DE DONNÉES RÉELLES (BODACC / DAAF / OSINT PRESSE / AUTOCOMPLETE)
    // =========================================================================
    async function fetchPressNewsAlerts(companyName, nafCode = "") {
      try {
@@ -468,7 +502,7 @@
    window.selectAutocompleteSuggestion = selectAutocompleteSuggestion;
    
    // =========================================================================
-   // 7. MOTEUR D'ANALYSE IA PAR CATÉGORIE (SYNTHÈSES COMPLÈTES)
+   // 8. MOTEUR D'ANALYSE IA PAR CATÉGORIE (SYNTHÈSES MINIMUM 3 PHRASES)
    // =========================================================================
    function generateCategoryAISummaries(company) {
      const nom = cleanCompanyName(company.nom_complet);
@@ -583,7 +617,7 @@
    }
    
    // =========================================================================
-   // 8. AFFICHAGE DES DONNÉES & OUTILS INTERACTIFS
+   // 9. AFFICHAGE DES DONNÉES & OUTILS INTERACTIFS
    // =========================================================================
    function searchSirenDirect(siren) {
      const input = document.getElementById('searchInput');
@@ -925,7 +959,7 @@
    }
    
    // =========================================================================
-   // 9. DÉVELOPPEMENT DU PDF EXÉCUTIF 4 PAGES INTEGRAL (html2pdf OU PRINT)
+   // 10. GÉNÉRATION DU PDF EXÉCUTIF 4 PAGES (html2pdf OU PRINT)
    // =========================================================================
    function generateTechAuditPdf() {
      if (!currentCompanyData) {
