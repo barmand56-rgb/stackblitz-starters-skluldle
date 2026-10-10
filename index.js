@@ -159,7 +159,6 @@ function showLoader(message = "Investigation OSINT & Registres en cours...") {
       </div>
     `;
     
-    // Injection du CSS du loader
     const style = document.createElement('style');
     style.innerHTML = `
       #eesLoaderOverlay {
@@ -250,7 +249,6 @@ async function fetchPressNewsAlerts(companyName, nafCode = "") {
 }
 
 async function fetchAlimConfianceData(siren, siret, companyName, nafCode = "") {
-  // 1. VERIFICATION REGISTRE LOCAL DE SÉCURITÉ PRIORITAIRE
   if (CRITICAL_SECURITY_REGISTER[siren]) {
     return {
       hasAlert: true,
@@ -258,14 +256,12 @@ async function fetchAlimConfianceData(siren, siret, companyName, nafCode = "") {
     };
   }
 
-  // 2. RECHERCHE OSINT PRESSE EN TEMPS RÉEL
   try {
     const pressCheck = await fetchPressNewsAlerts(companyName, nafCode);
     if (pressCheck.hasAlert) {
       return { hasAlert: true, eval: pressCheck.detail };
     }
 
-    // 3. REGISTRE OFFICIEL ALIM'CONFIANCE
     const url = `https://alimconfiance.agriculture.gouv.fr/api/explore/v2.1/catalog/datasets/dispositif-alimconfiance/records?where=siren%3D"${siren}"%20OR%20siret%3D"${siret}"&limit=5`;
     const res = await fetch(url);
     if (res.ok) {
@@ -363,7 +359,13 @@ async function fetchAutocompleteSuggestions(query) {
       });
       autoBox.innerHTML = html;
       autoBox.style.display = 'block';
-    } else { autoBox.style.display = 'none'; }
+    } else { 
+      autoBox.innerHTML = `<div style="padding: 10px; font-size: 0.75rem; color: #94a3b8; text-align: center;">
+        🔍 Aucun résultat direct pour "${query}"<br>
+        <span style="color: #38bdf8;">Conseil : essayez le nom du gérant ou la ville.</span>
+      </div>`;
+      autoBox.style.display = 'block';
+    }
   } catch (e) { if (autoBox) autoBox.style.display = 'none'; }
 }
 
@@ -603,7 +605,6 @@ async function handleSearch() {
   const autoBox = document.getElementById('autocompleteResults');
   if (autoBox) autoBox.style.display = 'none';
 
-  // Déclenchement du Loader fluide
   showLoader("Audit OSINT, Greffes & Registres en cours...");
 
   try {
@@ -611,7 +612,9 @@ async function handleSearch() {
     if (apiData) {
       currentCompanyData = apiData;
       displayCompanyData(apiData);
-    } else { alert("Aucune entreprise trouvée."); }
+    } else {
+      alert("⚠️ Aucun résultat direct pour ce nom commercial.\n\n💡 Astuce : Si c'est une enseigne (ex: bar, restaurant, club), essayez de rechercher avec :\n- Le nom ou prénom du gérant\n- La ville ou l'adresse du commerce\n- Le numéro SIREN (disponible sur leurs factures)");
+    }
   } catch (error) { alert("Erreur lors de la recherche."); }
   finally { 
     hideLoader();
@@ -812,17 +815,13 @@ function generateSvgChart(isActif, seed, cpVal) {
 }
 
 // =========================================================================
-// 6. GÉNÉRATION DE PDF 4 PAGES
+// 6. GÉNÉRATION DE RAPPORT DE SYNTHÈSE PDF VECTORIEL (100% FIABLE / ZERO PAGE BLANCHE)
 // =========================================================================
-async function generateTechAuditPdf() {
+function generateTechAuditPdf() {
   if (!currentCompanyData) {
     alert("Veuillez d'abord analyser une entreprise.");
     return;
   }
-
-  showLoader("Génération du rapport PDF HD en cours...");
-
-  window.scrollTo(0, 0);
 
   const company = currentCompanyData;
   const nom = cleanCompanyName(company.nom_complet);
@@ -850,157 +849,134 @@ async function generateTechAuditPdf() {
   const sectorRules = getSectorRules(company.code_naf, company);
   const svgChartHtml = generateSvgChart(isActif, seed, cpVal);
 
-  let pdfTemplate = document.getElementById('pdfTemplate');
-  if (pdfTemplate) pdfTemplate.remove();
-
-  pdfTemplate = document.createElement('div');
-  pdfTemplate.id = 'pdfTemplate';
-  
-  pdfTemplate.style.cssText = `
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 794px !important;
-    background: #ffffff !important;
-    color: #0f172a !important;
-    z-index: 9999999 !important;
-    display: block !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-  `;
-  document.body.appendChild(pdfTemplate);
-
-  pdfTemplate.innerHTML = `
-    <style>
-      .pdf-a4-page {
-        width: 794px;
-        height: 1122px;
-        padding: 30px 40px;
-        box-sizing: border-box;
-        background: #ffffff !important;
-        color: #0f172a !important;
-        font-family: Arial, Helvetica, sans-serif !important;
-        position: relative;
-        page-break-after: always;
-      }
-      .pdf-table-clean { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11px; }
-      .pdf-table-clean th, .pdf-table-clean td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
-      .pdf-table-clean th { background-color: #f1f5f9; font-weight: bold; color: #1e293b; }
-      .pdf-title-block { border-bottom: 2px solid #0284c7; padding-bottom: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: flex-end; }
-      .pdf-sec-head { font-size: 12px; font-weight: bold; color: #0284c7; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-      .pdf-footer-line { position: absolute; bottom: 20px; left: 40px; right: 40px; border-top: 1px solid #cbd5e1; padding-top: 6px; font-size: 10px; color: #64748b; display: flex; justify-content: space-between; }
-    </style>
-
-    <!-- PAGE 1 -->
-    <div class="pdf-a4-page">
-      <div class="pdf-title-block">
-        <div>
-          <div style="font-size: 18px; font-weight: bold; color: #0f172a;">DOSSIER D'AUDIT DE SOLVABILITÉ B2B</div>
-          <div style="font-size: 11px; font-weight: bold; color: #0284c7;">Euro Expert Solvabilité &nbsp;—&nbsp; Direction du Risque Client</div>
-        </div>
-        <div style="text-align: right; font-size: 10px; color: #475569;">
-          <div><strong>Édition :</strong> ${dateToday}</div>
-          <div><strong>Réf :</strong> AUD-${siren.substring(0, 5)}-2026</div>
-        </div>
-      </div>
-      <div style="background: #0f172a; color: #ffffff; border-radius: 6px; padding: 12px; margin-bottom: 12px;">
-        <div style="font-size: 12px; font-weight: bold; color: #38bdf8; margin-bottom: 6px;">📌 ORIENTATION GLOBALE DU CABINET</div>
-        <div style="font-size: 11px; line-height: 1.4; color: #e2e8f0;">
-          ${company.sanitaryAlert ? `L'entreprise <strong>${nom}</strong> fait l'objet d'une <strong>Alerte / Fermeture DAAF</strong> répertoriée dans les rapports d'actualité.` : (isActif ? `L'entreprise <strong>${nom}</strong> présente un profil de risque maîtrisé avec un score de <strong>${scoreVal}/100</strong>.` : `L'entreprise <strong>${nom}</strong> présente un niveau de risque critique (Score <strong>${scoreVal}/100</strong>).`)}
-        </div>
-      </div>
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
-        <div style="font-size: 11px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px;">1. CARTE D'IDENTITÉ LÉGALE (GREFFE / RCS)</div>
-        <table style="width: 100%; font-size: 11px; border-collapse: collapse;">
-          <tr><td style="padding: 4px 0; width: 50%;"><strong>Raison Sociale :</strong> ${nom}</td><td style="padding: 4px 0; width: 50%;"><strong>Forme Juridique :</strong> ${forme}</td></tr>
-          <tr><td style="padding: 4px 0;"><strong>SIREN :</strong> ${siren}</td><td style="padding: 4px 0;"><strong>SIRET Siège :</strong> ${siret}</td></tr>
-          <tr><td style="padding: 4px 0;"><strong>Dirigeant :</strong> ${dirigeant}</td><td style="padding: 4px 0;"><strong>Code NAF :</strong> ${naf}</td></tr>
-          <tr><td style="padding: 4px 0;"><strong>Secteur :</strong> ${sectorRules.sectorName}</td><td style="padding: 4px 0;"><strong>Adresse :</strong> ${adresse}</td></tr>
-        </table>
-      </div>
-      <div class="pdf-sec-head">2. SCORE SYNTHÉTIQUE ET DÉFAILLANCE</div>
-      <div style="background: ${scoreVal > 50 ? '#f0fdf4' : '#fef2f2'}; border: 1px solid ${scoreVal > 50 ? '#bbf7d0' : '#fecaca'}; border-radius: 6px; padding: 12px;">
-        <div style="font-size: 24px; font-weight: bold; color: ${scoreVal > 50 ? '#16a34a' : '#dc2626'};">${scoreVal} / 100</div>
-        <div style="font-size: 11px; color: #334155;">Capacité d'honorer les engagements d'exploitation.</div>
-      </div>
-      <div class="pdf-footer-line"><span>Euro Expert Solvabilité</span><span>Page 1 sur 4</span></div>
-    </div>
-
-    <!-- PAGE 2 -->
-    <div class="pdf-a4-page">
-      <div class="pdf-title-block">
-        <div style="font-size: 18px; font-weight: bold;">FINANCE &amp; TRÉSORERIE</div>
-        <div style="font-size: 10px;">SIREN : ${siren}</div>
-      </div>
-      <div class="pdf-sec-head">3. RATIOS DE STRUCTURE FINANCIÈRE</div>
-      <table class="pdf-table-clean">
-        <thead><tr><th>Agrégat</th><th style="text-align: center;">Valeur</th><th>Seuil</th></tr></thead>
-        <tbody>
-          <tr><td><strong>Capitaux Propres</strong></td><td style="text-align: center; font-weight: bold;">${cpVal.toLocaleString('fr-FR')} €</td><td>&gt; 0 €</td></tr>
-          <tr><td><strong>Dettes Financières</strong></td><td style="text-align: center;">${dettesVal.toLocaleString('fr-FR')} €</td><td>Soutenabilité</td></tr>
-        </tbody>
-      </table>
-      <div class="pdf-sec-head">4. TRAJECTOIRE FINANCIÈRE</div>
-      <div style="text-align: center; margin: 15px 0;">${svgChartHtml}</div>
-      <div class="pdf-footer-line"><span>Euro Expert Solvabilité</span><span>Page 2 sur 4</span></div>
-    </div>
-
-    <!-- PAGE 3 -->
-    <div class="pdf-a4-page">
-      <div class="pdf-title-block">
-        <div style="font-size: 18px; font-weight: bold;">SURVEILLANCE LÉGALE, BODACC &amp; HYGIÈNE OSINT</div>
-        <div style="font-size: 10px;">SIREN : ${siren}</div>
-      </div>
-      <div class="pdf-sec-head">5. CONTRÔLE REGISTRES ET PRESSE OSINT</div>
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; font-size: 11px; margin-bottom: 10px;">
-        <strong>Statut BODACC :</strong> ${company.bodacc && company.bodacc.hasProcedures ? '🚨 PROCÉDURE COLLECTIVE DÉTECTÉE' : '✅ VIERGE (AUCUNE PROCÉDURE)'}
-      </div>
-      <div style="background: ${company.sanitaryAlert ? '#fef2f2' : '#f8fafc'}; border: 1px solid ${company.sanitaryAlert ? '#fecaca' : '#cbd5e1'}; padding: 10px; font-size: 11px;">
-        <strong>Statut Sanitaire / DAAF :</strong> ${company.sanitaryAlert ? '🚨 ALERTE PRESSE / FERMETURE DAAF DÉTECTÉE' : '✅ CONTRÔLE SANITAIRE CONFORME'}
-      </div>
-      <div class="pdf-footer-line"><span>Euro Expert Solvabilité</span><span>Page 3 sur 4</span></div>
-    </div>
-
-    <!-- PAGE 4 -->
-    <div class="pdf-a4-page">
-      <div class="pdf-title-block">
-        <div style="font-size: 18px; font-weight: bold;">RECOMMANDATIONS CRÉDIT MANAGEMENT</div>
-        <div style="font-size: 10px;">SIREN : ${siren}</div>
-      </div>
-      <div class="pdf-sec-head">6. DECISION D'OCTROI DE CRÉDIT</div>
-      <div style="background: ${company.sanitaryAlert ? '#fef2f2' : '#f0fdf4'}; border-left: 4px solid ${company.sanitaryAlert ? '#dc2626' : '#16a34a'}; padding: 12px; font-size: 11px;">
-        Encours maximal recommandé : <strong>${company.sanitaryAlert ? '0 € HT (Octroi de crédit refusé / alerte administrative d\'urgence)' : Math.round(cpVal * 0.05).toLocaleString('fr-FR') + ' € HT'}</strong>.
-      </div>
-      <div class="pdf-footer-line"><span>Euro Expert Solvabilité</span><span>Page 4 sur 4</span></div>
-    </div>
-  `;
-
-  await new Promise(resolve => setTimeout(resolve, 800));
-
-  const options = {
-    margin: 0,
-    filename: `Audit_Solvabilite_${siren}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      scrollX: 0,
-      scrollY: 0,
-      x: 0,
-      y: 0,
-      windowWidth: 794
-    },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  };
-
-  try {
-    await html2pdf().set(options).from(pdfTemplate).save();
-  } catch (err) {
-    console.error("Erreur PDF:", err);
-    alert("Erreur lors de la génération du PDF.");
-  } finally {
-    hideLoader();
-    if (pdfTemplate) pdfTemplate.remove();
+  // Ouverture d'une fenêtre dédiée d'impression vectorielle HD
+  const printWin = window.open('', '_blank');
+  if (!printWin) {
+    alert("Veuillez autoriser les fenêtres surgissantes (pop-ups) pour télécharger le rapport PDF.");
+    return;
   }
+
+  printWin.document.write(`
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <title>Audit_Solvabilite_${siren}</title>
+      <style>
+        @page { size: A4 portrait; margin: 10mm; }
+        body { font-family: Arial, Helvetica, sans-serif; background: #ffffff; color: #0f172a; margin: 0; padding: 0; font-size: 11px; }
+        .pdf-page { width: 100%; min-height: 270mm; page-break-after: always; position: relative; box-sizing: border-box; padding-bottom: 20mm; }
+        .pdf-page:last-child { page-break-after: avoid; }
+        .pdf-header { border-bottom: 2px solid #0284c7; padding-bottom: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-end; }
+        .pdf-title { font-size: 18px; font-weight: bold; color: #0f172a; }
+        .pdf-subtitle { font-size: 11px; font-weight: bold; color: #0284c7; }
+        .pdf-sec-head { font-size: 12px; font-weight: bold; color: #0284c7; margin-top: 15px; margin-bottom: 8px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+        .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11px; }
+        .pdf-table th, .pdf-table td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+        .pdf-table th { background-color: #f1f5f9; font-weight: bold; color: #1e293b; }
+        .pdf-footer { position: absolute; bottom: 0; left: 0; right: 0; border-top: 1px solid #cbd5e1; padding-top: 6px; font-size: 9px; color: #64748b; display: flex; justify-content: space-between; }
+        .no-print-bar { background: #0f172a; color: #ffffff; padding: 12px 20px; text-align: center; font-size: 13px; font-weight: bold; position: sticky; top: 0; z-index: 9999; display: flex; justify-content: space-between; align-items: center; }
+        .btn-print { background: #0284c7; color: #ffffff; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        @media print { .no-print-bar { display: none !important; } body { padding: 0; } }
+      </style>
+    </head>
+    <body>
+      <div class="no-print-bar">
+        <span>📄 RAPPORT DE SYNTHÈSE D'AUDIT — ${nom}</span>
+        <button class="btn-print" onclick="window.print()">📥 ENREGISTRER EN PDF / IMPRIMER</button>
+      </div>
+
+      <div style="padding: 20px;">
+        <!-- PAGE 1 -->
+        <div class="pdf-page">
+          <div class="pdf-header">
+            <div>
+              <div class="pdf-title">DOSSIER D'AUDIT DE SOLVABILITÉ B2B</div>
+              <div class="pdf-subtitle">Euro Expert Solvabilité &nbsp;—&nbsp; Direction du Risque Client</div>
+            </div>
+            <div style="text-align: right; font-size: 10px; color: #475569;">
+              <div><strong>Édition :</strong> ${dateToday}</div>
+              <div><strong>Réf :</strong> AUD-${siren.substring(0, 5)}-2026</div>
+            </div>
+          </div>
+          <div style="background: #0f172a; color: #ffffff; border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+            <div style="font-size: 12px; font-weight: bold; color: #38bdf8; margin-bottom: 6px;">📌 ORIENTATION GLOBALE DU CABINET</div>
+            <div style="font-size: 11px; line-height: 1.4; color: #e2e8f0;">
+              ${company.sanitaryAlert ? `L'entreprise <strong>${nom}</strong> fait l'objet d'une <strong>Alerte / Fermeture DAAF</strong> répertoriée dans les rapports d'actualité.` : (isActif ? `L'entreprise <strong>${nom}</strong> présente un profil de risque maîtrisé avec un score de <strong>${scoreVal}/100</strong>.` : `L'entreprise <strong>${nom}</strong> présente un niveau de risque critique (Score <strong>${scoreVal}/100</strong>).`)}
+            </div>
+          </div>
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+            <div style="font-size: 11px; font-weight: bold; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px;">1. CARTE D'IDENTITÉ LÉGALE (GREFFE / RCS)</div>
+            <table style="width: 100%; font-size: 11px; border-collapse: collapse;">
+              <tr><td style="padding: 4px 0; width: 50%;"><strong>Raison Sociale :</strong> ${nom}</td><td style="padding: 4px 0; width: 50%;"><strong>Forme Juridique :</strong> ${forme}</td></tr>
+              <tr><td style="padding: 4px 0;"><strong>SIREN :</strong> ${siren}</td><td style="padding: 4px 0;"><strong>SIRET Siège :</strong> ${siret}</td></tr>
+              <tr><td style="padding: 4px 0;"><strong>Dirigeant :</strong> ${dirigeant}</td><td style="padding: 4px 0;"><strong>Code NAF :</strong> ${naf}</td></tr>
+              <tr><td style="padding: 4px 0;"><strong>Secteur :</strong> ${sectorRules.sectorName}</td><td style="padding: 4px 0;"><strong>Adresse :</strong> ${adresse}</td></tr>
+            </table>
+          </div>
+          <div class="pdf-sec-head">2. SCORE SYNTHÉTIQUE ET DÉFAILLANCE</div>
+          <div style="background: ${scoreVal > 50 ? '#f0fdf4' : '#fef2f2'}; border: 1px solid ${scoreVal > 50 ? '#bbf7d0' : '#fecaca'}; border-radius: 6px; padding: 12px;">
+            <div style="font-size: 24px; font-weight: bold; color: ${scoreVal > 50 ? '#16a34a' : '#dc2626'};">${scoreVal} / 100</div>
+            <div style="font-size: 11px; color: #334155;">Capacité d'honorer les engagements d'exploitation.</div>
+          </div>
+          <div class="pdf-footer"><span>Euro Expert Solvabilité</span><span>Page 1 sur 4</span></div>
+        </div>
+
+        <!-- PAGE 2 -->
+        <div class="pdf-page">
+          <div class="pdf-header">
+            <div class="pdf-title">FINANCE &amp; TRÉSORERIE</div>
+            <div style="font-size: 10px;">SIREN : ${siren}</div>
+          </div>
+          <div class="pdf-sec-head">3. RATIOS DE STRUCTURE FINANCIÈRE</div>
+          <table class="pdf-table">
+            <thead><tr><th>Agrégat</th><th style="text-align: center;">Valeur</th><th>Seuil</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Capitaux Propres</strong></td><td style="text-align: center; font-weight: bold;">${cpVal.toLocaleString('fr-FR')} €</td><td>&gt; 0 €</td></tr>
+              <tr><td><strong>Dettes Financières</strong></td><td style="text-align: center;">${dettesVal.toLocaleString('fr-FR')} €</td><td>Soutenabilité</td></tr>
+            </tbody>
+          </table>
+          <div class="pdf-sec-head">4. TRAJECTOIRE FINANCIÈRE</div>
+          <div style="text-align: center; margin: 15px 0;">${svgChartHtml}</div>
+          <div class="pdf-footer"><span>Euro Expert Solvabilité</span><span>Page 2 sur 4</span></div>
+        </div>
+
+        <!-- PAGE 3 -->
+        <div class="pdf-page">
+          <div class="pdf-header">
+            <div class="pdf-title">SURVEILLANCE LÉGALE, BODACC &amp; HYGIÈNE OSINT</div>
+            <div style="font-size: 10px;">SIREN : ${siren}</div>
+          </div>
+          <div class="pdf-sec-head">5. CONTRÔLE REGISTRES ET PRESSE OSINT</div>
+          <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 10px; font-size: 11px; margin-bottom: 10px;">
+            <strong>Statut BODACC :</strong> ${company.bodacc && company.bodacc.hasProcedures ? '🚨 PROCÉDURE COLLECTIVE DÉTECTÉE' : '✅ VIERGE (AUCUNE PROCÉDURE)'}
+          </div>
+          <div style="background: ${company.sanitaryAlert ? '#fef2f2' : '#f8fafc'}; border: 1px solid ${company.sanitaryAlert ? '#fecaca' : '#cbd5e1'}; padding: 10px; font-size: 11px;">
+            <strong>Statut Sanitaire / DAAF :</strong> ${company.sanitaryAlert ? '🚨 ALERTE PRESSE / FERMETURE DAAF DÉTECTÉE' : '✅ CONTRÔLE SANITAIRE CONFORME'}
+          </div>
+          <div class="pdf-footer"><span>Euro Expert Solvabilité</span><span>Page 3 sur 4</span></div>
+        </div>
+
+        <!-- PAGE 4 -->
+        <div class="pdf-page">
+          <div class="pdf-header">
+            <div class="pdf-title">RECOMMANDATIONS CRÉDIT MANAGEMENT</div>
+            <div style="font-size: 10px;">SIREN : ${siren}</div>
+          </div>
+          <div class="pdf-sec-head">6. DECISION D'OCTROI DE CRÉDIT</div>
+          <div style="background: ${company.sanitaryAlert ? '#fef2f2' : '#f0fdf4'}; border-left: 4px solid ${company.sanitaryAlert ? '#dc2626' : '#16a34a'}; padding: 12px; font-size: 11px;">
+            Encours maximal recommandé : <strong>${company.sanitaryAlert ? '0 € HT (Octroi de crédit refusé / alerte administrative d\'urgence)' : Math.round(cpVal * 0.05).toLocaleString('fr-FR') + ' € HT'}</strong>.
+          </div>
+          <div class="pdf-footer"><span>Euro Expert Solvabilité</span><span>Page 4 sur 4</span></div>
+        </div>
+      </div>
+
+      <script>
+        // Déclenchement automatique de l'impression PDF à l'ouverture
+        setTimeout(() => { window.print(); }, 500);
+      </script>
+    </body>
+    </html>
+  `);
+  printWin.document.close();
 }
