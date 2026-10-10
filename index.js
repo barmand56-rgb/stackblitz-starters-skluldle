@@ -7,7 +7,7 @@ let debounceTimer;
 const SECRET_SALT = "EURO_EXPERT_SOLVABILITE_KEY_2026";
 
 // =========================================================================
-// 1. DICTIONNAIRE MULTI-SECTEURS INTELLIGENT (NAF/APE)
+// 1. DICTIONNAIRE MULTI-SECTEURS INTELLIGENT (AVEC DÉTECTION HYGIÈNE DYNAMIQUE)
 // =========================================================================
 const SECTOR_PROFILES = {
   '68': {
@@ -21,12 +21,18 @@ const SECTOR_PROFILES = {
   },
   '56': {
     name: 'Restauration & Hôtellerie',
-    labels: (c) => [
-      { text: c.est_bio ? '✅ Certification BIO' : '⚪ Restauration Classique', status: c.est_bio },
-      { text: '✅ Contrôle Sanitaire Conforme', status: true },
-      { text: '✅ Licence Débit de Boissons', status: true }
-    ],
-    riskFocus: 'Sensibilité au BFR saisonnier, aux coûts des matières premières et à la rotation des stocks.'
+    labels: (c) => {
+      const hasSanitaryAlert = c.sanitaire && c.sanitaryAlert;
+      const sanitText = hasSanitaryAlert 
+        ? `🚨 FERMETURE / ALERTE HYGIÈNE (${(c.sanitaire.eval || 'Non conforme').toUpperCase()})` 
+        : (c.sanitaire && c.sanitaire.eval ? `✅ Hygiène : ${c.sanitaire.eval}` : '✅ Contrôle Sanitaire Conforme');
+      return [
+        { text: c.est_bio ? '✅ Certification BIO' : '⚪ Restauration Classique', status: c.est_bio },
+        { text: sanitText, status: !hasSanitaryAlert },
+        { text: '✅ Licence Débit de Boissons', status: true }
+      ];
+    },
+    riskFocus: 'Sensibilité au BFR saisonnier, aux contrôles sanitaires d\'hygiène (Alim\'confiance) et fermetures administratives.'
   },
   '41': { name: 'BTP & Construction', labels: (c) => getBtpLabels(c), riskFocus: 'Exposition aux retards de paiement des maîtres d\'ouvrage et retenues de garantie.' },
   '42': { name: 'Génie Civil & Travaux Publics', labels: (c) => getBtpLabels(c), riskFocus: 'Poids des investissements matériels et nantissements d\'outillage.' },
@@ -41,13 +47,13 @@ function getBtpLabels(c) {
   ];
 }
 
-function getSectorRules(nafCode, complements = {}) {
+function getSectorRules(nafCode, companyData = {}) {
   const prefix = (nafCode || "").substring(0, 2);
   const profile = SECTOR_PROFILES[prefix];
   if (profile) {
     return {
       sectorName: profile.name,
-      labelsHtml: profile.labels(complements).map(l => `<span class="label-badge-item ${l.status ? 'active' : 'inactive'}">${l.text}</span>`).join(''),
+      labelsHtml: profile.labels(companyData).map(l => `<span class="label-badge-item ${l.status ? 'active' : 'inactive'}" style="${!l.status ? 'background:#7f1d1d; border-color:#ef4444; color:#fca5a5;' : ''}">${l.text}</span>`).join(''),
       riskFocus: profile.riskFocus
     };
   }
@@ -118,12 +124,6 @@ function verifyPassCode() {
 window.verifyPassCode = verifyPassCode;
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Récupération des codes valides du jour (calculé en arrière-plan)
-  const { dailyCode, masterCode } = getTodayValidCodes();
-
-  // Log réservé à l'administrateur dans la console (F12)
-  console.log(`[EES Admin] Code du jour : ${dailyCode} | Code Master : ${masterCode}`);
-
   initEventListeners();
   initToolsEventListeners();
   checkUrlParams();
@@ -133,8 +133,30 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =========================================================================
-// 3. APIS DONNÉES ENTREPRISES & BODACC ÉTENDU
+// 3. APIS DONNÉES ENTREPRISES, BODACC ET ALIM'CONFIANCE (HYGIÈNE)
 // =========================================================================
+async function fetchAlimConfianceData(siren, siret) {
+  try {
+    const url = `https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/alim-confiance/records?where=siren%3D"${siren}"%20OR%20siret%3D"${siret}"&limit=5`;
+    const res = await fetch(url);
+    if (!res.ok) return { hasAlert: false, eval: "" };
+    
+    const data = await res.json();
+    if (data.results && data.results.length > 0) {
+      const rec = data.results[0];
+      const evalText = rec.synthese_eval_sanit || rec.app_libelle_synthese_eval_sanit || "";
+      const isCritical = evalText.toLowerCase().includes('urgente') || evalText.toLowerCase().includes('corriger') || evalText.toLowerCase().includes('fermeture');
+      return {
+        hasAlert: isCritical,
+        eval: evalText || "Contrôle effectué"
+      };
+    }
+    return { hasAlert: false, eval: "" };
+  } catch (e) {
+    return { hasAlert: false, eval: "" };
+  }
+}
+
 async function fetchBodaccData(siren) {
   try {
     const url = `https://bodacc-api.open-data.fr/api/explore/v2.1/catalog/datasets/annonces-commerciales/records?where=siren%3D"${siren}"&limit=10`;
@@ -147,7 +169,7 @@ async function fetchBodaccData(siren) {
     const alertKeywords = [
       'LIQUIDATION', 'REDRESSEMENT', 'SAUVEGARDE', 
       'FAILLITE', 'CESSATION', 'NANTISSEMENT', 'PRIVILEGE',
-      'INSCRIPTION', 'INVENTAIRE', 'PROCEDURE'
+      'INSCRIPTION', 'INVENTAIRE', 'PROCEDURE', 'FERMETURE'
     ];
 
     const matchingAlerts = records.filter(r => {
@@ -166,13 +188,20 @@ async function fetchBodaccData(siren) {
 }
 
 async function fetchEnrichedCompanyData(siren) {
-  const [gouvRes, bodaccData] = await Promise.all([
+  const siretEst = `${siren}00010`;
+  const [gouvRes, bodaccData, alimData] = await Promise.all([
     fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${siren}&per_page=1`).then(r => r.ok ? r.json() : null).catch(() => null),
-    fetchBodaccData(siren)
+    fetchBodaccData(siren),
+    fetchAlimConfianceData(siren, siretEst)
   ]);
+  
   if (!gouvRes || !gouvRes.results || gouvRes.results.length === 0) return null;
+  
   const company = formatGouvToEnrichedStructure(gouvRes.results[0]);
   company.bodacc = bodaccData;
+  company.sanitaire = alimData;
+  company.sanitaryAlert = alimData.hasAlert;
+
   if (bodaccData.hasProcedures) company.etat_administratif = 'F';
   return company;
 }
@@ -315,7 +344,7 @@ function formatGouvToEnrichedStructure(company) {
 }
 
 // =========================================================================
-// 4. GENERATION DE SYNTHESES ENRICHIES PAR CATEGORIE
+// 4. GÉNÉRATION DE SYNTHÈSES ENRICHIES PAR CATÉGORIE
 // =========================================================================
 function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dettesVal) {
   const nom = cleanCompanyName(company.nom_complet);
@@ -324,7 +353,10 @@ function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dett
   const dirigeantNom = dirigeantObj ? `${dirigeantObj.prenom || ''} ${dirigeantObj.nom || ''}`.trim() : "Gérant non déclaré";
   const frngVal = isActif ? Math.round(cpVal * 0.28) : -Math.round(Math.abs(cpVal) * 1.5);
   const tresoVal = isActif ? Math.round(frngVal * 0.55) : pseudoRandom(seed, 5, 500, 2500);
-  const sectorRules = getSectorRules(company.code_naf, company.complements);
+  const sectorRules = getSectorRules(company.code_naf, company);
+
+  const hasBodaccAlert = company.bodacc && company.bodacc.hasProcedures;
+  const hasSanitaryAlert = company.sanitaryAlert;
 
   return {
     finance: `
@@ -334,7 +366,7 @@ function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dett
           L'audit financier de <strong>${nom}</strong> attribue un score global de <strong>${scoreVal}/100</strong>.<br>
           • <strong>Structure du Bilan :</strong> Les capitaux propres s'élèvent à <strong>${cpVal.toLocaleString('fr-FR')} €</strong> avec un endettement estimé à <strong>${dettesVal.toLocaleString('fr-FR')} €</strong>.<br>
           • <strong>Trésorerie &amp; BFR :</strong> Fonds de Roulement (FRNG) évalué à <strong>+${frngVal.toLocaleString('fr-FR')} €</strong> pour une trésorerie immédiatement mobilisable de <strong>+${tresoVal.toLocaleString('fr-FR')} €</strong>.<br>
-          • <strong>Avis :</strong> ${isActif ? 'Capacité de remboursement solide pour faire face aux engagements courants.' : 'Niveau de fonds propres insuffisant, risque accru sur la solvabilité.'}
+          • <strong>Avis :</strong> ${isActif && !hasSanitaryAlert ? 'Capacité de remboursement solide pour faire face aux engagements courants.' : 'Niveau de risque accru nécessitant des garanties complémentaires.'}
         </div>
       </div>
     `,
@@ -345,17 +377,18 @@ function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dett
         <div style="font-size: 0.8rem; line-height: 1.5; color: #cbd5e1;">
           L'entreprise <strong>${nom}</strong> (SIREN ${siren}) est représentée par <strong>${dirigeantNom}</strong>.<br>
           • <strong>Maillage Opérationnel :</strong> La société exploite <strong>${company.etablissements_count} établissement(s) actif(s)</strong> au registre du commerce.<br>
-          • <strong>Contrôle des Ayants Droit :</strong> Vérification KYC réalisée sur la gérance principale. Absence d'usurpation ou d'anomalie de gouvernance répertoriée.
+          • <strong>Contrôle des Ayants Droit :</strong> Vérification KYC réalisée sur la gérance principale. Absence d'usurpation répertoriée.
         </div>
       </div>
     `,
 
     conformite: `
       <div style="padding: 14px; background: rgba(245, 158, 11, 0.08); border-left: 4px solid #f59e0b; border-radius: 6px; margin-bottom: 12px;">
-        <div style="font-weight: bold; color: #fbbf24; font-size: 0.9rem; margin-bottom: 6px;">📋 CONFORMITÉ RÈGLEMENTAIRE ET SOCIALE</div>
+        <div style="font-weight: bold; color: #fbbf24; font-size: 0.9rem; margin-bottom: 6px;">📋 CONFORMITÉ RÈGLEMENTAIRE &amp; HYGIÈNE</div>
         <div style="font-size: 0.8rem; line-height: 1.5; color: #cbd5e1;">
           Activité rattachée au code NAF <strong>${company.code_naf}</strong> (${sectorRules.sectorName}).<br>
-          • <strong>Régime Social :</strong> Effectif déclaré sur la tranche <strong>${company.tranche_effectif}</strong> (Convention collective : ${company.convention_collective}).<br>
+          • <strong>Régime Social :</strong> Effectif sur la tranche <strong>${company.tranche_effectif}</strong>.<br>
+          • <strong>Statut Sanitaire / Alim'confiance :</strong> ${hasSanitaryAlert ? '<strong style="color:#ef4444;">🚨 NON-CONFORMITÉ SANITAIRE / FERMETURE DÉTECTÉE</strong>' : '✅ Contrôle sanitaire conforme.'}<br>
           • <strong>Exigences Métier :</strong> ${sectorRules.riskFocus}
         </div>
       </div>
@@ -365,9 +398,9 @@ function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dett
       <div style="padding: 14px; background: rgba(168, 85, 247, 0.08); border-left: 4px solid #a855f7; border-radius: 6px; margin-bottom: 12px;">
         <div style="font-weight: bold; color: #c084fc; font-size: 0.9rem; margin-bottom: 6px;">💡 DÉCISION DU CREDIT MANAGER &amp; RECOUVREMENT</div>
         <div style="font-size: 0.8rem; line-height: 1.5; color: #cbd5e1;">
-          • <strong>Alertes Légales :</strong> ${company.bodacc && company.bodacc.hasProcedures ? '🚨 Procédure collective active détectée au BODACC.' : '✅ Registre BODACC et privilèges vierges de toute inscription.'}<br>
-          • <strong>Plafond Conseillé :</strong> Limite d'encours commercial recommandée à <strong>${Math.round(cpVal * 0.05).toLocaleString('fr-FR')} € HT</strong>.<br>
-          • <strong>Conditions de Vente :</strong> ${isActif ? 'Règlement à 30 jours fin de mois.' : 'Paiement 100% comptant à la commande.'}
+          • <strong>Alertes Légales &amp; Sanitaires :</strong> ${hasBodaccAlert ? '🚨 Procédure collective active au BODACC.' : (hasSanitaryAlert ? '🚨 Alerte / Fermeture administrative pour hygiène signalée.' : '✅ Registre BODACC et contrôle d\'hygiène conformes.')}<br>
+          • <strong>Plafond Conseillé :</strong> Limite d\'encours commercial recommandée à <strong>${hasSanitaryAlert || hasBodaccAlert ? '0 € (Accompagnement sous conditions)' : Math.round(cpVal * 0.05).toLocaleString('fr-FR') + ' € HT'}</strong>.<br>
+          • <strong>Conditions de Vente :</strong> ${isActif && !hasSanitaryAlert ? 'Règlement à 30 jours fin de mois.' : 'Paiement 100% comptant à la commande.'}
         </div>
       </div>
     `
@@ -380,7 +413,11 @@ function updateAllSummaryBoxes() {
   const isActif = currentCompanyData.etat_administratif === 'A';
   const cpVal = isActif ? pseudoRandom(seed, 2, 180, 920) * 1000 : -pseudoRandom(seed, 2, 10, 50) * 1000;
   const dettesVal = pseudoRandom(seed, 3, 40, 250) * 1000;
-  const scoreVal = isActif ? (currentCompanyData.bodacc && currentCompanyData.bodacc.hasProcedures ? 25 : pseudoRandom(seed, 1, 68, 96)) : pseudoRandom(seed, 1, 12, 34);
+  
+  let scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
+  if ((currentCompanyData.bodacc && currentCompanyData.bodacc.hasProcedures) || currentCompanyData.sanitaryAlert) {
+    scoreVal = Math.min(scoreVal, 20);
+  }
 
   const summaries = generateCategorySummaries(currentCompanyData, isActif, scoreVal, seed, cpVal, dettesVal);
   if (document.getElementById('summaryGroupeBox')) document.getElementById('summaryGroupeBox').innerHTML = summaries.groupe;
@@ -468,9 +505,9 @@ function displayCompanyData(company) {
   const seed = getSirenSeed(siren);
   let scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
 
-  // 🚨 PLAFONNEMENT DU SCORE SI ANNONCES/PROCÉDURES BODACC
-  if (company.bodacc && company.bodacc.hasProcedures) {
-    scoreVal = Math.min(scoreVal, 25);
+  // 🚨 PLAFONNEMENT DU SCORE SI ANNONCES BODACC OU ALERTE HYGIÈNE DÉTECTÉE
+  if ((company.bodacc && company.bodacc.hasProcedures) || company.sanitaryAlert) {
+    scoreVal = Math.min(scoreVal, 20);
   }
 
   const statusBadge = document.getElementById('companyStatus');
@@ -487,6 +524,10 @@ function displayCompanyData(company) {
   if (scoreBadge) {
     if (company.bodacc && company.bodacc.hasProcedures) {
       scoreBadge.textContent = "🔴 ALERTES DÉTECTÉES (BODACC)";
+      scoreBadge.style.color = "#ef4444";
+      scoreBadge.style.borderColor = "#ef4444";
+    } else if (company.sanitaryAlert) {
+      scoreBadge.textContent = "🔴 ALERTE HYGIÈNE DÉTECTÉE";
       scoreBadge.style.color = "#ef4444";
       scoreBadge.style.borderColor = "#ef4444";
     } else if (isActif) {
@@ -514,7 +555,7 @@ function displayCompanyData(company) {
   if (document.getElementById('companyDirigeant')) document.getElementById('companyDirigeant').textContent = dirigeantNom;
 
   const labelsContainer = document.getElementById('labelsContainer');
-  if (labelsContainer) labelsContainer.innerHTML = getSectorRules(company.code_naf, company.complements).labelsHtml;
+  if (labelsContainer) labelsContainer.innerHTML = getSectorRules(company.code_naf, company).labelsHtml;
 
   fetchRealRelatedCompanies(dirigeantNom, siren);
   updateAllSummaryBoxes();
@@ -533,7 +574,7 @@ function calculateCreditLimit() {
   const el = document.getElementById('calcCreditLimit');
   if (!el) return;
 
-  if (!isActif) { el.textContent = "0 € (REFUS)"; el.style.color = "#ef4444"; return; }
+  if (!isActif || currentCompanyData.sanitaryAlert) { el.textContent = "0 € (SOUS CONDITIONS)"; el.style.color = "#ef4444"; return; }
   let ratio = riskTolerance === 'prudent' ? 0.02 : (riskTolerance === 'agressif' ? 0.10 : 0.05);
   const cpVal = pseudoRandom(getSirenSeed(currentCompanyData.siren), 2, 180, 920) * 1000;
   el.textContent = `${Math.round(cpVal * ratio).toLocaleString('fr-FR')} € HT`;
@@ -629,7 +670,7 @@ function generateSvgChart(isActif, seed, cpVal) {
 }
 
 // =========================================================================
-// 5. GENERATION DE PDF 4 PAGES ASYNCHRONE ET SANS PAGE BLANCHE
+// 5. GÉNÉRATION DE PDF 4 PAGES
 // =========================================================================
 async function generateTechAuditPdf() {
   if (!currentCompanyData) {
@@ -654,17 +695,14 @@ async function generateTechAuditPdf() {
   const seed = getSirenSeed(siren);
   const cpVal = isActif ? pseudoRandom(seed, 2, 180, 920) * 1000 : -pseudoRandom(seed, 2, 10, 50) * 1000;
   const dettesVal = pseudoRandom(seed, 3, 40, 250) * 1000;
-  const scoreVal = isActif ? (company.bodacc && company.bodacc.hasProcedures ? 25 : pseudoRandom(seed, 1, 68, 96)) : pseudoRandom(seed, 1, 12, 34);
-
-  const frngVal = isActif ? Math.round(cpVal * 0.28) : -Math.round(Math.abs(cpVal) * 1.5);
-  const bfrDays = isActif ? pseudoRandom(seed, 4, 25, 55) : pseudoRandom(seed, 4, 65, 110);
-  const tresoVal = isActif ? Math.round(frngVal * 0.55) : pseudoRandom(seed, 5, 500, 2500);
-
-  const ebePercent = isActif ? (pseudoRandom(seed, 6, 80, 180) / 10).toFixed(1) : (pseudoRandom(seed, 6, 5, 30) / 10).toFixed(1);
-  const dsoDays = isActif ? pseudoRandom(seed, 7, 28, 48) : pseudoRandom(seed, 7, 60, 95);
+  
+  let scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
+  if ((company.bodacc && company.bodacc.hasProcedures) || company.sanitaryAlert) {
+    scoreVal = Math.min(scoreVal, 20);
+  }
 
   const complements = company.complements || {};
-  const sectorRules = getSectorRules(company.code_naf, complements);
+  const sectorRules = getSectorRules(company.code_naf, company);
   const svgChartHtml = generateSvgChart(isActif, seed, cpVal);
 
   let pdfTemplate = document.getElementById('pdfTemplate');
@@ -673,7 +711,6 @@ async function generateTechAuditPdf() {
   pdfTemplate = document.createElement('div');
   pdfTemplate.id = 'pdfTemplate';
   
-  // FIX CRITIQUE : Affichage temporaire au premier plan visible pour html2canvas
   pdfTemplate.style.cssText = `
     position: fixed;
     top: 0;
@@ -724,7 +761,7 @@ async function generateTechAuditPdf() {
       <div style="background: #0f172a; color: #ffffff; border-radius: 5px; padding: 10px; margin-bottom: 10px;">
         <div style="font-size: 9.5px; font-weight: bold; color: #38bdf8; margin-bottom: 4px;">📌 ORIENTATION GLOBALE DU CABINET</div>
         <div style="font-size: 8.5px; line-height: 1.4; color: #e2e8f0;">
-          ${isActif ? `L'entreprise <strong>${nom}</strong> présente un profil de risque maîtrisé avec un score de <strong>${scoreVal}/100</strong>.` : `L'entreprise <strong>${nom}</strong> présente un niveau de risque critique (Score <strong>${scoreVal}/100</strong>).`}
+          ${company.sanitaryAlert ? `L'entreprise <strong>${nom}</strong> fait l'objet d'une <strong>Alerte / Fermeture Sanitaire</strong> répertoriée.` : (isActif ? `L'entreprise <strong>${nom}</strong> présente un profil de risque maîtrisé avec un score de <strong>${scoreVal}/100</strong>.` : `L'entreprise <strong>${nom}</strong> présente un niveau de risque critique (Score <strong>${scoreVal}/100</strong>).`)}
         </div>
       </div>
       <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 5px; padding: 8px; margin-bottom: 10px;">
@@ -737,8 +774,8 @@ async function generateTechAuditPdf() {
         </table>
       </div>
       <div class="pdf-sec-head">2. SCORE SYNTHÉTIQUE ET DÉFAILLANCE</div>
-      <div style="background: ${isActif ? '#f0fdf4' : '#fef2f2'}; border: 1px solid ${isActif ? '#bbf7d0' : '#fecaca'}; border-radius: 5px; padding: 10px;">
-        <div style="font-size: 20px; font-weight: bold; color: ${isActif ? '#16a34a' : '#dc2626'};">${scoreVal} / 100</div>
+      <div style="background: ${scoreVal > 50 ? '#f0fdf4' : '#fef2f2'}; border: 1px solid ${scoreVal > 50 ? '#bbf7d0' : '#fecaca'}; border-radius: 5px; padding: 10px;">
+        <div style="font-size: 20px; font-weight: bold; color: ${scoreVal > 50 ? '#16a34a' : '#dc2626'};">${scoreVal} / 100</div>
         <div style="font-size: 8.5px; color: #334155;">Capacité d'honorer les engagements d'exploitation.</div>
       </div>
       <div class="pdf-footer-line"><span>Euro Expert Solvabilité</span><span>Page 1 sur 4</span></div>
@@ -766,12 +803,15 @@ async function generateTechAuditPdf() {
     <!-- PAGE 3 -->
     <div class="pdf-a4-page">
       <div class="pdf-title-block">
-        <div style="font-size: 15px; font-weight: bold;">SURVEILLANCE LÉGALE &amp; BODACC</div>
+        <div style="font-size: 15px; font-weight: bold;">SURVEILLANCE LÉGALE, BODACC &amp; HYGIÈNE</div>
         <div style="font-size: 8px;">SIREN : ${siren}</div>
       </div>
-      <div class="pdf-sec-head">5. CONTRÔLE BODACC &amp; PROCÉDURES</div>
-      <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px; font-size: 8.5px;">
+      <div class="pdf-sec-head">5. CONTRÔLE REGISTRES ET ALIM'CONFIANCE</div>
+      <div style="background: #f8fafc; border: 1px solid #cbd5e1; padding: 8px; font-size: 8.5px; margin-bottom: 8px;">
         <strong>Statut BODACC :</strong> ${company.bodacc && company.bodacc.hasProcedures ? '🚨 PROCÉDURE COLLECTIVE DÉTECTÉE' : '✅ VIERGE (AUCUNE PROCÉDURE)'}
+      </div>
+      <div style="background: ${company.sanitaryAlert ? '#fef2f2' : '#f8fafc'}; border: 1px solid ${company.sanitaryAlert ? '#fecaca' : '#cbd5e1'}; padding: 8px; font-size: 8.5px;">
+        <strong>Statut Sanitaire Alim'confiance :</strong> ${company.sanitaryAlert ? '🚨 NON-CONFORMITÉ SANITAIRE / FERMETURE ADMINISTRATIVE' : '✅ CONTRÔLE SANITAIRE CONFORME'}
       </div>
       <div class="pdf-footer-line"><span>Euro Expert Solvabilité</span><span>Page 3 sur 4</span></div>
     </div>
@@ -783,14 +823,13 @@ async function generateTechAuditPdf() {
         <div style="font-size: 8px;">SIREN : ${siren}</div>
       </div>
       <div class="pdf-sec-head">6. DECISION D'OCTROI DE CRÉDIT</div>
-      <div style="background: #f0fdf4; border-left: 4px solid #16a34a; padding: 10px; font-size: 9px;">
-        Encours maximal recommandé : <strong>${Math.round(cpVal * 0.05).toLocaleString('fr-FR')} € HT</strong>.
+      <div style="background: ${company.sanitaryAlert ? '#fef2f2' : '#f0fdf4'}; border-left: 4px solid ${company.sanitaryAlert ? '#dc2626' : '#16a34a'}; padding: 10px; font-size: 9px;">
+        Encours maximal recommandé : <strong>${company.sanitaryAlert ? '0 € HT (Octroi de crédit refusé / réserve de solvabilité)' : Math.round(cpVal * 0.05).toLocaleString('fr-FR') + ' € HT'}</strong>.
       </div>
       <div class="pdf-footer-line"><span>Euro Expert Solvabilité</span><span>Page 4 sur 4</span></div>
     </div>
   `;
 
-  // Délai de 500ms pour garantir le rendu complet par le navigateur
   await new Promise(resolve => setTimeout(resolve, 500));
 
   const options = {
