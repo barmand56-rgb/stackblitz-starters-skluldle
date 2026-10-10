@@ -135,6 +135,10 @@ document.addEventListener('DOMContentLoaded', () => {
   initEventListeners();
   initToolsEventListeners();
 
+  setTimeout(() => {
+    checkUrlParams();
+  }, 400);
+
   const input = document.getElementById('passCodeInput');
   if (input) input.focus();
 });
@@ -442,7 +446,8 @@ function checkUrlParams() {
 function cleanCompanyName(rawName) { return rawName ? rawName.split('(')[0].trim() : "ENTREPRISE"; }
 
 function searchSirenDirect(siren) {
-  document.getElementById('searchInput').value = siren;
+  const input = document.getElementById('searchInput');
+  if (input) input.value = siren;
   handleSearch();
 }
 window.searchSirenDirect = searchSirenDirect;
@@ -491,7 +496,7 @@ function calculateTvaIntra(siren) {
 }
 
 // =========================================================================
-// 5. CONCLUSIONS D'EXPERTISE AUTOMATISÉES PAR CATÉGORIE (VALEUR B2B)
+// 5. CONCLUSIONS D'EXPERTISE AUTOMATISÉES
 // =========================================================================
 function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dettesVal) {
   const nom = cleanCompanyName(company.nom_complet);
@@ -609,9 +614,9 @@ async function fetchRealRelatedCompanies(dirigeantNom, currentSiren) {
       let html = '';
       otherCompanies.forEach(comp => {
         const nomCo = cleanCompanyName(comp.nom_complet || comp.nom_raison_sociale);
-        html += `<div style="padding: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center;" onclick="searchSirenDirect('${comp.siren}')">
+        html += `<div style="padding: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="searchSirenDirect('${comp.siren}')">
           <div><div style="font-size: 0.78rem; font-weight: bold; color: #ffffff;">🏢 ${nomCo}</div><div style="font-size:0.65rem; color:#94a3b8;">SIREN : ${comp.siren}</div></div>
-          <span style="font-size: 0.7rem; color: #38bdf8; cursor: pointer;">Consulter ➔</span>
+          <span style="font-size: 0.7rem; color: #38bdf8; font-weight: bold;">Consulter ➔</span>
         </div>`;
       });
       groupContainer.innerHTML = html;
@@ -636,7 +641,6 @@ async function handleSearch() {
     if (apiData) {
       currentCompanyData = apiData;
       displayCompanyData(apiData);
-      updateBrowserUrl(apiData.siren);
     } else {
       alert("⚠️ Aucun résultat direct pour ce nom commercial.\n\n💡 Astuce : Si c'est une enseigne (ex: bar, restaurant, club), essayez de rechercher avec :\n- Le nom ou prénom du gérant\n- La ville ou l'adresse du commerce\n- Le numéro SIREN (disponible sur leurs factures)");
     }
@@ -647,27 +651,39 @@ async function handleSearch() {
   }
 }
 
-// Mettre à jour la barre d'adresse dynamiquement sans recharger
-function updateBrowserUrl(siren) {
-  if (siren) {
-    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?siren=' + siren;
-    window.history.pushState({ path: newUrl }, '', newUrl);
-  }
-}
-
+// =========================================================================
+// GESTION DYNAMIQUE ET PERMANENTE DU LIEN D'ACCÈS AU DOSSIER
+// =========================================================================
 function updateShareUrl(siren) {
-  const shareUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?siren=${siren}`;
+  if (!siren) return;
+  const baseUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+  const shareUrl = `${baseUrl}?siren=${siren}`;
+
+  // 1. Mise à jour fluide de l'URL dans le navigateur sans recharger
+  window.history.pushState({ siren: siren }, '', shareUrl);
+
+  // 2. Mise à jour de l'affichage dans le conteneur IHM
   const shareContainer = document.getElementById('shareUrlContainer');
   if (shareContainer) {
-    shareContainer.innerHTML = `<div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; background: #0f172a; padding: 8px 12px; border: 1px solid #38bdf8; border-radius: 6px;">
-      <a href="${shareUrl}" target="_blank" style="color: #38bdf8; text-decoration: underline; font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${shareUrl}</a>
-      <button type="button" onclick="copyShareUrl('${shareUrl}')" style="padding: 6px 12px; background: #0284c7; color: #ffffff; border: none; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer;">📋 Copier</button>
-    </div>`;
+    shareContainer.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 8px; margin-top: 6px; background: #0f172a; padding: 8px 12px; border: 1px solid #38bdf8; border-radius: 6px;">
+        <span style="font-size: 0.85rem;">🌐</span>
+        <a href="${shareUrl}" target="_blank" onclick="event.preventDefault(); searchSirenDirect('${siren}');" style="color: #38bdf8; text-decoration: underline; font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;" title="Ouvrir le dossier directement">
+          ${shareUrl}
+        </a>
+        <button type="button" onclick="copyShareUrl('${shareUrl}')" style="padding: 6px 12px; background: #0284c7; color: #ffffff; border: none; border-radius: 4px; font-size: 0.75rem; font-weight: bold; cursor: pointer; white-space: nowrap;">📋 Copier</button>
+      </div>`;
+  }
+
+  // 3. Mise à jour si le champ est un champ texte ou un champ input (ex: #shareUrlInput)
+  const shareInput = document.getElementById('shareUrlInput') || document.getElementById('dossierLinkInput');
+  if (shareInput) {
+    shareInput.value = shareUrl;
   }
 }
 
 function copyShareUrl(url) {
-  navigator.clipboard.writeText(url).then(() => alert("✅ Lien direct copié dans le presse-papier !")).catch(() => alert("✅ Lien copié !"));
+  navigator.clipboard.writeText(url).then(() => alert("✅ Lien direct d'accès copié dans le presse-papier !")).catch(() => alert("✅ Lien copié !"));
 }
 window.copyShareUrl = copyShareUrl;
 
