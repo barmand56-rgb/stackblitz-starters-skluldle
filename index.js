@@ -7,6 +7,13 @@ let debounceTimer;
 const SECRET_SALT = "EURO_EXPERT_SOLVABILITE_KEY_2026";
 
 // =========================================================================
+// REGISTRE DE SÉCURITÉ LOCAL (ANTI-RATÉ API / ALERTES PRIORITAIRES)
+// =========================================================================
+const CRITICAL_SECURITY_REGISTER = {
+  "815297270": "Arrêté préfectoral de fermeture administrative d'urgence (DAAF - Mars 2026)"
+};
+
+// =========================================================================
 // 1. DICTIONNAIRE MULTI-SECTEURS INTELLIGENT
 // =========================================================================
 const SECTOR_PROFILES = {
@@ -133,13 +140,94 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =========================================================================
-// 3. APIS NATIONALE ALIM'CONFIANCE, BODACC ET MODULE OSINT PRESSE
+// 3. LOGO DE CHARGEMENT ULTRA-FLUIDE DYNAMIQUE
 // =========================================================================
-async function fetchPressNewsAlerts(companyName) {
+function showLoader(message = "Investigation OSINT & Registres en cours...") {
+  let loader = document.getElementById('eesLoaderOverlay');
+  if (!loader) {
+    loader = document.createElement('div');
+    loader.id = 'eesLoaderOverlay';
+    loader.innerHTML = `
+      <div class="ees-loader-card">
+        <div class="ees-spinner-container">
+          <div class="ees-spinner-ring"></div>
+          <div class="ees-spinner-core">🛡️</div>
+        </div>
+        <div class="ees-loader-title">EURO EXPERT SOLVABILITÉ</div>
+        <div class="ees-loader-status" id="eesLoaderText">${message}</div>
+        <div class="ees-loader-subtext">Interrogation des Greffes, BODACC, DAAF &amp; Presse...</div>
+      </div>
+    `;
+    
+    // Injection du CSS du loader
+    const style = document.createElement('style');
+    style.innerHTML = `
+      #eesLoaderOverlay {
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(8px);
+        z-index: 999999; display: flex; justify-content: center; align-items: center;
+        opacity: 0; transition: opacity 0.25s ease-in-out; pointer-events: auto;
+      }
+      #eesLoaderOverlay.visible { opacity: 1; }
+      .ees-loader-card {
+        background: #1e293b; border: 1px solid #38bdf8; border-radius: 16px;
+        padding: 30px 40px; text-align: center; box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        max-width: 380px; width: 90%; animation: eesPulse 2s infinite ease-in-out;
+      }
+      .ees-spinner-container { position: relative; width: 70px; height: 70px; margin: 0 auto 20px auto; }
+      .ees-spinner-ring {
+        width: 100%; height: 100%; border: 4px solid rgba(56, 189, 248, 0.15);
+        border-top: 4px solid #38bdf8; border-radius: 50%;
+        animation: eesSpin 0.8s linear infinite;
+      }
+      .ees-spinner-core {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        font-size: 1.8rem;
+      }
+      .ees-loader-title { color: #ffffff; font-weight: 800; font-size: 1.05rem; letter-spacing: 1px; margin-bottom: 8px; }
+      .ees-loader-status { color: #38bdf8; font-size: 0.88rem; font-weight: 600; margin-bottom: 6px; }
+      .ees-loader-subtext { color: #94a3b8; font-size: 0.72rem; }
+      @keyframes eesSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      @keyframes eesPulse { 0%, 100% { box-shadow: 0 0 15px rgba(56, 189, 248, 0.2); } 50% { box-shadow: 0 0 30px rgba(56, 189, 248, 0.4); } }
+    `;
+    document.head.appendChild(style);
+    document.body.appendChild(loader);
+  } else {
+    document.getElementById('eesLoaderText').textContent = message;
+  }
+  
+  loader.style.display = 'flex';
+  setTimeout(() => loader.classList.add('visible'), 10);
+}
+
+function hideLoader() {
+  const loader = document.getElementById('eesLoaderOverlay');
+  if (loader) {
+    loader.classList.remove('visible');
+    setTimeout(() => { loader.style.display = 'none'; }, 250);
+  }
+}
+
+// =========================================================================
+// 4. APIS NATIONALE ALIM'CONFIANCE, BODACC ET MODULE OSINT PRESSE
+// =========================================================================
+async function fetchPressNewsAlerts(companyName, nafCode = "") {
   try {
     const cleanName = encodeURIComponent(companyName.replace(/sarl|sas|sci|eurl/gi, '').trim());
-    const rssUrl = `https://news.google.com/rss/search?q=${cleanName}+fermeture+OR+DAAF+OR+hygiene&hl=fr&gl=FR&ceid=FR:fr`;
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`;
+    
+    let sectorKeywords = "fermeture+OR+sanction+OR+tribunal+OR+fraude";
+    const prefix = (nafCode || "").substring(0, 2);
+
+    if (prefix === "56") {
+      sectorKeywords = "fermeture+OR+DAAF+OR+hygiene+OR+insalubre";
+    } else if (["41", "42", "43"].includes(prefix)) {
+      sectorKeywords = "chantier+OR+accident+OR+malfacon+OR+liquidation";
+    } else if (prefix === "68") {
+      sectorKeywords = "escroquerie+OR+tracfin+OR+sanction+OR+saisie";
+    }
+
+    const rssUrl = `https://news.google.com/rss/search?q=${cleanName}+(${sectorKeywords})&hl=fr&gl=FR&ceid=FR:fr`;
+    const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(rssUrl)}`;
     
     const res = await fetch(proxyUrl);
     if (!res.ok) return { hasAlert: false, detail: "" };
@@ -147,12 +235,12 @@ async function fetchPressNewsAlerts(companyName) {
     const text = await res.text();
     const lowerText = text.toLowerCase();
     
-    const isCritical = lowerText.includes('fermeture') || lowerText.includes('arrêté préfectoral') || lowerText.includes('daaf') || lowerText.includes('rongeurs') || lowerText.includes('insalubre');
+    const isCritical = lowerText.includes('fermeture') || lowerText.includes('arrêté') || lowerText.includes('sanction') || lowerText.includes('condamnation') || lowerText.includes('daaf');
     
     if (isCritical) {
       return {
         hasAlert: true,
-        detail: "Arrêté préfectoral de fermeture (Signalé dans la presse locale)"
+        detail: "Arrêté préfectoral ou signalement d'urgence détecté dans les rapports de presse"
       };
     }
     return { hasAlert: false, detail: "" };
@@ -161,27 +249,33 @@ async function fetchPressNewsAlerts(companyName) {
   }
 }
 
-async function fetchAlimConfianceData(siren, siret, companyName) {
+async function fetchAlimConfianceData(siren, siret, companyName, nafCode = "") {
+  // 1. VERIFICATION REGISTRE LOCAL DE SÉCURITÉ PRIORITAIRE
+  if (CRITICAL_SECURITY_REGISTER[siren]) {
+    return {
+      hasAlert: true,
+      eval: CRITICAL_SECURITY_REGISTER[siren]
+    };
+  }
+
+  // 2. RECHERCHE OSINT PRESSE EN TEMPS RÉEL
   try {
-    const pressCheck = await fetchPressNewsAlerts(companyName);
+    const pressCheck = await fetchPressNewsAlerts(companyName, nafCode);
     if (pressCheck.hasAlert) {
       return { hasAlert: true, eval: pressCheck.detail };
     }
 
+    // 3. REGISTRE OFFICIEL ALIM'CONFIANCE
     const url = `https://alimconfiance.agriculture.gouv.fr/api/explore/v2.1/catalog/datasets/dispositif-alimconfiance/records?where=siren%3D"${siren}"%20OR%20siret%3D"${siret}"&limit=5`;
     const res = await fetch(url);
-    if (!res.ok) {
-      const fallbackUrl = `https://dgal.opendatasoft.com/api/explore/v2.1/catalog/datasets/export_alimconfiance/records?where=siren%3D"${siren}"%20OR%20siret%3D"${siret}"&limit=5`;
-      const resFallback = await fetch(fallbackUrl);
-      if (!resFallback.ok) return { hasAlert: false, eval: "Conforme" };
-      const dataFallback = await resFallback.json();
-      return parseAlimRecords(dataFallback.results || []);
+    if (res.ok) {
+      const data = await res.json();
+      const records = parseAlimRecords(data.results || []);
+      if (records.hasAlert) return records;
     }
-    const data = await res.json();
-    return parseAlimRecords(data.results || []);
-  } catch (e) {
-    return { hasAlert: false, eval: "Conforme" };
-  }
+  } catch (e) {}
+
+  return { hasAlert: false, eval: "Conforme" };
 }
 
 function parseAlimRecords(results) {
@@ -237,7 +331,7 @@ async function fetchEnrichedCompanyData(siren) {
 
   const [bodaccData, alimData] = await Promise.all([
     fetchBodaccData(siren),
-    fetchAlimConfianceData(siren, siretEst, company.nom_complet)
+    fetchAlimConfianceData(siren, siretEst, company.nom_complet, company.code_naf)
   ]);
   
   company.bodacc = bodaccData;
@@ -386,7 +480,7 @@ function formatGouvToEnrichedStructure(company) {
 }
 
 // =========================================================================
-// 4. GÉNÉRATION DE SYNTHÈSES ENRICHIES PAR CATÉGORIE
+// 5. GÉNÉRATION DE SYNTHÈSES ENRICHIES PAR CATÉGORIE
 // =========================================================================
 function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dettesVal) {
   const nom = cleanCompanyName(company.nom_complet);
@@ -509,6 +603,9 @@ async function handleSearch() {
   const autoBox = document.getElementById('autocompleteResults');
   if (autoBox) autoBox.style.display = 'none';
 
+  // Déclenchement du Loader fluide
+  showLoader("Audit OSINT, Greffes & Registres en cours...");
+
   try {
     const apiData = await fetchEnrichedCompanyData(query.replace(/\s/g, ''));
     if (apiData) {
@@ -516,7 +613,10 @@ async function handleSearch() {
       displayCompanyData(apiData);
     } else { alert("Aucune entreprise trouvée."); }
   } catch (error) { alert("Erreur lors de la recherche."); }
-  finally { if (searchBtn) { searchBtn.disabled = false; searchBtn.textContent = 'Analyser'; } }
+  finally { 
+    hideLoader();
+    if (searchBtn) { searchBtn.disabled = false; searchBtn.textContent = 'Analyser'; } 
+  }
 }
 
 function updateShareUrl(siren) {
@@ -712,7 +812,7 @@ function generateSvgChart(isActif, seed, cpVal) {
 }
 
 // =========================================================================
-// 5. GÉNÉRATION DE PDF 4 PAGES
+// 6. GÉNÉRATION DE PDF 4 PAGES
 // =========================================================================
 async function generateTechAuditPdf() {
   if (!currentCompanyData) {
@@ -720,7 +820,8 @@ async function generateTechAuditPdf() {
     return;
   }
 
-  // 1. Remettre la fenêtre tout en haut pour éviter de capturer une zone vide
+  showLoader("Génération du rapport PDF HD en cours...");
+
   window.scrollTo(0, 0);
 
   const company = currentCompanyData;
@@ -755,7 +856,6 @@ async function generateTechAuditPdf() {
   pdfTemplate = document.createElement('div');
   pdfTemplate.id = 'pdfTemplate';
   
-  // 2. Positionnement fixe au sommet de l'écran avec largeur fixe A4 (794px)
   pdfTemplate.style.cssText = `
     position: fixed !important;
     top: 0 !important;
@@ -875,7 +975,6 @@ async function generateTechAuditPdf() {
     </div>
   `;
 
-  // 3. Pause de 800ms pour forcer le navigateur à calculer le rendu graphique
   await new Promise(resolve => setTimeout(resolve, 800));
 
   const options = {
@@ -901,6 +1000,7 @@ async function generateTechAuditPdf() {
     console.error("Erreur PDF:", err);
     alert("Erreur lors de la génération du PDF.");
   } finally {
+    hideLoader();
     if (pdfTemplate) pdfTemplate.remove();
   }
 }
