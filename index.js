@@ -1,5 +1,5 @@
 /* =========================================================================
-   EURO EXPERT SOLVABILITÉ - ENGINE INDEX.JS (SÉCURISÉ & COMPLET)
+   EURO EXPERT SOLVABILITÉ - ENGINE INDEX.JS (CORRIGÉ & SÉCURISÉ)
    ========================================================================= */
 
    let map = null;
@@ -25,7 +25,7 @@
    
    function cleanCompanyName(rawName) {
      if (!rawName) return "ENTREPRISE";
-     return rawName.split('(')[0].trim();
+     return String(rawName).split('(')[0].trim();
    }
    
    function cleanAddress(addr) {
@@ -65,7 +65,7 @@
    }
    
    // =========================================================================
-   // 2. REGISTRE DE SÉCURITÉ LOCAL (ALERTES PRIORITAIRES)
+   // 2. REGISTRE DE SÉCURITÉ LOCAL (ALERTES PRIORITAIRES DAAF & FERMETURES)
    // =========================================================================
    const CRITICAL_SECURITY_REGISTER = {
      "815297270": "Arrêté préfectoral de fermeture administrative d'urgence (DAAF - Mars 2026)"
@@ -89,8 +89,8 @@
        labels: (c) => {
          const hasSanitaryAlert = c.sanitaire && c.sanitaryAlert;
          const sanitText = hasSanitaryAlert 
-           ? `🚨 FERMETURE / ALERTE DAAF & HYGIÈNE (${escapeHtml((c.sanitaire.eval || 'Arrêté préfectoral').toUpperCase())})` 
-           : (c.sanitaire && c.sanitaire.eval ? `✅ Hygiène : ${escapeHtml(c.sanitaire.eval)}` : '✅ Contrôle Sanitaire Conforme');
+           ? `🚨 FERMETURE / ALERTE DAAF & HYGIÈNE (${(c.sanitaire.eval || 'Arrêté préfectoral').toUpperCase()})` 
+           : (c.sanitaire && c.sanitaire.eval ? `✅ Hygiène : ${c.sanitaire.eval}` : '✅ Contrôle Sanitaire Conforme');
          return [
            { text: c.est_bio ? '✅ Certification BIO' : '⚪ Restauration Classique', status: c.est_bio },
            { text: sanitText, status: !hasSanitaryAlert },
@@ -115,22 +115,39 @@
    function getSectorRules(nafCode, companyData = {}) {
      const prefix = (nafCode || "").substring(0, 2);
      const profile = SECTOR_PROFILES[prefix];
+     
+     let labels = [];
      if (profile) {
-       return {
-         sectorName: profile.name,
-         labelsHtml: profile.labels(companyData).map(l => `<span class="label-badge-item ${l.status ? 'active' : 'inactive'}" style="${!l.status ? 'background:#7f1d1d; border-color:#ef4444; color:#fca5a5;' : ''}">${escapeHtml(l.text)}</span>`).join(''),
-         riskFocus: profile.riskFocus
-       };
+       labels = profile.labels(companyData);
+     } else {
+       labels = [
+         { text: '✅ Immatriculation RCS Active', status: companyData.etat_administratif === 'A' },
+         { text: '✅ Conformité Urssaf & Fiscale', status: true }
+       ];
+       if (companyData.sanitaire && (companyData.sanitaryAlert || companyData.sanitaire.eval)) {
+         const hasAlert = companyData.sanitaryAlert;
+         const sanitText = hasAlert
+           ? `🚨 FERMETURE / ALERTE DAAF & HYGIÈNE (${(companyData.sanitaire.eval || 'Arrêté préfectoral').toUpperCase()})`
+           : `✅ Hygiène : ${companyData.sanitaire.eval || 'Conforme'}`;
+         labels.unshift({ text: sanitText, status: !hasAlert });
+       }
      }
+   
+     const labelsHtml = labels.map(l => {
+       const isAlert = !l.status;
+       const style = isAlert ? 'background:#7f1d1d; border-color:#ef4444; color:#fca5a5; font-weight:bold;' : '';
+       return `<span class="label-badge-item ${l.status ? 'active' : 'inactive'}" style="${style}">${escapeHtml(l.text)}</span>`;
+     }).join('');
+   
      return {
-       sectorName: 'Commerce, Industrie & Services',
-       labelsHtml: `<span class="label-badge-item active">✅ Immatriculation RCS Active</span><span class="label-badge-item active">✅ Conformité Urssaf &amp; Fiscale</span>`,
-       riskFocus: 'Analyse standard de la liquidité générale, des fonds propres et de la rotation des créances clients.'
+       sectorName: profile ? profile.name : 'Commerce, Industrie & Services',
+       labelsHtml: labelsHtml,
+       riskFocus: profile ? profile.riskFocus : 'Analyse standard de la liquidité générale, des fonds propres et de la rotation des créances clients.'
      };
    }
    
    // =========================================================================
-   // 4. INITIALISATION SÉCURISÉE & CARTE LEAFLET
+   // 4. INITIALISATION SÉCURISÉE DE LA CARTE & ACCÈS
    // =========================================================================
    function initMap() {
      const mapElement = document.getElementById('map');
@@ -212,7 +229,7 @@
    }
    
    // =========================================================================
-   // 5. LOADER FLUIDE DE SÉCURITÉ
+   // 5. LOADER FLUIDE D'INVESTIGATION
    // =========================================================================
    function showLoader(message = "Analyse IA & Investigation des Registres...") {
      let loader = document.getElementById('eesLoaderOverlay');
@@ -327,7 +344,7 @@
        if (res.ok) {
          const data = await res.json();
          const records = parseAlimRecords(data.results || []);
-         if (records.hasAlert) return records;
+         if (records.hasAlert || records.eval) return records;
        }
      } catch (e) {}
    
@@ -371,7 +388,7 @@
    }
    
    async function fetchEnrichedCompanyData(queryStr) {
-     const cleanQuery = queryStr.trim().replace(/\s/g, '');
+     const cleanQuery = String(queryStr).trim();
      const cleanSiren = sanitizeSiren(cleanQuery);
      const siretEst = cleanSiren ? `${cleanSiren}00010` : "";
    
@@ -380,10 +397,11 @@
      
      const company = formatGouvToEnrichedStructure(gouvRes.results[0]);
      const effectiveSiren = company.siren || cleanSiren;
+     const effectiveSiret = company.siege ? company.siege.siret : siretEst;
    
      const [bodaccData, alimData] = await Promise.all([
        fetchBodaccData(effectiveSiren),
-       fetchAlimConfianceData(effectiveSiren, siretEst, company.nom_complet, company.code_naf)
+       fetchAlimConfianceData(effectiveSiren, effectiveSiret, company.nom_complet, company.code_naf)
      ]);
      
      company.bodacc = bodaccData;
@@ -407,9 +425,9 @@
            const nom = cleanCompanyName(item.nom_complet || item.nom_raison_sociale);
            const siren = item.siren || '';
            const ville = item.siege ? (item.siege.libelle_commune || item.siege.code_postal || '') : '';
-           html += `<div class="autocomplete-item" onclick="selectAutocompleteSuggestion('${escapeHtml(siren)}', '${escapeHtml(nom)}')">
-             <div style="font-weight: bold; color: #ffffff; font-size: 0.85rem;">🏢 ${escapeHtml(nom)}</div>
-             <div style="font-size: 0.72rem; color: #38bdf8;">SIREN : ${escapeHtml(siren)} ${ville ? '• ' + escapeHtml(ville) : ''}</div>
+           html += `<div class="autocomplete-item" data-siren="${escapeHtml(siren)}" data-nom="${escapeHtml(nom)}" style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.08); cursor: pointer; transition: background 0.2s;">
+             <div style="font-weight: bold; color: #ffffff; font-size: 0.85rem; pointer-events: none;">🏢 ${escapeHtml(nom)}</div>
+             <div style="font-size: 0.72rem; color: #38bdf8; pointer-events: none;">SIREN : ${escapeHtml(siren)} ${ville ? '• ' + escapeHtml(ville) : ''}</div>
            </div>`;
          });
          autoBox.innerHTML = html;
@@ -434,7 +452,7 @@
    window.selectAutocompleteSuggestion = selectAutocompleteSuggestion;
    
    // =========================================================================
-   // 7. MOTEUR D'ANALYSE IA PAR CATÉGORIE (PROSPECTION & RISK MANAGEMENT)
+   // 7. MOTEUR D'ANALYSE IA PAR CATÉGORIE (AXÉ RISK & PROSPECTION B2B)
    // =========================================================================
    function generateCategoryAISummaries(company) {
      const nom = cleanCompanyName(company.nom_complet);
@@ -549,8 +567,15 @@
    }
    
    // =========================================================================
-   // 8. FONCTIONS SECONDAIRES & PARSERS
+   // 8. AFFICHAGE DES DONNÉES & GESTION DES OUTILS
    // =========================================================================
+   function searchSirenDirect(siren) {
+     const input = document.getElementById('searchInput');
+     if (input) input.value = siren;
+     handleSearch();
+   }
+   window.searchSirenDirect = searchSirenDirect;
+   
    function formatGouvToEnrichedStructure(company) {
      const siege = company.siege || {};
      const complements = company.complements || {};
@@ -590,12 +615,18 @@
          let html = '';
          otherCompanies.forEach(comp => {
            const nomCo = cleanCompanyName(comp.nom_complet || comp.nom_raison_sociale);
-           html += `<div style="padding: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; cursor: pointer;" onclick="selectAutocompleteSuggestion('${escapeHtml(comp.siren)}', '')">
+           html += `<div class="related-company-item" data-siren="${escapeHtml(comp.siren)}" style="padding: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
              <div><div style="font-size: 0.78rem; font-weight: bold; color: #ffffff;">🏢 ${escapeHtml(nomCo)}</div><div style="font-size:0.65rem; color:#94a3b8;">SIREN : ${escapeHtml(comp.siren)}</div></div>
              <span style="font-size: 0.7rem; color: #38bdf8; font-weight: bold;">Consulter ➔</span>
            </div>`;
          });
          groupContainer.innerHTML = html;
+         groupContainer.querySelectorAll('.related-company-item').forEach(el => {
+           el.addEventListener('click', () => {
+             const s = el.getAttribute('data-siren');
+             if (s) searchSirenDirect(s);
+           });
+         });
        } else { groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#94a3b8; padding:4px;">Aucune société sœur.</div>`; }
      } catch (e) { groupContainer.innerHTML = `<div style="font-size:0.72rem; color:#ef4444; padding:4px;">Erreur registre.</div>`; }
    }
@@ -698,6 +729,10 @@
      const labelsContainer = document.getElementById('labelsContainer');
      if (labelsContainer) labelsContainer.innerHTML = getSectorRules(company.code_naf, company).labelsHtml;
    
+     if (document.getElementById('companySanitaire')) {
+       document.getElementById('companySanitaire').textContent = company.sanitaire ? company.sanitaire.eval : "Conforme";
+     }
+   
      fetchRealRelatedCompanies(dirigeantNom, siren);
      renderAiSummariesToTabs();
      calculateCreditLimit();
@@ -764,43 +799,6 @@
      });
    }
    
-   function generateSvgChart(isActif, seed, cpVal) {
-     const histP1 = isActif ? Math.round((cpVal / 1000) * 0.45) : Math.round(Math.abs(cpVal / 1000) * 2);
-     const histP2 = isActif ? Math.round((cpVal / 1000) * 0.70) : Math.round(Math.abs(cpVal / 1000) * 0.5);
-     const histP3 = Math.round(cpVal / 1000);
-   
-     const color = isActif ? '#16a34a' : '#dc2626';
-     const maxVal = Math.max(histP1, histP2, histP3, 100);
-     const minVal = Math.min(histP1, histP2, histP3, 0);
-     const range = (maxVal - minVal) || 1;
-   
-     const getY = (val) => 65 - Math.round(((val - minVal) / range) * 45) - 5;
-   
-     const y1 = getY(histP1);
-     const y2 = getY(histP2);
-     const y3 = getY(histP3);
-   
-     return `
-       <svg width="100%" height="95" viewBox="0 0 500 95" style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; margin: 8px 0;">
-         <line x1="50" y1="20" x2="470" y2="20" stroke="#e2e8f0" stroke-dasharray="3,3"/>
-         <line x1="50" y1="45" x2="470" y2="45" stroke="#e2e8f0" stroke-dasharray="3,3"/>
-         <line x1="50" y1="70" x2="470" y2="70" stroke="#cbd5e1"/>
-         <text x="45" y="23" font-family="Arial" font-size="8" fill="#64748b" text-anchor="end">${maxVal}k€</text>
-         <text x="45" y="73" font-family="Arial" font-size="8" fill="#64748b" text-anchor="end">${minVal}k€</text>
-         <text x="100" y="86" font-family="Arial" font-size="9" fill="#475569" font-weight="bold" text-anchor="middle">2023</text>
-         <text x="260" y="86" font-family="Arial" font-size="9" fill="#475569" font-weight="bold" text-anchor="middle">2024</text>
-         <text x="420" y="86" font-family="Arial" font-size="9" fill="#475569" font-weight="bold" text-anchor="middle">2025</text>
-         <polyline fill="none" stroke="${color}" stroke-width="2.5" points="100,${y1} 260,${y2} 420,${y3}" />
-         <circle cx="100" cy="${y1}" r="4" fill="${color}"/>
-         <text x="100" y="${y1 - 6}" font-family="Arial" font-size="8.5" font-weight="bold" fill="${color}" text-anchor="middle">${histP1} k€</text>
-         <circle cx="260" cy="${y2}" r="4" fill="${color}"/>
-         <text x="260" y="${y2 - 6}" font-family="Arial" font-size="8.5" font-weight="bold" fill="${color}" text-anchor="middle">${histP2} k€</text>
-         <circle cx="420" cy="${y3}" r="4" fill="${color}"/>
-         <text x="420" y="${y3 - 6}" font-family="Arial" font-size="8.5" font-weight="bold" fill="${color}" text-anchor="middle">${histP3 > 0 ? '+' : ''}${histP3} k€</text>
-       </svg>
-     `;
-   }
-   
    function switchTab(tabId) {
      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -815,6 +813,7 @@
      const searchInput = document.getElementById('searchInput');
      const searchBtn = document.getElementById('searchBtn');
      if (searchBtn) searchBtn.addEventListener('click', handleSearch);
+     
      if (searchInput) {
        searchInput.addEventListener('input', (e) => {
          clearTimeout(debounceTimer);
@@ -827,15 +826,35 @@
          debounceTimer = setTimeout(() => fetchAutocompleteSuggestions(query), 300);
        });
      }
+   
+     // DÉLÉGATION D'ÉVÉNEMENT POUR L'AUTOCOMPLÉTION (CLIC FLUIDE & SÉCURISÉ)
+     const autoBox = document.getElementById('autocompleteResults');
+     if (autoBox) {
+       autoBox.addEventListener('click', (e) => {
+         const item = e.target.closest('.autocomplete-item');
+         if (item) {
+           const siren = item.getAttribute('data-siren');
+           const nom = item.getAttribute('data-nom');
+           if (siren) {
+             selectAutocompleteSuggestion(siren, nom);
+           }
+         }
+       });
+     }
+   
      document.addEventListener('click', (e) => {
-       const autoBox = document.getElementById('autocompleteResults');
-       if (autoBox && !e.target.closest('.search-container')) autoBox.style.display = 'none';
+       const autoContainer = document.querySelector('.search-container') || autoBox;
+       if (autoBox && autoContainer && !autoContainer.contains(e.target)) {
+         autoBox.style.display = 'none';
+       }
      });
+   
      const closeBtn = document.getElementById('closePanelBtn');
      if (closeBtn) closeBtn.addEventListener('click', () => {
        const panel = document.getElementById('auditPanel');
        if (panel) panel.style.display = 'none';
      });
+   
      const pdfBtn = document.getElementById('downloadPdfBtn');
      if (pdfBtn) pdfBtn.addEventListener('click', generateTechAuditPdf);
    }
@@ -854,7 +873,7 @@
    }
    
    // =========================================================================
-   // 9. GENERATION ET TÉLÉCHARGEMENT DIRECT DU PDF (html2pdf OU PRINT)
+   // 9. GÉNÉRATION ET TÉLÉCHARGEMENT DU PDF (html2pdf OU PRINT FALLBACK)
    // =========================================================================
    function generateTechAuditPdf() {
      if (!currentCompanyData) {
