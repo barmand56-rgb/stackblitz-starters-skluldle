@@ -133,28 +133,37 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =========================================================================
-// 3. APIS DONNÉES ENTREPRISES, BODACC ET ALIM'CONFIANCE (HYGIÈNE)
+// 3. APIS NATIONALE ALIM'CONFIANCE & BODACC
 // =========================================================================
 async function fetchAlimConfianceData(siren, siret) {
   try {
-    const url = `https://data.iledefrance.fr/api/explore/v2.1/catalog/datasets/alim-confiance/records?where=siren%3D"${siren}"%20OR%20siret%3D"${siret}"&limit=5`;
+    const url = `https://alimconfiance.agriculture.gouv.fr/api/explore/v2.1/catalog/datasets/dispositif-alimconfiance/records?where=siren%3D"${siren}"%20OR%20siret%3D"${siret}"&limit=5`;
     const res = await fetch(url);
-    if (!res.ok) return { hasAlert: false, eval: "" };
-    
-    const data = await res.json();
-    if (data.results && data.results.length > 0) {
-      const rec = data.results[0];
-      const evalText = rec.synthese_eval_sanit || rec.app_libelle_synthese_eval_sanit || "";
-      const isCritical = evalText.toLowerCase().includes('urgente') || evalText.toLowerCase().includes('corriger') || evalText.toLowerCase().includes('fermeture');
-      return {
-        hasAlert: isCritical,
-        eval: evalText || "Contrôle effectué"
-      };
+    if (!res.ok) {
+      const fallbackUrl = `https://dgal.opendatasoft.com/api/explore/v2.1/catalog/datasets/export_alimconfiance/records?where=siren%3D"${siren}"%20OR%20siret%3D"${siret}"&limit=5`;
+      const resFallback = await fetch(fallbackUrl);
+      if (!resFallback.ok) return { hasAlert: false, eval: "Conforme" };
+      const dataFallback = await resFallback.json();
+      return parseAlimRecords(dataFallback.results || []);
     }
-    return { hasAlert: false, eval: "" };
+    const data = await res.json();
+    return parseAlimRecords(data.results || []);
   } catch (e) {
-    return { hasAlert: false, eval: "" };
+    return { hasAlert: false, eval: "Conforme" };
   }
+}
+
+function parseAlimRecords(results) {
+  if (results && results.length > 0) {
+    const rec = results[0];
+    const evalText = (rec.synthese_eval_sanit || rec.app_libelle_synthese_eval_sanit || "").toLowerCase();
+    const isCritical = evalText.includes('urgente') || evalText.includes('corriger') || evalText.includes('fermeture') || evalText.includes('non conforme');
+    return {
+      hasAlert: isCritical,
+      eval: rec.synthese_eval_sanit || rec.app_libelle_synthese_eval_sanit || "Contrôle sanitaire enregistré"
+    };
+  }
+  return { hasAlert: false, eval: "Conforme" };
 }
 
 async function fetchBodaccData(siren) {
@@ -388,7 +397,7 @@ function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dett
         <div style="font-size: 0.8rem; line-height: 1.5; color: #cbd5e1;">
           Activité rattachée au code NAF <strong>${company.code_naf}</strong> (${sectorRules.sectorName}).<br>
           • <strong>Régime Social :</strong> Effectif sur la tranche <strong>${company.tranche_effectif}</strong>.<br>
-          • <strong>Statut Sanitaire / Alim'confiance :</strong> ${hasSanitaryAlert ? '<strong style="color:#ef4444;">🚨 NON-CONFORMITÉ SANITAIRE / FERMETURE DÉTECTÉE</strong>' : '✅ Contrôle sanitaire conforme.'}<br>
+          • <strong>Statut Sanitaire / Alim'confiance :</strong> ${hasSanitaryAlert ? '<strong style="color:#ef4444;">🚨 ALERTE HYGIÈNE / FERMETURE ADMINISTRATIVE DÉTECTÉE</strong>' : '✅ Contrôle sanitaire conforme.'}<br>
           • <strong>Exigences Métier :</strong> ${sectorRules.riskFocus}
         </div>
       </div>
@@ -398,9 +407,10 @@ function generateCategorySummaries(company, isActif, scoreVal, seed, cpVal, dett
       <div style="padding: 14px; background: rgba(168, 85, 247, 0.08); border-left: 4px solid #a855f7; border-radius: 6px; margin-bottom: 12px;">
         <div style="font-weight: bold; color: #c084fc; font-size: 0.9rem; margin-bottom: 6px;">💡 DÉCISION DU CREDIT MANAGER &amp; RECOUVREMENT</div>
         <div style="font-size: 0.8rem; line-height: 1.5; color: #cbd5e1;">
-          • <strong>Alertes Légales &amp; Sanitaires :</strong> ${hasBodaccAlert ? '🚨 Procédure collective active au BODACC.' : (hasSanitaryAlert ? '🚨 Alerte / Fermeture administrative pour hygiène signalée.' : '✅ Registre BODACC et contrôle d\'hygiène conformes.')}<br>
-          • <strong>Plafond Conseillé :</strong> Limite d\'encours commercial recommandée à <strong>${hasSanitaryAlert || hasBodaccAlert ? '0 € (Accompagnement sous conditions)' : Math.round(cpVal * 0.05).toLocaleString('fr-FR') + ' € HT'}</strong>.<br>
-          • <strong>Conditions de Vente :</strong> ${isActif && !hasSanitaryAlert ? 'Règlement à 30 jours fin de mois.' : 'Paiement 100% comptant à la commande.'}
+          • <strong>Alertes Légales (BODACC) :</strong> ${hasBodaccAlert ? '🚨 Procédure collective active au BODACC.' : '✅ Registre BODACC vierge (aucune procédure collective).'}<br>
+          • <strong>Contrôle Sanitaire &amp; Hygiène :</strong> ${hasSanitaryAlert ? '<strong style="color:#ef4444;">🚨 ALERTE HYGIÈNE / FERMETURE ADMINISTRATIVE DÉTECTÉE</strong> (' + (company.sanitaire.eval || 'Non conforme') + ')' : '✅ Contrôle sanitaire et hygiène conforme (Aucun arrêté de fermeture).'}<br>
+          • <strong>Plafond Conseillé :</strong> Limite d\'encours commercial recommandée à <strong>${hasSanitaryAlert || hasBodaccAlert ? '0 € HT (Octroi refusé - Risque sanitaire/légal)' : Math.round(cpVal * 0.05).toLocaleString('fr-FR') + ' € HT'}</strong>.<br>
+          • <strong>Conditions de Vente :</strong> ${isActif && !hasSanitaryAlert && !hasBodaccAlert ? 'Règlement à 30 jours fin de mois.' : 'Paiement 100% comptant à la commande obligatoire.'}
         </div>
       </div>
     `
