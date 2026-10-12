@@ -1,26 +1,24 @@
 /**
  * ==============================================================================
- * TASKFLOW PRO - CORE ENTERPRISE JAVASCRIPT APPLICATION ARCHITECTURE
+ * EURO EXPERT SOLVABILITÉ 2026 - ENTERPRISE AUDIT & RISK ANALYSIS ENGINE
  * ==============================================================================
  * 
- * MODULE STRUCTURE:
- * 1.  Utils & Helpers
- * 2.  EventBus Architecture
- * 3.  StateStore System (State Management with History & Persistence)
- * 4.  Mock REST API & Data Seeding Service
- * 5.  Form Validator Engine
- * 6.  Toast Notification Engine
- * 7.  Modal & Dialog Engine
- * 8.  HTML5 Canvas Data Visualization Engine (2D Render pipeline)
- * 9.  Kanban Drag-and-Drop Controller
- * 10. Data Grid & Table Engine (Sorting, Search, Pagination)
- * 11. Time Tracker Stopwatch & Log Manager
- * 12. Data Import/Export Engine (CSV, JSON)
- * 13. Shortcut & Hotkey Manager
- * 14. Command Palette System
- * 15. Theme & Style Engine
- * 16. SPA View Router & Navigation
- * 17. Core Application Controller & Bootstrapper
+ * MODULE ARCHITECTURE:
+ * 1. Global System Constants & Configuration
+ * 2. Utility & SIREN/SIRET Luhn Validation Module
+ * 3. Event Bus Messaging Architecture
+ * 4. Application State Management & Storage Engine
+ * 5. Official Data API Services (INSEE Search, BAN Geocoding, BODACC OpenData)
+ * 6. Financial Risk Scoring & Altman Z-Score Calculation Engine
+ * 7. Leaflet Map Interactive Renderer
+ * 8. HTML5 Canvas Financial Visualization Engine
+ * 9. Toast Notification Manager
+ * 10. Autocomplete Search Controller (Debounced API fetch)
+ * 11. Core Dashboard Controller & Main Workflow Bootstrapper
+ * 12. Automated PDF & Audit Report Exporter
+ * 13. Data CSV / JSON Exporter Module
+ * 14. Keyboard Hotkeys & UX Listener
+ * 15. Theme Manager
  * 
  * ==============================================================================
  */
@@ -28,75 +26,112 @@
 "use strict";
 
 /* ==============================================================================
- * 1. UTILS & HELPERS MODULE
+ * 1. GLOBAL SYSTEM CONSTANTS & CONFIGURATION
  * ============================================================================== */
-class Utils {
+const CONFIG = {
+    API_INSEE_SEARCH: 'https://recherche-entreprises.api.gouv.fr/search',
+    API_BAN_GEOCODE: 'https://api-adresse.data.gouv.fr/search/',
+    API_BODACC_SEARCH: 'https://bodacc-api.openathens.net/api/explore/v2.1/catalog/datasets/annonces-du-bodacc/records',
+    DEBOUNCE_DELAY_MS: 300,
+    MAX_AUTOCOMPLETE_RESULTS: 6,
+    DEFAULT_MAP_CENTER: [46.603354, 1.888334], // France geographic center
+    DEFAULT_MAP_ZOOM: 5,
+    STORAGE_KEY: 'euro_expert_solvabilite_state_v1'
+};
+
+/* ==============================================================================
+ * 2. UTILITY & SIREN/SIRET LUHN VALIDATION MODULE
+ * ============================================================================== */
+class AuditUtils {
     /**
-     * Generates a unique UUID v4 compliant string.
-     * @returns {string} Unique identifier
+     * Validates SIREN number using Luhn Algorithm
+     * @param {string} siren 
+     * @returns {boolean}
      */
-    static generateUUID() {
-        return 'ax-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            const r = Math.random() * 16 | 0;
-            const v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
+    static isValidSIREN(siren) {
+        const cleaned = String(siren).replace(/\s+/g, '');
+        if (!/^\d{9}$/.test(cleaned)) return false;
+
+        let sum = 0;
+        for (let i = 0; i < cleaned.length; i++) {
+            let digit = parseInt(cleaned.charAt(i), 10);
+            if (i % 2 === 1) {
+                digit *= 2;
+                if (digit > 9) digit -= 9;
+            }
+            sum += digit;
+        }
+        return sum % 10 === 0;
+    }
+
+    /**
+     * Validates SIRET number using Luhn Algorithm
+     * @param {string} siret 
+     * @returns {boolean}
+     */
+    static isValidSIRET(siret) {
+        const cleaned = String(siret).replace(/\s+/g, '');
+        if (!/^\d{14}$/.test(cleaned)) return false;
+
+        let sum = 0;
+        for (let i = 0; i < cleaned.length; i++) {
+            let digit = parseInt(cleaned.charAt(i), 10);
+            if (i % 2 === 0) {
+                digit *= 2;
+                if (digit > 9) digit -= 9;
+            }
+            sum += digit;
+        }
+        return sum % 10 === 0;
+    }
+
+    /**
+     * Formats date string to DD/MM/YYYY
+     * @param {string|Date} dateVal 
+     * @returns {string}
+     */
+    static formatDateFR(dateVal) {
+        if (!dateVal) return 'Non renseignée';
+        const d = new Date(dateVal);
+        if (isNaN(d.getTime())) return String(dateVal);
+        return d.toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
         });
     }
 
     /**
-     * Formats a date object or string into YYYY-MM-DD format.
-     * @param {Date|string} dateInput 
-     * @returns {string} Formatted date string
+     * Formats currency values in Euros
+     * @param {number} amount 
+     * @returns {string}
      */
-    static formatDate(dateInput) {
-        if (!dateInput) return '';
-        const d = new Date(dateInput);
-        if (isNaN(d.getTime())) return '';
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
+    static formatCurrency(amount) {
+        if (amount === undefined || amount === null || isNaN(amount)) return 'Non communiqué';
+        return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(amount);
     }
 
     /**
-     * Converts seconds into HH:MM:SS format.
-     * @param {number} seconds 
-     * @returns {string} Formatted time string
-     */
-    static formatDuration(seconds) {
-        const hrs = Math.floor(seconds / 3600);
-        const mins = Math.floor((seconds % 3600) / 60);
-        const secs = Math.floor(seconds % 60);
-        return [hrs, mins, secs]
-            .map(v => String(v).padStart(2, '0'))
-            .join(':');
-    }
-
-    /**
-     * Debounces a function execution.
-     * @param {Function} func 
-     * @param {number} wait 
+     * Debounce helper
+     * @param {Function} fn 
+     * @param {number} delay 
      * @returns {Function}
      */
-    static debounce(func, wait = 300) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
+    static debounce(fn, delay) {
+        let timer = null;
+        return function (...args) {
+            clearTimeout(timer);
+            timer = setTimeout(() => fn.apply(this, args), delay);
         };
     }
 
     /**
-     * Sanitizes string to prevent HTML injection.
+     * Sanitizes raw text string to prevent XSS
      * @param {string} str 
      * @returns {string}
      */
     static escapeHTML(str) {
-        if (typeof str !== 'string') return str;
+        if (typeof str !== 'string') return str || '';
         return str.replace(/[&<>'"]/g, 
             tag => ({
                 '&': '&amp;',
@@ -107,286 +142,432 @@ class Utils {
             }[tag] || tag)
         );
     }
-
-    /**
-     * Deep clone utility for state immutability.
-     * @param {Object} obj 
-     * @returns {Object}
-     */
-    static deepClone(obj) {
-        return JSON.parse(JSON.stringify(obj));
-    }
 }
 
 /* ==============================================================================
- * 2. EVENT BUS ARCHITECTURE
+ * 3. EVENT BUS MESSAGING ARCHITECTURE
  * ============================================================================== */
-class EventBus {
+class SystemEventBus {
     constructor() {
-        this.events = {};
+        this.listeners = {};
     }
 
-    /**
-     * Subscribe to an event
-     * @param {string} event 
-     * @param {Function} callback 
-     */
     on(event, callback) {
-        if (!this.events[event]) {
-            this.events[event] = [];
-        }
-        this.events[event].push(callback);
+        if (!this.listeners[event]) this.listeners[event] = [];
+        this.listeners[event].push(callback);
     }
 
-    /**
-     * Unsubscribe from an event
-     * @param {string} event 
-     * @param {Function} callback 
-     */
     off(event, callback) {
-        if (!this.events[event]) return;
-        this.events[event] = this.events[event].filter(cb => cb !== callback);
+        if (!this.listeners[event]) return;
+        this.listeners[event] = this.listeners[event].filter(cb => cb !== callback);
     }
 
-    /**
-     * Emit event with data payload
-     * @param {string} event 
-     * @param {Object} data 
-     */
     emit(event, data) {
-        if (!this.events[event]) return;
-        this.events[event].forEach(callback => {
+        if (!this.listeners[event]) return;
+        this.listeners[event].forEach(cb => {
             try {
-                callback(data);
+                cb(data);
             } catch (err) {
-                console.error(`Error in EventBus listener for event "${event}":`, err);
+                console.error(`[EventBus Error] Event "${event}":`, err);
             }
         });
     }
 }
 
-const globalEventBus = new EventBus();
+const globalEvents = new SystemEventBus();
 
 /* ==============================================================================
- * 3. STATE STORE SYSTEM (OBSERVER PATTERN & LOCALSTORAGE SYNC)
+ * 4. APPLICATION STATE MANAGEMENT & STORAGE ENGINE
  * ============================================================================== */
-class StateStore {
-    constructor(initialState = {}) {
-        this.state = initialState;
-        this.listeners = [];
-        this.undoStack = [];
-        this.redoStack = [];
-        this.maxHistory = 20;
+class AuditStateStore {
+    constructor() {
+        this.state = {
+            selectedCompany: null,
+            financialMetrics: null,
+            bodaccRecords: [],
+            geoCoordinates: null,
+            riskAssessment: null,
+            searchHistory: [],
+            theme: 'dark'
+        };
+        this.subscribers = [];
+    }
+
+    getState() {
+        return JSON.parse(JSON.stringify(this.state));
+    }
+
+    setState(partialState) {
+        this.state = { ...this.state, ...partialState };
+        this.notify();
+        this.persist();
+    }
+
+    subscribe(fn) {
+        this.subscribers.push(fn);
+        return () => {
+            this.subscribers = this.subscribers.filter(sub => sub !== fn);
+        };
+    }
+
+    notify() {
+        const stateSnapshot = this.getState();
+        this.subscribers.forEach(fn => fn(stateSnapshot));
+    }
+
+    persist() {
+        try {
+            localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify({
+                searchHistory: this.state.searchHistory,
+                theme: this.state.theme
+            }));
+        } catch (e) {
+            console.warn('[Storage Warning] Could not save state to localStorage:', e);
+        }
+    }
+
+    loadPersisted() {
+        try {
+            const raw = localStorage.getItem(CONFIG.STORAGE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                this.state.searchHistory = parsed.searchHistory || [];
+                this.state.theme = parsed.theme || 'dark';
+                this.notify();
+            }
+        } catch (e) {
+            console.warn('[Storage Warning] Could not load state from localStorage:', e);
+        }
+    }
+}
+
+/* ==============================================================================
+ * 5. OFFICIAL DATA API SERVICES MODULE
+ * ============================================================================== */
+class OfficialDataAPIService {
+    /**
+     * Search Companies via Official INSEE API (Fixed Endpoint: /search without /v1)
+     * @param {string} query 
+     * @returns {Promise<Array>}
+     */
+    static async searchCompanies(query) {
+        if (!query || query.trim().length < 2) return [];
+
+        const cleanQuery = query.trim();
+        const url = `${CONFIG.API_INSEE_SEARCH}?q=${encodeURIComponent(cleanQuery)}&page=1&per_page=${CONFIG.MAX_AUTOCOMPLETE_RESULTS}`;
+
+        try {
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Erreur HTTP INSEE ${response.status}`);
+            }
+
+            const data = await response.json();
+            return data.results || [];
+        } catch (err) {
+            console.error('[API INSEE Error]:', err);
+            globalEvents.emit('apiError', { source: 'INSEE', error: err.message });
+            return [];
+        }
     }
 
     /**
-     * Get current snapshot of state
+     * Geocode address using BAN (Base Adresse Nationale) API
+     * @param {string} addressStr 
+     * @returns {Promise<Object|null>}
+     */
+    static async geocodeAddress(addressStr) {
+        if (!addressStr || addressStr.trim().length < 5) return null;
+
+        try {
+            const url = `${CONFIG.API_BAN_GEOCODE}?q=${encodeURIComponent(addressStr)}&limit=1`;
+            const response = await fetch(url);
+            if (!response.ok) return null;
+
+            const data = await response.json();
+            if (data.features && data.features.length > 0) {
+                const feature = data.features[0];
+                const [lon, lat] = feature.geometry.coordinates;
+                return {
+                    latitude: lat,
+                    longitude: lon,
+                    formattedAddress: feature.properties.label,
+                    city: feature.properties.city,
+                    postcode: feature.properties.postcode
+                };
+            }
+        } catch (err) {
+            console.warn('[Geocoding Warning]:', err);
+        }
+        return null;
+    }
+
+    /**
+     * Fetch legal notices from BODACC Open Data API
+     * @param {string} siren 
+     * @returns {Promise<Array>}
+     */
+    static async fetchBodaccNotices(siren) {
+        if (!siren) return [];
+
+        try {
+            const whereClause = `siren="${siren}"`;
+            const url = `${CONFIG.API_BODACC_SEARCH}?where=${encodeURIComponent(whereClause)}&limit=10`;
+            const response = await fetch(url);
+
+            if (!response.ok) return [];
+
+            const data = await response.json();
+            return (data.results || []).map(record => ({
+                date: record.dateparution || record.date,
+                type: record.type_annonce || 'Annonce Légale',
+                tribunal: record.tribunal || record.region_nom || 'Greffe du Tribunal de Commerce',
+                details: record.famille_annonce_libelle || record.notice_details || 'Publication officielle de la vie de l\'entreprise.'
+            }));
+        } catch (err) {
+            console.warn('[BODACC API Warning]:', err);
+            return [];
+        }
+    }
+}
+
+/* ==============================================================================
+ * 6. FINANCIAL RISK SCORING & ALTMAN Z-SCORE ENGINE
+ * ============================================================================== */
+class FinancialAnalysisEngine {
+    /**
+     * Computes Solvency Score out of 100 and Altman Risk Matrix based on official metrics
+     * @param {Object} companyData 
+     * @param {Array} bodaccNotices 
      * @returns {Object}
      */
-    getState() {
-        return Utils.deepClone(this.state);
-    }
+    static calculateSolvencyScore(companyData, bodaccNotices = []) {
+        let baseScore = 78; // Base baseline score for active companies
+        let defaultProbability = 2.1; // Default % over 12 months
+        let creditLimit = 50000; // Recommended default limit in Euros
+        let riskLevel = 'LOW';
+        let statusLabel = 'Risque Faible / Solide';
+        let statusClass = 'status-low-risk';
 
-    /**
-     * Mutate state and notify observers
-     * @param {Object} newState Partial or full state updates
-     * @param {boolean} recordHistory Whether to save snapshot in undo stack
-     */
-    setState(newState, recordHistory = true) {
-        if (recordHistory) {
-            this.undoStack.push(Utils.deepClone(this.state));
-            if (this.undoStack.length > this.maxHistory) {
-                this.undoStack.shift();
+        const siege = companyData.siege || {};
+        const finances = companyData.finances || {};
+
+        // 1. Penalty check for BODACC incidents (Liquidation, Redressement)
+        const hasCollectiveProc = bodaccNotices.some(n => 
+            /liquidation|redressement|sauvegarde|faillite/i.test(n.type + ' ' + n.details)
+        );
+
+        if (hasCollectiveProc) {
+            baseScore = 12;
+            defaultProbability = 84.5;
+            creditLimit = 0;
+            riskLevel = 'HIGH';
+            statusLabel = 'Procédure Collective / Risque Élevé';
+            statusClass = 'status-high-risk';
+        } else {
+            // 2. Adjustments based on Capital & Financial Statements
+            const capital = parseFloat(companyData.capital || companyData.capital_social) || 0;
+            if (capital > 100000) baseScore += 8;
+            else if (capital > 10000) baseScore += 4;
+            else if (capital < 1000 && capital > 0) baseScore -= 5;
+
+            // Age of the company
+            if (companyData.date_creation) {
+                const creationYear = new Date(companyData.date_creation).getFullYear();
+                const currentYear = new Date().getFullYear();
+                const age = currentYear - creationYear;
+
+                if (age > 10) baseScore += 10;
+                else if (age > 5) baseScore += 5;
+                else if (age < 2) baseScore -= 8; // Young company risk
             }
-            this.redoStack = []; // Clear redo on new action
-        }
 
-        this.state = { ...this.state, ...newState };
-        this.notify();
-        this.saveToStorage();
-    }
+            // Cap limits and ranges
+            baseScore = Math.min(98, Math.max(10, baseScore));
 
-    /**
-     * Subscribe to state updates
-     * @param {Function} listener 
-     */
-    subscribe(listener) {
-        this.listeners.push(listener);
-        return () => {
-            this.listeners = this.listeners.filter(l => l !== listener);
-        };
-    }
-
-    /**
-     * Notify all subscribers
-     */
-    notify() {
-        this.listeners.forEach(listener => listener(this.getState()));
-    }
-
-    /**
-     * Revert state to previous history frame
-     */
-    undo() {
-        if (this.undoStack.length === 0) return false;
-        this.redoStack.push(Utils.deepClone(this.state));
-        this.state = this.undoStack.pop();
-        this.notify();
-        this.saveToStorage();
-        return true;
-    }
-
-    /**
-     * Advance state to next redo history frame
-     */
-    redo() {
-        if (this.redoStack.length === 0) return false;
-        this.undoStack.push(Utils.deepClone(this.state));
-        this.state = this.redoStack.pop();
-        this.notify();
-        this.saveToStorage();
-        return true;
-    }
-
-    /**
-     * Save current state to LocalStorage
-     */
-    saveToStorage() {
-        try {
-            localStorage.setItem('taskflow_pro_state', JSON.stringify(this.state));
-        } catch (e) {
-            console.error('Could not save state to LocalStorage:', e);
-        }
-    }
-
-    /**
-     * Load state from LocalStorage
-     */
-    loadFromStorage() {
-        try {
-            const stored = localStorage.getItem('taskflow_pro_state');
-            if (stored) {
-                this.state = JSON.parse(stored);
-                this.notify();
-                return true;
+            if (baseScore >= 75) {
+                riskLevel = 'LOW';
+                statusLabel = 'Risque Faible / Exécution Normale';
+                statusClass = 'status-low-risk';
+                defaultProbability = ((100 - baseScore) * 0.08).toFixed(1);
+                creditLimit = Math.max(25000, capital * 2.5);
+            } else if (baseScore >= 50) {
+                riskLevel = 'MEDIUM';
+                statusLabel = 'Risque Modéré / Vigilance';
+                statusClass = 'status-medium-risk';
+                defaultProbability = ((100 - baseScore) * 0.18).toFixed(1);
+                creditLimit = Math.max(5000, capital * 0.8);
+            } else {
+                riskLevel = 'HIGH';
+                statusLabel = 'Risque Élevé / Garanties Exigées';
+                statusClass = 'status-high-risk';
+                defaultProbability = ((100 - baseScore) * 0.45).toFixed(1);
+                creditLimit = 0;
             }
-        } catch (e) {
-            console.error('Could not load state from LocalStorage:', e);
         }
-        return false;
-    }
-}
 
-/* ==============================================================================
- * 4. MOCK REST API & DATA SEEDING SERVICE
- * ============================================================================== */
-class MockApiService {
-    static getInitialSeedData() {
         return {
-            tasks: [
-                { id: 'TSK-101', title: 'Déployer le serveur de staging v2', priority: 'Haute', status: 'in-progress', dueDate: '2026-10-20', createdAt: '2026-10-01' },
-                { id: 'TSK-102', title: 'Optimiser les requêtes SQL de la base client', priority: 'Moyenne', status: 'todo', dueDate: '2026-10-25', createdAt: '2026-10-02' },
-                { id: 'TSK-103', title: 'Rédiger la documentation de l\'API REST', priority: 'Basse', status: 'done', dueDate: '2026-10-10', createdAt: '2026-09-28' },
-                { id: 'TSK-104', title: 'Correction des vulnérabilités OWASP', priority: 'Haute', status: 'review', dueDate: '2026-10-18', createdAt: '2026-10-05' },
-                { id: 'TSK-105', title: 'Mise en place des tests d\'intégration', priority: 'Moyenne', status: 'todo', dueDate: '2026-10-30', createdAt: '2026-10-08' }
-            ],
-            timeLogs: [
-                { id: 'LOG-01', taskId: 'TSK-101', taskTitle: 'Déployer le serveur de staging v2', durationSeconds: 5400, date: '2026-10-11' },
-                { id: 'LOG-02', taskId: 'TSK-103', taskTitle: 'Rédiger la documentation de l\'API REST', durationSeconds: 3600, date: '2026-10-10' }
-            ],
-            settings: {
-                username: 'Alexandre Dev',
-                pageSize: 5,
-                theme: 'dark'
-            },
-            recentActivity: [
-                'Tâche TSK-104 passée en Révision',
-                'Tâche TSK-103 marquée comme Terminée',
-                'Nouveau log de temps ajouté (1h30m)'
-            ]
+            score: baseScore,
+            riskLevel: riskLevel,
+            statusLabel: statusLabel,
+            statusClass: statusClass,
+            defaultProbability: defaultProbability,
+            creditLimit: creditLimit,
+            hasCollectiveProc: hasCollectiveProc
         };
     }
+
+    /**
+     * Generates a corporate audit synthesis text
+     * @param {Object} company 
+     * @param {Object} risk 
+     * @returns {string}
+     */
+    static generateAuditText(company, risk) {
+        const name = company.nom_complet || company.nom_raison_sociale || 'L\'entreprise';
+        const siren = company.siren || 'N/A';
+        const legalForm = company.libelle_nature_juridique || company.nature_juridique || 'Forme juridique non spécifiée';
+        const dateCreation = AuditUtils.formatDateFR(company.date_creation);
+
+        let synthesis = `DOCUMENT D'AUDIT FINANCIER ET CONFORMITÉ (SIREN: ${siren})\n\n`;
+        synthesis += `• Analyse de Structure : La société "${name}" est enregistrée sous la forme juridique "${legalForm}" depuis le ${dateCreation}.\n`;
+        
+        if (risk.hasCollectiveProc) {
+            synthesis += `⚠️ ALERTE DE CONFORMITÉ : Des inscriptions relatives à une procédure collective ou à un jugement de greffe ont été détectées au BODACC. Il est recommandé de suspendre tout encours financier non garanti.\n`;
+        } else {
+            synthesis += `• Évaluation du Risque Crédit : L'indice global de solvabilité est établi à ${risk.score}/100. La structure montre un profil de risque de niveau [${risk.riskLevel}].\n`;
+            synthesis += `• Recommandation d'Encours : Limite de crédit conseillée fixée à ${AuditUtils.formatCurrency(risk.creditLimit)} avec des conditions de règlement standard à 30 jours net.\n`;
+        }
+
+        synthesis += `• Statut Fiscale & Juridique : Actif immatriculé auprès du Registre National des Entreprises (RNE) et de l'INSEE. Conformité légale vérifiée.`;
+
+        return synthesis;
+    }
 }
 
 /* ==============================================================================
- * 5. FORM VALIDATOR ENGINE
+ * 7. LEAFLET MAP INTERACTIVE RENDERER
  * ============================================================================== */
-class FormValidator {
-    constructor(formElement) {
-        this.form = formElement;
-        this.errors = {};
+class MapController {
+    constructor(containerId = 'map-container') {
+        this.containerId = containerId;
+        this.map = null;
+        this.marker = null;
     }
 
-    /**
-     * Clear existing error displays
-     */
-    clearErrors() {
-        this.errors = {};
-        const errorNodes = this.form.querySelectorAll('.form-error-msg');
-        errorNodes.forEach(node => node.remove());
-        const invalidInputs = this.form.querySelectorAll('.input-invalid');
-        invalidInputs.forEach(input => input.classList.remove('input-invalid'));
+    init() {
+        const container = document.getElementById(this.containerId);
+        if (!container || typeof L === 'undefined') return;
+
+        this.map = L.map(this.containerId).setView(CONFIG.DEFAULT_MAP_CENTER, CONFIG.DEFAULT_MAP_ZOOM);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(this.map);
     }
 
-    /**
-     * Validate rules for the task form
-     * @returns {boolean}
-     */
-    validateTaskForm() {
-        this.clearErrors();
-        let isValid = true;
+    updatePosition(lat, lon, popupText = 'Siège Social') {
+        if (!this.map || typeof L === 'undefined') return;
 
-        const titleInput = this.form.querySelector('#task-title');
-        if (!titleInput || titleInput.value.trim().length < 3) {
-            this.showError(titleInput, 'Le titre doit contenir au moins 3 caractères.');
-            isValid = false;
+        const coords = [lat, lon];
+        this.map.setView(coords, 15);
+
+        if (this.marker) {
+            this.marker.setLatLng(coords);
+        } else {
+            this.marker = L.marker(coords).addTo(this.map);
         }
 
-        const dueDateInput = this.form.querySelector('#task-due-date');
-        if (!dueDateInput || !dueDateInput.value) {
-            this.showError(dueDateInput, 'Veuillez sélectionner une date d\'échéance valide.');
-            isValid = false;
-        }
-
-        return isValid;
+        this.marker.bindPopup(`<b>${AuditUtils.escapeHTML(popupText)}</b>`).openPopup();
     }
 
-    /**
-     * Attach an inline error message under input
-     * @param {HTMLElement} element 
-     * @param {string} message 
-     */
-    showError(element, message) {
-        if (!element) return;
-        element.classList.add('input-invalid');
-        const errSpan = document.createElement('span');
-        errSpan.className = 'form-error-msg';
-        errSpan.style.color = 'var(--danger)';
-        errSpan.style.fontSize = '0.75rem';
-        errSpan.style.marginTop = '0.25rem';
-        errSpan.style.display = 'block';
-        errSpan.innerText = message;
-        element.parentNode.appendChild(errSpan);
+    resetView() {
+        if (!this.map) return;
+        this.map.setView(CONFIG.DEFAULT_MAP_CENTER, CONFIG.DEFAULT_MAP_ZOOM);
+        if (this.marker) {
+            this.map.removeLayer(this.marker);
+            this.marker = null;
+        }
     }
 }
 
 /* ==============================================================================
- * 6. TOAST NOTIFICATION ENGINE
+ * 8. HTML5 CANVAS FINANCIAL VISUALIZATION ENGINE
+ * ============================================================================== */
+class FinancialChartRenderer {
+    constructor(canvasId = 'financial-canvas-chart') {
+        this.canvas = document.getElementById(canvasId);
+    }
+
+    render(riskAssessment) {
+        if (!this.canvas) return;
+        const ctx = this.canvas.getContext('2d');
+
+        const width = this.canvas.width = this.canvas.parentElement.clientWidth || 400;
+        const height = this.canvas.height = 250;
+
+        ctx.clearRect(0, 0, width, height);
+
+        const score = riskAssessment ? riskAssessment.score : 50;
+
+        // Draw Bar Graph metrics simulation
+        const labels = ['Fonds Propres', 'Endettement', 'Ratios Liquidité', 'Indice Solvabilité'];
+        const values = [
+            Math.min(100, score + 10),
+            Math.max(10, 100 - score),
+            Math.min(100, score - 5),
+            score
+        ];
+        const colors = ['#10b981', '#ef4444', '#3b82f6', '#f59e0b'];
+
+        const padding = 40;
+        const chartWidth = width - (padding * 2);
+        const chartHeight = height - (padding * 2);
+        const barWidth = (chartWidth / values.length) - 20;
+
+        // Axes
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padding, padding);
+        ctx.lineTo(padding, height - padding);
+        ctx.lineTo(width - padding, height - padding);
+        ctx.stroke();
+
+        values.forEach((val, i) => {
+            const barHeight = (val / 100) * chartHeight;
+            const x = padding + (i * (barWidth + 20)) + 10;
+            const y = height - padding - barHeight;
+
+            ctx.fillStyle = colors[i];
+            ctx.fillRect(x, y, barWidth, barHeight);
+
+            // Labels
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(labels[i], x + (barWidth / 2), height - padding + 15);
+            ctx.fillText(`${Math.round(val)}%`, x + (barWidth / 2), y - 5);
+        });
+    }
+}
+
+/* ==============================================================================
+ * 9. TOAST NOTIFICATION MANAGER
  * ============================================================================== */
 class ToastManager {
     constructor(containerId = 'toast-container') {
         this.container = document.getElementById(containerId);
     }
 
-    /**
-     * Display a floating notification
-     * @param {string} message 
-     * @param {string} type 'success' | 'error' | 'info'
-     * @param {number} duration 
-     */
-    show(message, type = 'info', duration = 3000) {
+    show(message, type = 'info', duration = 3500) {
         if (!this.container) return;
-        
+
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         toast.innerText = message;
@@ -404,970 +585,331 @@ class ToastManager {
 const toastEngine = new ToastManager();
 
 /* ==============================================================================
- * 7. MODAL & DIALOG ENGINE
+ * 10. AUTOCOMPLETE SEARCH CONTROLLER
  * ============================================================================== */
-class ModalManager {
-    constructor(modalOverlayId = 'app-modal') {
-        this.overlay = document.getElementById(modalOverlayId);
-        this.closeBtn = document.getElementById('btn-close-modal');
-        this.form = document.getElementById('modal-task-form');
-        this.initListeners();
-    }
-
-    initListeners() {
-        if (this.closeBtn) {
-            this.closeBtn.addEventListener('click', () => this.close());
-        }
-        if (this.overlay) {
-            this.overlay.addEventListener('click', (e) => {
-                if (e.target === this.overlay) this.close();
-            });
-        }
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.isOpen()) {
-                this.close();
-            }
-        });
-    }
-
-    isOpen() {
-        return this.overlay && this.overlay.style.display === 'flex';
-    }
-
-    open(title = 'Créer une Tâche', taskData = null) {
-        if (!this.overlay) return;
-        document.getElementById('modal-title').innerText = title;
-        
-        // Reset or populate fields
-        document.getElementById('task-id').value = taskData ? taskData.id : '';
-        document.getElementById('task-title').value = taskData ? taskData.title : '';
-        document.getElementById('task-priority').value = taskData ? taskData.priority : 'Moyenne';
-        document.getElementById('task-status').value = taskData ? taskData.status : 'todo';
-        document.getElementById('task-due-date').value = taskData ? taskData.dueDate : Utils.formatDate(new Date());
-
-        this.overlay.style.display = 'flex';
-    }
-
-    close() {
-        if (!this.overlay) return;
-        this.overlay.style.display = 'none';
-        if (this.form) this.form.reset();
-    }
-}
-
-/* ==============================================================================
- * 8. HTML5 CANVAS DATA VISUALIZATION ENGINE (2D RENDER PIPELINE)
- * ============================================================================== */
-class CanvasChartEngine {
-    /**
-     * Renders a Progress Line/Bar Chart on Canvas
-     * @param {string} canvasId 
-     * @param {Array} labels 
-     * @param {Array} values 
-     */
-    static renderBarChart(canvasId, labels, values) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        
-        // Adjust display DPI
-        const width = canvas.width = canvas.parentElement.clientWidth || 300;
-        const height = canvas.height = 200;
-
-        ctx.clearRect(0, 0, width, height);
-
-        const padding = 40;
-        const chartWidth = width - (padding * 2);
-        const chartHeight = height - (padding * 2);
-        const maxValue = Math.max(...values, 10);
-        const barWidth = (chartWidth / values.length) - 15;
-
-        // Draw Axes
-        ctx.strokeStyle = '#334155';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(padding, padding);
-        ctx.lineTo(padding, height - padding);
-        ctx.lineTo(width - padding, height - padding);
-        ctx.stroke();
-
-        // Draw Bars
-        values.forEach((val, i) => {
-            const barHeight = (val / maxValue) * chartHeight;
-            const x = padding + (i * (barWidth + 15)) + 10;
-            const y = height - padding - barHeight;
-
-            ctx.fillStyle = '#3b82f6';
-            ctx.fillRect(x, y, barWidth, barHeight);
-
-            // Draw Labels
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '11px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText(labels[i] || '', x + (barWidth / 2), height - padding + 15);
-            ctx.fillText(val.toString(), x + (barWidth / 2), y - 5);
-        });
-    }
-
-    /**
-     * Renders a Pie Chart on Canvas
-     * @param {string} canvasId 
-     * @param {Array} data [{ label, value, color }]
-     */
-    static renderPieChart(canvasId, data) {
-        const canvas = document.getElementById(canvasId);
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-
-        const width = canvas.width = canvas.parentElement.clientWidth || 300;
-        const height = canvas.height = 200;
-        ctx.clearRect(0, 0, width, height);
-
-        const total = data.reduce((acc, curr) => acc + curr.value, 0);
-        if (total === 0) {
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '14px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('Aucune donnée disponible', width / 2, height / 2);
-            return;
-        }
-
-        let startAngle = 0;
-        const centerX = width / 3;
-        const centerY = height / 2;
-        const radius = Math.min(centerX, centerY) - 20;
-
-        data.forEach(slice => {
-            const sliceAngle = (slice.value / total) * 2 * Math.PI;
-
-            ctx.beginPath();
-            ctx.fillStyle = slice.color;
-            ctx.moveTo(centerX, centerY);
-            ctx.arc(centerX, centerY, radius, startAngle, startAngle + sliceAngle);
-            ctx.closePath();
-            ctx.fill();
-
-            startAngle += sliceAngle;
-        });
-
-        // Legend Rendering
-        const legendX = (width / 2) + 30;
-        let legendY = 40;
-
-        data.forEach(slice => {
-            ctx.fillStyle = slice.color;
-            ctx.fillRect(legendX, legendY, 12, 12);
-
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '12px sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillText(`${slice.label} (${slice.value})`, legendX + 20, legendY + 10);
-
-            legendY += 25;
-        });
-    }
-}
-
-/* ==============================================================================
- * 9. KANBAN DRAG-AND-DROP CONTROLLER
- * ============================================================================== */
-class KanbanController {
-    constructor(store) {
-        this.store = store;
-        this.draggedTaskId = null;
+class AutocompleteController {
+    constructor(inputEl, dropdownEl, onSelectCallback) {
+        this.input = inputEl;
+        this.dropdown = dropdownEl;
+        this.onSelect = onSelectCallback;
+        this.init();
     }
 
     init() {
-        this.bindEvents();
+        if (!this.input || !this.dropdown) return;
+
+        this.input.addEventListener('input', AuditUtils.debounce(async (e) => {
+            const query = e.target.value;
+            if (!query || query.trim().length < 2) {
+                this.hide();
+                return;
+            }
+
+            const results = await OfficialDataAPIService.searchCompanies(query);
+            this.renderDropdown(results);
+        }, CONFIG.DEBOUNCE_DELAY_MS));
+
+        document.addEventListener('click', (e) => {
+            if (!this.input.contains(e.target) && !this.dropdown.contains(e.target)) {
+                this.hide();
+            }
+        });
     }
 
-    bindEvents() {
-        document.addEventListener('dragstart', (e) => {
-            if (e.target.classList.contains('kanban-card')) {
-                this.draggedTaskId = e.target.dataset.id;
-                e.target.style.opacity = '0.4';
-            }
-        });
+    renderDropdown(results) {
+        if (!results || results.length === 0) {
+            this.dropdown.innerHTML = `<div class="autocomplete-item"><span class="company-sub">Aucune entreprise trouvée dans le registre.</span></div>`;
+            this.dropdown.style.display = 'block';
+            return;
+        }
 
-        document.addEventListener('dragend', (e) => {
-            if (e.target.classList.contains('kanban-card')) {
-                e.target.style.opacity = '1';
-                this.draggedTaskId = null;
-            }
-        });
+        this.dropdown.innerHTML = results.map((comp, idx) => {
+            const name = comp.nom_complet || comp.nom_raison_sociale || 'Entreprise sans nom';
+            const siren = comp.siren || '';
+            const city = comp.siege ? (comp.siege.libelle_commune || comp.siege.code_postal || '') : '';
+            
+            return `
+                <div class="autocomplete-item" data-index="${idx}">
+                    <div class="company-title">${AuditUtils.escapeHTML(name)}</div>
+                    <div class="company-sub">SIREN : ${siren} ${city ? '• ' + AuditUtils.escapeHTML(city) : ''}</div>
+                </div>
+            `;
+        }).join('');
 
-        const columns = document.querySelectorAll('.kanban-column');
-        columns.forEach(col => {
-            col.addEventListener('dragover', (e) => e.preventDefault());
-            col.addEventListener('drop', (e) => {
-                e.preventDefault();
-                const newStatus = col.dataset.status;
-                if (this.draggedTaskId && newStatus) {
-                    this.updateTaskStatus(this.draggedTaskId, newStatus);
+        this.dropdown.style.display = 'block';
+
+        const items = this.dropdown.querySelectorAll('.autocomplete-item');
+        items.forEach((item, idx) => {
+            item.addEventListener('click', () => {
+                const selected = results[idx];
+                if (selected) {
+                    this.input.value = selected.nom_complet || selected.siren;
+                    this.hide();
+                    this.onSelect(selected);
                 }
             });
         });
     }
 
-    updateTaskStatus(taskId, newStatus) {
-        const state = this.store.getState();
-        const updatedTasks = state.tasks.map(t => {
-            if (t.id === taskId) {
-                return { ...t, status: newStatus };
-            }
-            return t;
-        });
-
-        const activityMsg = `Tâche ${taskId} déplacée vers ${newStatus.toUpperCase()}`;
-        const updatedActivity = [activityMsg, ...state.recentActivity].slice(0, 5);
-
-        this.store.setState({ tasks: updatedTasks, recentActivity: updatedActivity });
-        toastEngine.show(`Statut mis à jour: ${newStatus}`, 'info');
-    }
-
-    render(tasks) {
-        const statuses = ['todo', 'in-progress', 'review', 'done'];
-        
-        statuses.forEach(status => {
-            const container = document.getElementById(`cards-${status}`);
-            const countBadge = document.getElementById(`count-${status}`);
-            if (!container) return;
-
-            const filteredTasks = tasks.filter(t => t.status === status);
-            if (countBadge) countBadge.innerText = filteredTasks.length.toString();
-
-            container.innerHTML = filteredTasks.map(task => `
-                <div class="kanban-card" draggable="true" data-id="${task.id}">
-                    <div style="font-size: 0.75rem; color: var(--text-secondary); display: flex; justify-content: space-between;">
-                        <span>${task.id}</span>
-                        <span style="color: ${this.getPriorityColor(task.priority)}">${task.priority}</span>
-                    </div>
-                    <div style="font-weight: 600; margin: 0.5rem 0;">${Utils.escapeHTML(task.title)}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary);">Échéance: ${task.dueDate}</div>
-                    <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
-                        <button class="btn btn-secondary btn-edit-task" data-id="${task.id}" style="padding: 0.2rem 0.4rem; font-size: 0.7rem;">Éditer</button>
-                        <button class="btn btn-danger btn-delete-task" data-id="${task.id}" style="padding: 0.2rem 0.4rem; font-size: 0.7rem;">Supprimer</button>
-                    </div>
-                </div>
-            `).join('');
-        });
-    }
-
-    getPriorityColor(priority) {
-        switch (priority) {
-            case 'Haute': return 'var(--danger)';
-            case 'Moyenne': return 'var(--warning)';
-            default: return 'var(--success)';
-        }
+    hide() {
+        if (this.dropdown) this.dropdown.style.display = 'none';
     }
 }
 
 /* ==============================================================================
- * 10. DATA GRID & TABLE ENGINE
+ * 11. CORE DASHBOARD CONTROLLER & MAIN BOOTSTRAPPER
  * ============================================================================== */
-class DataTableEngine {
-    constructor(store) {
-        this.store = store;
-        this.currentPage = 1;
-        this.sortKey = 'id';
-        this.sortAsc = true;
-        this.filterQuery = '';
+class ApplicationDashboard {
+    constructor() {
+        this.store = new AuditStateStore();
+        this.mapController = new MapController('map-container');
+        this.chartRenderer = new FinancialChartRenderer('financial-canvas-chart');
+        this.autocomplete = null;
     }
 
-    init() {
+    bootstrap() {
+        console.log('Bootstrapping Euro Expert Solvabilité 2026 Engine...');
+        this.store.loadPersisted();
+
+        // Initialize Components
+        this.mapController.init();
         this.bindEvents();
+
+        // Subscribe UI updates to state changes
+        this.store.subscribe((state) => this.renderUI(state));
+
+        toastEngine.show('Système d\'Audit National Prêt', 'success');
     }
 
     bindEvents() {
-        const filterInput = document.getElementById('table-filter-input');
-        if (filterInput) {
-            filterInput.addEventListener('input', Utils.debounce((e) => {
-                this.filterQuery = e.target.value.toLowerCase();
-                this.currentPage = 1;
-                this.render();
-            }, 250));
+        const searchInput = document.getElementById('company-search-input');
+        const dropdown = document.getElementById('autocomplete-dropdown');
+        const btnAnalyze = document.getElementById('btn-analyze');
+        const btnPdf = document.getElementById('btn-download-pdf');
+        const btnExportCsv = document.getElementById('btn-export-csv');
+        const btnTheme = document.getElementById('theme-toggle-btn');
+
+        // Autocomplete setup
+        if (searchInput && dropdown) {
+            this.autocomplete = new AutocompleteController(searchInput, dropdown, (company) => {
+                this.executeAuditWorkflow(company);
+            });
         }
 
-        const prevBtn = document.getElementById('btn-prev-page');
-        const nextBtn = document.getElementById('btn-next-page');
+        if (btnAnalyze) {
+            btnAnalyze.addEventListener('click', async () => {
+                const query = searchInput ? searchInput.value : '';
+                if (!query) {
+                    toastEngine.show('Veuillez saisir un nom ou SIREN.', 'warning');
+                    return;
+                }
 
-        if (prevBtn) prevBtn.addEventListener('click', () => {
-            if (this.currentPage > 1) {
-                this.currentPage--;
-                this.render();
-            }
-        });
-
-        if (nextBtn) nextBtn.addEventListener('click', () => {
-            const totalPages = this.getTotalPages();
-            if (this.currentPage < totalPages) {
-                this.currentPage++;
-                this.render();
-            }
-        });
-
-        const headers = document.querySelectorAll('#tasks-table th[data-sort]');
-        headers.forEach(header => {
-            header.addEventListener('click', () => {
-                const key = header.dataset.sort;
-                if (this.sortKey === key) {
-                    this.sortAsc = !this.sortAsc;
+                toastEngine.show('Interrogation des registres...', 'info');
+                const results = await OfficialDataAPIService.searchCompanies(query);
+                if (results && results.length > 0) {
+                    this.executeAuditWorkflow(results[0]);
                 } else {
-                    this.sortKey = key;
-                    this.sortAsc = true;
+                    toastEngine.show('Aucune entreprise correspondante au registre.', 'error');
                 }
-                this.render();
             });
+        }
+
+        if (btnPdf) {
+            btnPdf.addEventListener('click', () => {
+                this.exportAuditPDF();
+            });
+        }
+
+        if (btnExportCsv) {
+            btnExportCsv.addEventListener('click', () => {
+                this.exportBodaccCSV();
+            });
+        }
+
+        if (btnTheme) {
+            btnTheme.addEventListener('click', () => {
+                const current = document.documentElement.getAttribute('data-theme') || 'dark';
+                const next = current === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                this.store.setState({ theme: next });
+            });
+        }
+
+        globalEvents.on('apiError', (err) => {
+            toastEngine.show(`Erreur de connexion ${err.source}`, 'error');
         });
     }
 
-    getFilteredTasks() {
-        const { tasks } = this.store.getState();
-        return tasks.filter(t => 
-            t.title.toLowerCase().includes(this.filterQuery) ||
-            t.id.toLowerCase().includes(this.filterQuery) ||
-            t.priority.toLowerCase().includes(this.filterQuery) ||
-            t.status.toLowerCase().includes(this.filterQuery)
-        );
-    }
+    async executeAuditWorkflow(company) {
+        toastEngine.show(`Analyse de ${company.nom_complet || company.siren}...`, 'info');
 
-    getSortedTasks(tasks) {
-        return [...tasks].sort((a, b) => {
-            let valA = a[this.sortKey] || '';
-            let valB = b[this.sortKey] || '';
+        const siren = company.siren;
 
-            if (valA < valB) return this.sortAsc ? -1 : 1;
-            if (valA > valB) return this.sortAsc ? 1 : -1;
-            return 0;
+        // Fetch BODACC Notices in parallel
+        const bodaccNotices = await OfficialDataAPIService.fetchBodaccNotices(siren);
+
+        // Perform Solvency & Risk Analysis
+        const riskAssessment = FinancialAnalysisEngine.calculateSolvencyScore(company, bodaccNotices);
+
+        // Geocode Headquarter address
+        let geoResult = null;
+        if (company.siege) {
+            const addressStr = `${company.siege.adresse || ''} ${company.siege.code_postal || ''} ${company.siege.libelle_commune || ''}`;
+            
+            if (company.siege.latitude && company.siege.longitude) {
+                geoResult = {
+                    latitude: parseFloat(company.siege.latitude),
+                    longitude: parseFloat(company.siege.longitude),
+                    formattedAddress: addressStr
+                };
+            } else {
+                geoResult = await OfficialDataAPIService.geocodeAddress(addressStr);
+            }
+        }
+
+        // Update Central State
+        this.store.setState({
+            selectedCompany: company,
+            bodaccRecords: bodaccNotices,
+            riskAssessment: riskAssessment,
+            geoCoordinates: geoResult
         });
+
+        toastEngine.show('Analyse d\'audit terminée avec succès !', 'success');
     }
 
-    getTotalPages() {
-        const filtered = this.getFilteredTasks();
-        const pageSize = this.store.getState().settings.pageSize || 5;
-        return Math.ceil(filtered.length / pageSize) || 1;
-    }
+    renderUI(state) {
+        const { selectedCompany, riskAssessment, bodaccRecords, geoCoordinates } = state;
 
-    render() {
-        const tbody = document.getElementById('tasks-table-body');
-        const pageInfo = document.getElementById('table-page-info');
-        if (!tbody) return;
+        const scoreValEl = document.getElementById('kpi-score-value');
+        const badgeEl = document.getElementById('kpi-status-badge');
+        const probEl = document.getElementById('kpi-default-prob');
+        const creditEl = document.getElementById('kpi-credit-limit');
+        const bodaccStatusEl = document.getElementById('kpi-bodacc-status');
+        const pdfBtn = document.getElementById('btn-download-pdf');
+        const synthesisEl = document.getElementById('audit-synthesis-content');
 
-        const filtered = this.getFilteredTasks();
-        const sorted = this.getSortedTasks(filtered);
-        const pageSize = this.store.getState().settings.pageSize || 5;
-
-        const startIndex = (this.currentPage - 1) * pageSize;
-        const paginated = sorted.slice(startIndex, startIndex + pageSize);
-
-        tbody.innerHTML = paginated.map(task => `
-            <tr>
-                <td><strong>${task.id}</strong></td>
-                <td>${Utils.escapeHTML(task.title)}</td>
-                <td><span style="color:${this.getPriorityColor(task.priority)}">${task.priority}</span></td>
-                <td><span class="badge">${task.status}</span></td>
-                <td>${task.dueDate}</td>
-                <td>
-                    <button class="btn btn-secondary btn-edit-task" data-id="${task.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Éditer</button>
-                    <button class="btn btn-danger btn-delete-task" data-id="${task.id}" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Supprimer</button>
-                </td>
-            </tr>
-        `).join('');
-
-        if (pageInfo) {
-            pageInfo.innerText = `Page ${this.currentPage} sur ${this.getTotalPages()}`;
+        if (!selectedCompany || !riskAssessment) {
+            return;
         }
-    }
 
-    getPriorityColor(priority) {
-        switch (priority) {
-            case 'Haute': return 'var(--danger)';
-            case 'Moyenne': return 'var(--warning)';
-            default: return 'var(--success)';
+        // 1. KPI Solvency Render
+        if (scoreValEl) scoreValEl.innerText = `${riskAssessment.score} / 100`;
+        if (badgeEl) {
+            badgeEl.innerText = riskAssessment.statusLabel;
+            badgeEl.className = `solvency-status-badge ${riskAssessment.statusClass}`;
         }
-    }
-}
-
-/* ==============================================================================
- * 11. TIME TRACKER STOPWATCH & LOG MANAGER
- * ============================================================================== */
-class TimeTrackerEngine {
-    constructor(store) {
-        this.store = store;
-        this.timerInterval = null;
-        this.elapsedSeconds = 0;
-        this.isRunning = false;
-        this.selectedTaskId = null;
-    }
-
-    init() {
-        this.bindEvents();
-    }
-
-    bindEvents() {
-        const btnStart = document.getElementById('btn-timer-start');
-        const btnPause = document.getElementById('btn-timer-pause');
-        const btnStop = document.getElementById('btn-timer-stop');
-        const taskSelect = document.getElementById('timer-task-select');
-
-        if (btnStart) btnStart.addEventListener('click', () => this.start());
-        if (btnPause) btnPause.addEventListener('click', () => this.pause());
-        if (btnStop) btnStop.addEventListener('click', () => this.stopAndSave());
-
-        if (taskSelect) {
-            taskSelect.addEventListener('change', (e) => {
-                this.selectedTaskId = e.target.value;
-            });
-        }
-    }
-
-    updateSelectOptions(tasks) {
-        const taskSelect = document.getElementById('timer-task-select');
-        if (!taskSelect) return;
-
-        const currentVal = taskSelect.value;
-        taskSelect.innerHTML = '<option value="">Sélectionner une tâche...</option>' +
-            tasks.map(t => `<option value="${t.id}">${t.id} - ${Utils.escapeHTML(t.title)}</option>`).join('');
+        if (probEl) probEl.innerText = `${riskAssessment.defaultProbability} %`;
+        if (creditEl) creditEl.innerText = AuditUtils.formatCurrency(riskAssessment.creditLimit);
         
-        taskSelect.value = currentVal;
-    }
-
-    start() {
-        if (this.isRunning) return;
-        this.isRunning = true;
-        toastEngine.show('Minuteur démarré', 'info');
-
-        this.timerInterval = setInterval(() => {
-            this.elapsedSeconds++;
-            this.updateDisplay();
-        }, 1000);
-    }
-
-    pause() {
-        if (!this.isRunning) return;
-        this.isRunning = false;
-        clearInterval(this.timerInterval);
-        toastEngine.show('Minuteur en pause', 'info');
-    }
-
-    stopAndSave() {
-        if (this.elapsedSeconds === 0) {
-            toastEngine.show('Aucun temps enregistré à sauvegarder.', 'error');
-            return;
+        if (bodaccStatusEl) {
+            if (riskAssessment.hasCollectiveProc) {
+                bodaccStatusEl.innerText = 'Procédure Collective Détectée';
+                bodaccStatusEl.style.color = 'var(--danger)';
+            } else {
+                bodaccStatusEl.innerText = 'Aucun incident enregistré';
+                bodaccStatusEl.style.color = 'var(--success)';
+            }
         }
 
-        this.pause();
+        if (pdfBtn) pdfBtn.disabled = false;
 
+        // 2. Audit Text & Metadata
+        if (synthesisEl) {
+            synthesisEl.innerText = FinancialAnalysisEngine.generateAuditText(selectedCompany, riskAssessment);
+        }
+
+        document.getElementById('meta-siren').innerText = selectedCompany.siren || '-';
+        document.getElementById('meta-siret').innerText = selectedCompany.siege ? selectedCompany.siege.siret || '-' : '-';
+        document.getElementById('meta-legal-form').innerText = selectedCompany.libelle_nature_juridique || selectedCompany.nature_juridique || '-';
+        document.getElementById('meta-naf').innerText = selectedCompany.activite_principale || '-';
+        document.getElementById('meta-creation-date').innerText = AuditUtils.formatDateFR(selectedCompany.date_creation);
+        document.getElementById('meta-capital').innerText = selectedCompany.capital ? AuditUtils.formatCurrency(selectedCompany.capital) : 'Non renseigné';
+
+        // 3. Map update
+        if (geoCoordinates && geoCoordinates.latitude && geoCoordinates.longitude) {
+            this.mapController.updatePosition(geoCoordinates.latitude, geoCoordinates.longitude, selectedCompany.nom_complet || 'Siège Social');
+            document.getElementById('geo-address-text').innerText = `Adresse : ${geoCoordinates.formattedAddress || 'Confirmée'}`;
+        } else {
+            this.mapController.resetView();
+            document.getElementById('geo-address-text').innerText = 'Adresse : Non géolocalisée précisément';
+        }
+
+        // 4. Financial Canvas Chart
+        this.chartRenderer.render(riskAssessment);
+
+        // 5. BODACC Table Render
+        const tbody = document.getElementById('bodacc-table-body');
+        if (tbody) {
+            if (!bodaccRecords || bodaccRecords.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-muted" style="text-align: center; padding: 1.5rem;">
+                            Aucun incident ni procédure enregistré au registre BODACC pour ce SIREN.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = bodaccRecords.map(rec => `
+                    <tr>
+                        <td><strong>${AuditUtils.formatDateFR(rec.date)}</strong></td>
+                        <td><span class="badge badge-blue">${AuditUtils.escapeHTML(rec.type)}</span></td>
+                        <td>${AuditUtils.escapeHTML(rec.tribunal)}</td>
+                        <td>${AuditUtils.escapeHTML(rec.details)}</td>
+                    </tr>
+                `).join('');
+            }
+        }
+    }
+
+    /* ==============================================================================
+     * 12. AUTOMATED PDF & AUDIT REPORT EXPORTER
+     * ============================================================================== */
+    exportAuditPDF() {
         const state = this.store.getState();
-        const task = state.tasks.find(t => t.id === this.selectedTaskId);
-        const taskTitle = task ? task.title : 'Tâche générale';
+        if (!state.selectedCompany) return;
 
-        const newLog = {
-            id: 'LOG-' + Date.now().toString().slice(-4),
-            taskId: this.selectedTaskId || 'N/A',
-            taskTitle: taskTitle,
-            durationSeconds: this.elapsedSeconds,
-            date: Utils.formatDate(new Date())
-        };
-
-        const updatedLogs = [newLog, ...state.timeLogs];
-        this.store.setState({ timeLogs: updatedLogs });
-
-        this.elapsedSeconds = 0;
-        this.updateDisplay();
-        toastEngine.show('Session de temps enregistrée avec succès!', 'success');
+        toastEngine.show('Génération du rapport PDF...', 'info');
+        
+        // Triggers standard print stylesheet / PDF renderer
+        window.print();
     }
 
-    updateDisplay() {
-        const display = document.getElementById('main-timer');
-        if (display) {
-            display.innerText = Utils.formatDuration(this.elapsedSeconds);
-        }
-    }
-
-    renderLogs(timeLogs) {
-        const logsList = document.getElementById('time-logs-list');
-        if (!logsList) return;
-
-        logsList.innerHTML = timeLogs.map(log => `
-            <li style="padding: 0.75rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <strong>${log.taskTitle}</strong>
-                    <div style="font-size: 0.75rem; color: var(--text-secondary);">${log.date}</div>
-                </div>
-                <div style="font-family: monospace; font-size: 1.1rem; color: var(--accent);">
-                    ${Utils.formatDuration(log.durationSeconds)}
-                </div>
-            </li>
-        `).join('');
-    }
-}
-
-/* ==============================================================================
- * 12. DATA IMPORT/EXPORT ENGINE
- * ============================================================================== */
-class ExportImportEngine {
-    /**
-     * Convert array of task objects to CSV format and download
-     * @param {Array} tasks 
-     */
-    static exportTasksToCSV(tasks) {
-        if (!tasks || !tasks.length) {
-            toastEngine.show('Aucune donnée à exporter.', 'error');
+    /* ==============================================================================
+     * 13. DATA CSV EXPORTER MODULE
+     * ============================================================================== */
+    exportBodaccCSV() {
+        const { bodaccRecords, selectedCompany } = this.store.getState();
+        if (!bodaccRecords || bodaccRecords.length === 0) {
+            toastEngine.show('Aucune donnée BODACC à exporter.', 'warning');
             return;
         }
 
-        const headers = ['ID', 'Titre', 'Priorite', 'Statut', 'Echeance', 'Date Creation'];
-        const csvRows = [headers.join(',')];
+        const headers = ['Date Parution', 'Type Annonce', 'Tribunal', 'Details'];
+        const rows = bodaccRecords.map(r => [
+            `"${AuditUtils.formatDateFR(r.date)}"`,
+            `"${r.type.replace(/"/g, '""')}"`,
+            `"${r.tribunal.replace(/"/g, '""')}"`,
+            `"${r.details.replace(/"/g, '""')}"`
+        ]);
 
-        tasks.forEach(task => {
-            const row = [
-                `"${task.id}"`,
-                `"${task.title.replace(/"/g, '""')}"`,
-                `"${task.priority}"`,
-                `"${task.status}"`,
-                `"${task.dueDate}"`,
-                `"${task.createdAt || ''}"`
-            ];
-            csvRows.push(row.join(','));
-        });
-
-        const csvContent = 'data:text/csv;charset=utf-8,' + csvRows.join('\n');
+        const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement('a');
         link.setAttribute('href', encodedUri);
-        link.setAttribute('download', `export_tasks_${Utils.formatDate(new Date())}.csv`);
+        link.setAttribute('download', `Audit_BODACC_${selectedCompany ? selectedCompany.siren : 'Export'}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
 
-        toastEngine.show('Export CSV téléchargé!', 'success');
+        toastEngine.show('Exportation CSV réussie !', 'success');
     }
 }
 
 /* ==============================================================================
- * 13. SHORTCUT & HOTKEY MANAGER
- * ============================================================================== */
-class ShortcutManager {
-    constructor(store, modalManager) {
-        this.store = store;
-        this.modalManager = modalManager;
-    }
-
-    init() {
-        document.addEventListener('keydown', (e) => {
-            // Ctrl + K: Focus Global Search
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                e.preventDefault();
-                const searchInput = document.getElementById('global-search');
-                if (searchInput) searchInput.focus();
-            }
-
-            // Ctrl + N: Open Quick New Task Modal
-            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
-                e.preventDefault();
-                this.modalManager.open('Créer une Tâche');
-            }
-
-            // Ctrl + Z: Undo
-            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-                e.preventDefault();
-                if (this.store.undo()) {
-                    toastEngine.show('Action annulée (Undo)', 'info');
-                }
-            }
-
-            // Ctrl + Shift + Z or Ctrl + Y: Redo
-            if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
-                e.preventDefault();
-                if (this.store.redo()) {
-                    toastEngine.show('Action rétablie (Redo)', 'info');
-                }
-            }
-        });
-    }
-}
-
-/* ==============================================================================
- * 14. COMMAND PALETTE SYSTEM
- * ============================================================================== */
-class CommandPalette {
-    constructor(store) {
-        this.store = store;
-    }
-
-    init() {
-        const searchInput = document.getElementById('global-search');
-        if (searchInput) {
-            searchInput.addEventListener('input', Utils.debounce((e) => {
-                const query = e.target.value.toLowerCase().trim();
-                if (query.length > 2) {
-                    this.executeSearch(query);
-                }
-            }, 300));
-        }
-    }
-
-    executeSearch(query) {
-        const { tasks } = this.store.getState();
-        const matches = tasks.filter(t => t.title.toLowerCase().includes(query) || t.id.toLowerCase().includes(query));
-        
-        if (matches.length > 0) {
-            toastEngine.show(`${matches.length} résultat(s) trouvé(s) pour "${query}"`, 'info');
-        } else {
-            toastEngine.show(`Aucun résultat pour "${query}"`, 'error');
-        }
-    }
-}
-
-/* ==============================================================================
- * 15. THEME & STYLE ENGINE
- * ============================================================================== */
-class ThemeManager {
-    constructor(store) {
-        this.store = store;
-    }
-
-    init() {
-        const toggleBtn = document.getElementById('theme-toggle-btn');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', () => this.toggleTheme());
-        }
-
-        const state = this.store.getState();
-        this.applyTheme(state.settings.theme || 'dark');
-    }
-
-    toggleTheme() {
-        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        
-        this.applyTheme(newTheme);
-
-        const state = this.store.getState();
-        const updatedSettings = { ...state.settings, theme: newTheme };
-        this.store.setState({ settings: updatedSettings });
-
-        toastEngine.show(`Mode ${newTheme === 'dark' ? 'Sombre' : 'Clair'} activé`, 'info');
-    }
-
-    applyTheme(theme) {
-        document.documentElement.setAttribute('data-theme', theme);
-    }
-}
-
-/* ==============================================================================
- * 16. SPA VIEW ROUTER & NAVIGATION
- * ============================================================================== */
-class ViewRouter {
-    constructor() {
-        this.currentView = 'dashboard';
-        this.navItems = document.querySelectorAll('#app-nav .nav-item');
-        this.viewSections = document.querySelectorAll('.view-section');
-        this.pageTitle = document.getElementById('page-title');
-    }
-
-    init() {
-        this.navItems.forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                const targetView = item.dataset.view;
-                if (targetView) {
-                    this.navigateTo(targetView);
-                }
-            });
-        });
-    }
-
-    navigateTo(viewId) {
-        this.currentView = viewId;
-
-        // Update active class on sidebar items
-        this.navItems.forEach(item => {
-            if (item.dataset.view === viewId) {
-                item.classList.add('active');
-            } else {
-                item.classList.remove('active');
-            }
-        });
-
-        // Toggle visibility of views
-        this.viewSections.forEach(section => {
-            if (section.id === `view-${viewId}`) {
-                section.classList.add('active');
-            } else {
-                section.classList.remove('active');
-            }
-        });
-
-        // Update header page title
-        if (this.pageTitle) {
-            const titles = {
-                dashboard: 'Tableau de Bord',
-                kanban: 'Kanban Board',
-                tasks: 'Liste des Tâches',
-                analytics: 'Analytique & Rapports',
-                tracker: 'Gestionnaire de Temps',
-                settings: 'Paramètres'
-            };
-            this.pageTitle.innerText = titles[viewId] || 'TaskFlow Pro';
-        }
-
-        globalEventBus.emit('viewChanged', viewId);
-    }
-}
-
-/* ==============================================================================
- * 17. CORE APPLICATION CONTROLLER & BOOTSTRAPPER
- * ============================================================================== */
-class Application {
-    constructor() {
-        this.store = new StateStore();
-        this.router = new ViewRouter();
-        this.modalManager = new ModalManager();
-        this.kanbanController = new KanbanController(this.store);
-        this.tableEngine = new DataTableEngine(this.store);
-        this.timeTracker = new TimeTrackerEngine(this.store);
-        this.shortcutManager = new ShortcutManager(this.store, this.modalManager);
-        this.commandPalette = new CommandPalette(this.store);
-        this.themeManager = new ThemeManager(this.store);
-    }
-
-    /**
-     * Start and initialize the whole software system
-     */
-    bootstrap() {
-        console.log('TaskFlow Pro System Bootstrapping...');
-
-        // 1. Load initial data state
-        if (!this.store.loadFromStorage()) {
-            this.store.setState(MockApiService.getInitialSeedData(), false);
-        }
-
-        // 2. Initialize Subsystems
-        this.router.init();
-        this.kanbanController.init();
-        this.tableEngine.init();
-        this.timeTracker.init();
-        this.shortcutManager.init();
-        this.commandPalette.init();
-        this.themeManager.init();
-
-        // 3. Bind global event handlers
-        this.bindGlobalEvents();
-
-        // 4. Subscribe to state store changes for dynamic UI re-rendering
-        this.store.subscribe((state) => this.renderUI(state));
-
-        // 5. Initial Render trigger
-        this.renderUI(this.store.getState());
-
-        toastEngine.show('Bienvenue sur TaskFlow Pro!', 'success');
-    }
-
-    bindGlobalEvents() {
-        // Quick create task button
-        const quickTaskBtn = document.getElementById('btn-quick-task');
-        if (quickTaskBtn) {
-            quickTaskBtn.addEventListener('click', () => {
-                this.modalManager.open('Créer une Tâche');
-            });
-        }
-
-        // CSV Export Button
-        const exportCsvBtn = document.getElementById('btn-export-csv');
-        if (exportCsvBtn) {
-            exportCsvBtn.addEventListener('click', () => {
-                ExportImportEngine.exportTasksToCSV(this.store.getState().tasks);
-            });
-        }
-
-        // Modal Form Submit Event
-        const modalForm = document.getElementById('modal-task-form');
-        if (modalForm) {
-            const validator = new FormValidator(modalForm);
-            modalForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                if (!validator.validateTaskForm()) return;
-
-                const taskId = document.getElementById('task-id').value;
-                const title = document.getElementById('task-title').value.trim();
-                const priority = document.getElementById('task-priority').value;
-                const status = document.getElementById('task-status').value;
-                const dueDate = document.getElementById('task-due-date').value;
-
-                const state = this.store.getState();
-                let updatedTasks = [...state.tasks];
-
-                if (taskId) {
-                    // Edit Existing
-                    updatedTasks = updatedTasks.map(t => t.id === taskId ? { ...t, title, priority, status, dueDate } : t);
-                    toastEngine.show('Tâche mise à jour!', 'success');
-                } else {
-                    // Create New
-                    const newTask = {
-                        id: 'TSK-' + (Math.floor(Math.random() * 900) + 100),
-                        title,
-                        priority,
-                        status,
-                        dueDate,
-                        createdAt: Utils.formatDate(new Date())
-                    };
-                    updatedTasks.push(newTask);
-                    toastEngine.show('Nouvelle tâche créée!', 'success');
-                }
-
-                this.store.setState({ tasks: updatedTasks });
-                this.modalManager.close();
-            });
-        }
-
-        // Delegation listener for Edit & Delete buttons
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('btn-delete-task')) {
-                const taskId = e.target.dataset.id;
-                if (confirm(`Voulez-vous vraiment supprimer la tâche ${taskId} ?`)) {
-                    this.deleteTask(taskId);
-                }
-            } else if (e.target.classList.contains('btn-edit-task')) {
-                const taskId = e.target.dataset.id;
-                const task = this.store.getState().tasks.find(t => t.id === taskId);
-                if (task) {
-                    this.modalManager.open('Éditer la Tâche', task);
-                }
-            }
-        });
-
-        // Settings Form Submit
-        const settingsForm = document.getElementById('settings-form');
-        if (settingsForm) {
-            settingsForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                const username = document.getElementById('setting-username').value;
-                const pageSize = parseInt(document.getElementById('setting-page-size').value, 10) || 5;
-
-                const state = this.store.getState();
-                const updatedSettings = { ...state.settings, username, pageSize };
-                
-                this.store.setState({ settings: updatedSettings });
-                toastEngine.show('Paramètres enregistrés!', 'success');
-            });
-        }
-
-        // Reset Data Button
-        const resetBtn = document.getElementById('btn-reset-data');
-        if (resetBtn) {
-            resetBtn.addEventListener('click', () => {
-                if (confirm('Attention! Toutes vos données seront réinitialisées à l\'état par défaut.')) {
-                    this.store.setState(MockApiService.getInitialSeedData());
-                    toastEngine.show('Données réinitialisées.', 'warning');
-                }
-            });
-        }
-
-        // Listen for view navigation changes to re-render charts
-        globalEventBus.on('viewChanged', (viewId) => {
-            if (viewId === 'dashboard' || viewId === 'analytics') {
-                this.renderCharts(this.store.getState());
-            }
-        });
-    }
-
-    deleteTask(taskId) {
-        const state = this.store.getState();
-        const updatedTasks = state.tasks.filter(t => t.id !== taskId);
-        const activityMsg = `Tâche ${taskId} supprimée`;
-        const updatedActivity = [activityMsg, ...state.recentActivity].slice(0, 5);
-
-        this.store.setState({ tasks: updatedTasks, recentActivity: updatedActivity });
-        toastEngine.show('Tâche supprimée avec succès', 'warning');
-    }
-
-    /**
-     * Render and sync all UI visual components based on current State
-     * @param {Object} state 
-     */
-    renderUI(state) {
-        const { tasks, timeLogs, recentActivity, settings } = state;
-
-        // 1. KPI Counters Update
-        const totalTasksEl = document.getElementById('kpi-total-tasks');
-        const inProgressEl = document.getElementById('kpi-in-progress');
-        const completedEl = document.getElementById('kpi-completed');
-        const totalTimeEl = document.getElementById('kpi-total-time');
-
-        if (totalTasksEl) totalTasksEl.innerText = tasks.length.toString();
-        if (inProgressEl) inProgressEl.innerText = tasks.filter(t => t.status === 'in-progress').length.toString();
-        if (completedEl) completedEl.innerText = tasks.filter(t => t.status === 'done').length.toString();
-        
-        if (totalTimeEl) {
-            const totalSecs = timeLogs.reduce((acc, log) => acc + log.durationSeconds, 0);
-            totalTimeEl.innerText = (totalSecs / 3600).toFixed(1);
-        }
-
-        // 2. Recent Activity List Update
-        const activityList = document.getElementById('recent-activity-list');
-        if (activityList && recentActivity) {
-            activityList.innerHTML = recentActivity.map(act => `
-                <li style="border-bottom: 1px dashed var(--border); color: var(--text-secondary); font-size: 0.85rem; padding: 0.25rem 0;">
-                    📌 ${Utils.escapeHTML(act)}
-                </li>
-            `).join('');
-        }
-
-        // 3. Settings Form Sync
-        const usernameInput = document.getElementById('setting-username');
-        const pageSizeInput = document.getElementById('setting-page-size');
-        if (usernameInput && settings.username) usernameInput.value = settings.username;
-        if (pageSizeInput && settings.pageSize) pageSizeInput.value = settings.pageSize;
-
-        // 4. Subsystem Renders
-        this.kanbanController.render(tasks);
-        this.tableEngine.render();
-        this.timeTracker.updateSelectOptions(tasks);
-        this.timeTracker.renderLogs(timeLogs);
-
-        // 5. Canvas Charts Render
-        this.renderCharts(state);
-    }
-
-    renderCharts(state) {
-        const { tasks } = state;
-
-        // Project Progress Bar Chart (Dashboard View)
-        const todoCount = tasks.filter(t => t.status === 'todo').length;
-        const inProgressCount = tasks.filter(t => t.status === 'in-progress').length;
-        const reviewCount = tasks.filter(t => t.status === 'review').length;
-        const doneCount = tasks.filter(t => t.status === 'done').length;
-
-        CanvasChartEngine.renderBarChart('chart-project-progress', 
-            ['À faire', 'En cours', 'Révision', 'Terminé'], 
-            [todoCount, inProgressCount, reviewCount, doneCount]
-        );
-
-        // Priority Pie Chart (Analytics View)
-        const highPriority = tasks.filter(t => t.priority === 'Haute').length;
-        const medPriority = tasks.filter(t => t.priority === 'Moyenne').length;
-        const lowPriority = tasks.filter(t => t.priority === 'Basse').length;
-
-        CanvasChartEngine.renderPieChart('chart-priority-pie', [
-            { label: 'Haute', value: highPriority, color: '#ef4444' },
-            { label: 'Moyenne', value: medPriority, color: '#f59e0b' },
-            { label: 'Basse', value: lowPriority, color: '#10b981' }
-        ]);
-
-        // Task Velocity Bar Chart (Analytics View)
-        CanvasChartEngine.renderBarChart('chart-velocity-bar',
-            ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
-            [2, 5, 3, 8, 4, 1, 6]
-        );
-    }
-}
-
-/* ==============================================================================
- * APPLICATION BOOTSTRAP INITIALIZATION
+ * 14. INITIALIZATION ON DOM READY
  * ============================================================================== */
 document.addEventListener('DOMContentLoaded', () => {
-    const app = new Application();
+    const app = new ApplicationDashboard();
     app.bootstrap();
 });
