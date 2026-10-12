@@ -6,7 +6,7 @@ body {
     color: #f1f5f9;
 }
 
-/* PANNEAUX ET EFFETS DE VERRE ET NÉON */
+/* PANNEAUX ET EFFETS DE VERRE ET NÉON D'APRÈS LES MAQUETTES */
 .glass-panel {
     background: rgba(14, 23, 38, 0.85);
     backdrop-filter: blur(16px);
@@ -66,11 +66,11 @@ body {
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 8px 10px -6px rgba(0, 0, 0, 0.7);
 }
 
-/* FORMATAGE PDF A4 STRICTEMENT 4 PAGES - 0 PAGE BLANCHE */
+/* FORMATAGE PDF A4 STRICTEMENT 4 PAGES - 0 PAGE BLANCHE (CONFORME IMAGE 16) */
 .pdf-page-a4 {
     width: 210mm !important;
     height: 296mm !important;
-    padding: 12mm 15mm !important;
+    padding: 10mm 12mm !important;
     box-sizing: border-box !important;
     background-color: #ffffff !important;
     color: #0f172a !important;

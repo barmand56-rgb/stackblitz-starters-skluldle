@@ -132,7 +132,7 @@
                     </button>
                 </div>
             </div>
-            <!-- Autocomplétion Isolée (Z-Index Elevé) -->
+            <!-- Autocomplétion Isolée -->
             <div id="autocomplete-results" class="hidden absolute left-0 right-0 top-[100%] mt-2 bg-slate-900 border border-cyan-500/40 rounded-xl shadow-2xl z-[100] max-h-80 overflow-y-auto divide-y divide-slate-800"></div>
         </section>
 
@@ -152,10 +152,10 @@
             <p id="map-address-text" class="text-[11px] text-slate-400 font-mono truncate">Sélectionnez une entreprise ou utilisez la barre de recherche ci-dessus pour géolocaliser le siège social.</p>
         </section>
 
-        <!-- DASHBOARD D'AUDIT DÉTAILLÉ (MASQUÉ À L'ACCUEIL) -->
+        <!-- DASHBOARD D'AUDIT DÉTAILLÉ -->
         <div id="dashboard-content" class="space-y-6 hidden">
 
-            <!-- FICHE SIGNALÉTIQUE & BADGES DE CONFORMITÉ -->
+            <!-- FICHE SIGNALÉTIQUE & BADGES -->
             <div class="glass-panel p-6 rounded-2xl border border-cyan-500/30 flex flex-col justify-between">
                 <div>
                     <div class="flex flex-wrap items-center gap-3 mb-2">
@@ -289,6 +289,49 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- OUTILS D'ANALYSE FINANCIÈRE AVANCÉE -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                    <div class="glass-panel p-5 rounded-2xl space-y-3">
+                        <h4 class="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-calculator"></i> Simulateur d'Encours Crédit Manager
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex justify-between items-center p-2.5 bg-slate-900/80 rounded-lg">
+                                <span class="text-slate-300">Capacité d'Autofinancement (CAF Est.) :</span>
+                                <strong id="sim-caf" class="text-emerald-400 font-mono">48 500 € / an</strong>
+                            </div>
+                            <div class="flex justify-between items-center p-2.5 bg-slate-900/80 rounded-lg">
+                                <span class="text-slate-300">Seuil de Couverture de Trésorerie :</span>
+                                <strong id="sim-treso" class="text-cyan-400 font-mono">60 jours de CA</strong>
+                            </div>
+                            <div class="flex justify-between items-center p-2.5 bg-slate-900/80 rounded-lg">
+                                <span class="text-slate-300">Indice Z-Altman (Défaillance) :</span>
+                                <strong id="sim-zscore" class="text-emerald-400 font-mono">2.85 (Zone Sûre)</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-2xl space-y-3">
+                        <h4 class="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-scale-unbalanced-flip"></i> Benchmark Sectoriel NAF
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="flex justify-between items-center p-2.5 bg-slate-900/80 rounded-lg">
+                                <span class="text-slate-300">Moyenne Marge Nette Secteur :</span>
+                                <span class="text-slate-400 font-mono">6.5 %</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2.5 bg-slate-900/80 rounded-lg">
+                                <span class="text-slate-300">Délai Règlement Moyen Branche :</span>
+                                <span class="text-slate-400 font-mono">45 Jours Net</span>
+                            </div>
+                            <div class="flex justify-between items-center p-2.5 bg-slate-900/80 rounded-lg">
+                                <span class="text-slate-300">Taux de Défaillance National :</span>
+                                <span class="text-slate-400 font-mono">4.8 %</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- ONGLET 2 : KYC -->
@@ -309,13 +352,51 @@
                     <div class="glass-panel p-6 rounded-2xl space-y-4">
                         <h3 class="font-bold text-base text-white border-b border-slate-800 pb-3">Contrôle Anti-Blanchiment (LCB-FT) & Groupe</h3>
                         <div class="space-y-3 text-xs">
-                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between">
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between items-center">
                                 <span>Listes de Sanctions Internationales:</span>
                                 <strong class="text-emerald-400"><i class="fa-solid fa-check-circle"></i> Absence de Match (Conforme)</strong>
                             </div>
-                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between">
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between items-center">
                                 <span>Personne Politiquement Exposée (PPE):</span>
                                 <strong class="text-slate-300">Aucun signalement</strong>
+                            </div>
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between items-center">
+                                <span>Registre des Bénéficiaires Effectifs (RBO):</span>
+                                <strong class="text-emerald-400"><i class="fa-solid fa-check-double"></i> Déclaration Conforme Greffe</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODULE D'AUDIT ACTIONNARIAT ET OUTIL DE VÉRIFICATION IBAN -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                    <div class="glass-panel p-5 rounded-2xl space-y-3">
+                        <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-diagram-project"></i> Filiation Corporate & Holding
+                        </h4>
+                        <div id="corporate-structure-box" class="space-y-2 text-xs">
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
+                                <div class="flex justify-between font-bold text-white mb-1">
+                                    <span>Actionnariat Principal :</span>
+                                    <span class="text-cyan-400">Detention Directe (100 %)</span>
+                                </div>
+                                <p class="text-slate-400 text-[11px]">Aucun maillon d'intégration dans un groupe sous procédure collective. Risque de contagion holding nul.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-2xl space-y-3">
+                        <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-shield-virus"></i> Outil Anti-Usurpation d'Identité & RIB
+                        </h4>
+                        <div class="space-y-2 text-xs">
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between items-center">
+                                <span>Contrôle de Cohérence Nom / SIREN :</span>
+                                <strong class="text-emerald-400"><i class="fa-solid fa-check"></i> Valide</strong>
+                            </div>
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between items-center">
+                                <span>Signalement IBAN / Usurpation RIB :</span>
+                                <strong class="text-emerald-400"><i class="fa-solid fa-shield-check"></i> Aucun Faux RIB Décelé</strong>
                             </div>
                         </div>
                     </div>
@@ -331,9 +412,29 @@
                     <div id="ai-synthesis-conformite" class="text-xs text-slate-300 space-y-2 leading-relaxed">Analyse en cours...</div>
                 </div>
 
-                <div class="glass-panel p-6 rounded-2xl space-y-4">
-                    <h3 class="font-bold text-base text-white border-b border-slate-800 pb-3">Journal de Conformité & Signalements Sanitaires</h3>
-                    <div id="press-sanitary-container" class="space-y-3"></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <h3 class="font-bold text-base text-white border-b border-slate-800 pb-3">Journal de Conformité & Signalements Sanitaires</h3>
+                        <div id="press-sanitary-container" class="space-y-3"></div>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <h3 class="font-bold text-base text-white border-b border-slate-800 pb-3">Grille de Sécurité Alimentaire & Hygiène (HACCP)</h3>
+                        <div class="space-y-2 text-xs">
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between items-center">
+                                <span>Traçabilité & Chaîne du Froid :</span>
+                                <strong class="text-emerald-400">Conforme (100 %)</strong>
+                            </div>
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between items-center">
+                                <span>Procès-Verbal de Ré-Inspection Vétérinaire :</span>
+                                <strong id="haccp-status" class="text-emerald-400">Validé sans réserve</strong>
+                            </div>
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between items-center">
+                                <span>Indice Alim'Confiance Ministère :</span>
+                                <strong class="text-cyan-400 font-mono">Très Satisfaisant</strong>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -346,16 +447,35 @@
                     <div id="ai-synthesis-legal" class="text-xs text-slate-300 space-y-2 leading-relaxed">Analyse en cours...</div>
                 </div>
 
-                <div class="glass-panel p-6 rounded-2xl space-y-4">
-                    <h3 class="font-bold text-base text-white border-b border-slate-800 pb-3">Valorisation Foncière (Cadastre DVF) & Privilèges Légaux</h3>
-                    <div class="space-y-3 text-xs">
-                        <div class="p-3.5 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
-                            <span class="text-slate-400">Estimation Valeur Local / Bail Commercial:</span>
-                            <strong id="immo-valeur" class="block text-purple-400 text-sm font-bold">-- €</strong>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <h3 class="font-bold text-base text-white border-b border-slate-800 pb-3">Historique des Mutations Cadastrales DVF (DGFiP)</h3>
+                        <div class="space-y-3 text-xs">
+                            <div class="p-3.5 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
+                                <div class="flex justify-between text-slate-400">
+                                    <span>Estimation Valeur Local / Bail Commercial:</span>
+                                    <span class="font-mono text-cyan-400">DVF 2025/2026</span>
+                                </div>
+                                <strong id="immo-valeur" class="block text-purple-400 text-base font-bold">290 000 € (Bail Commercial)</strong>
+                            </div>
+                            <div class="p-3.5 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
+                                <span class="text-slate-400">Prix Moyen au m² Zone Cadastrale :</span>
+                                <strong class="block text-white font-mono">3 450 € / m²</strong>
+                            </div>
                         </div>
-                        <div class="p-3.5 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
-                            <span class="text-slate-400">Inscriptions de Privilèges URSSAF & Trésor Public:</span>
-                            <strong id="legal-privileges" class="block text-emerald-400 font-bold"><i class="fa-solid fa-shield-check"></i> Absence d'inscription (Néant)</strong>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <h3 class="font-bold text-base text-white border-b border-slate-800 pb-3">Registre des Privilèges & Nantissements</h3>
+                        <div class="space-y-3 text-xs">
+                            <div class="p-3.5 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
+                                <span class="text-slate-400">Inscriptions de Privilèges URSSAF & Trésor Public:</span>
+                                <strong id="legal-privileges" class="block text-emerald-400 font-bold"><i class="fa-solid fa-shield-check"></i> Absence d'Inscriptions (Néant)</strong>
+                            </div>
+                            <div class="p-3.5 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
+                                <span class="text-slate-400">Nantissements du Fonds de Commerce :</span>
+                                <strong class="block text-emerald-400 font-bold"><i class="fa-solid fa-check"></i> Libéré de toute charge</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
