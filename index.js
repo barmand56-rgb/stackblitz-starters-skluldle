@@ -511,6 +511,9 @@
    }
    
    function handleSearch() {
+     const container = document.getElementById('autocompleteResults');
+     if (container) container.style.display = 'none';
+   
      const input = document.getElementById('searchInput') || document.getElementById('search-input');
      if (!input) return;
      const q = input.value.trim();
@@ -520,6 +523,8 @@
        alert("Veuillez saisir un numéro SIREN ou une raison sociale.");
      }
    }
+   
+   window.handleSearch = handleSearch;
    
    function handleAutocomplete(query) {
      clearTimeout(debounceTimer);
@@ -887,7 +892,7 @@
              ${company.sanitaryAlert 
                ? `L'analyse approfondie des registres pour <strong>${escapeHtml(nom)}</strong> révèle une <strong>ALERTE CRITIQUE : ARRÊTÉ PRÉFECTORAL DE FERMETURE DAAF</strong>. L'exposition commerciale présente un risque juridique et financier très élevé. L'octroi de tout crédit fournisseur doit être refusé immédiatement avec passage obligatoire au paiement 100% comptant.` 
                : (siegeFerme 
-                   ? `L'analyse des registres officiels pour <strong>${escapeHtml(nom)}</strong> révèle que l'établissement siège est <strong>FERMÉ / SANS EXPLOITATION ACTIVE</strong>. La poursuite de relations commerciales présente un risque majeur de non-recouvrement. L'octroi de crédit doit être strictement refusé.`
+                   ? `L'analyse des registres officiels pour <strong>${escapeHtml(nom)}</strong> révèle que l'établissement siège est <strong>FERMÉ / SANS EXPLOITATION ACTIVE</strong>. La poursuite de relations commerciales présente un risque majeur de non-recouvrement. L'octroi de crédit doit être strictly refusé.`
                    : (isActif ? `L'examen du profil légal et financier de <strong>${escapeHtml(nom)}</strong> (SIREN${escapeHtml(siren)}) confirme une immatriculation active au RCS. Le score de solvabilité s'établit à <strong>${scoreVal}/100</strong> (Rating <strong>${ratingLabel}</strong>), témoignant d'une exploitation régulière sans défaut majeur répertorié au registre du commerce.` : `L'entreprise <strong>${escapeHtml(nom)}</strong> présente un profil de risque très élevé (Score <strong>${scoreVal}/100</strong>). La structure est signalée inactive au registre du commerce ou subit des alertes légales majeures.`))}
            </div>
          </div>
@@ -1276,24 +1281,25 @@
      initBrandFavicon();
      initMap();
    
+     // Bloquer le rechargement natif de la page si le champ est dans un <form>
+     document.querySelectorAll('form').forEach(form => {
+       form.addEventListener('submit', (e) => {
+         e.preventDefault();
+         handleSearch();
+       });
+     });
+   
      const searchInput = document.getElementById('searchInput') || document.getElementById('search-input');
      if (searchInput) {
        searchInput.addEventListener('input', (e) => handleAutocomplete(e.target.value));
        
-       // Déclenchement lors de l'appui sur la touche Entrée
+       // Interception stricte de la touche Entrée pour ne pas recharger la page
        searchInput.addEventListener('keydown', (e) => {
-         if (e.key === 'Enter') {
+         if (e.key === 'Enter' || e.keyCode === 13) {
            e.preventDefault();
+           e.stopPropagation();
            handleSearch();
          }
-       });
-     }
-   
-     const searchForm = document.getElementById('searchForm') || document.getElementById('search-form');
-     if (searchForm) {
-       searchForm.addEventListener('submit', (e) => {
-         e.preventDefault();
-         handleSearch();
        });
      }
    
