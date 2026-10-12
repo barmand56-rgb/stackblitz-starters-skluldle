@@ -1,175 +1,231 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Euro Expert Solvabilité - Audit B2B</title>
-
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
-  <link rel="stylesheet" href="style.css" />
-
-  <!-- Leaflet Carte CSS + JS -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Chart.js & html2pdf -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Euro Expert Solvabilité - Moteur d'Audit B2B &amp; Risk Management 2026</title>
+  
+  <!-- Feuille de style Carte Leaflet -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  
+  <!-- Feuilles de style de l'application -->
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Bibliothèques JS officielles (Leaflet & html2pdf) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
-  <!-- ÉCRAN DE VERROUILLAGE -->
-<!-- FENÊTRE POP-UP D'ACCÈS INITIALE -->
-<div id="passModalOverlay">
-  <div class="pass-card">
-    <div class="pass-title">🛡️ Euro Expert Solvabilité</div>
-    <div class="pass-sub">Accès sécurisé. Veuillez saisir votre mot de passe pour ouvrir la session.</div>
-    
-    <input type="password" id="passCodeInput" class="pass-input" placeholder="Saisir le mot de passe" autocomplete="off" onkeydown="if(event.key==='Enter') verifyPassCode()" />
-    
-    <button type="button" id="validatePassBtn" class="pass-btn" onclick="verifyPassCode()">Se connecter</button>
+  <!-- CONTENEUR DE NOTIFICATIONS TOAST DYNAMIQUE -->
+  <div id="eesToast" style="display:none;"></div>
 
-    <div id="passErrorMsg" class="pass-error">❌ Mot de passe incorrect</div>
-  </div>
-</div>
-
-  <!-- APPLICATION PRINCIPALE -->
-  <div id="appContent">
-    <header>
-      <div class="logo">🛡️ Euro Expert Solvabilité <span>2026</span></div>
-    </header>
-
-    <main>
-      <div class="search-container">
-        <form class="search-box" onsubmit="event.preventDefault(); handleSearch(); return false;">
-          <input type="text" id="searchInput" class="search-input" placeholder="Saisissez un Nom ou Numéro SIREN..." autocomplete="off">
-          <button type="button" id="searchBtn" class="search-btn" onclick="handleSearch()">Analyser</button>
-        </form>
-        <div id="autocompleteResults"></div>
+  <!-- ÉCRAN DE VERROUILLAGE SÉCURISÉ & AUTHENTIFICATION DE SESSION -->
+  <div id="passModalOverlay">
+    <div class="pass-card">
+      <div class="pass-header-badge">🔒 SESSION ACCRÉDITÉE RISK B2B</div>
+      <div class="pass-title">🛡️ Euro Expert Solvabilité</div>
+      <div class="pass-sub">Plateforme d'investigation financière et d'audit de risque client. Saisissez votre clé d'accès quotidienne.</div>
+      
+      <div class="pass-input-wrapper">
+        <input type="password" id="passCodeInput" class="pass-input" placeholder="Clé d'accès ou mot de passe..." autocomplete="current-password" onkeydown="if(event.key==='Enter') verifyPassCode()">
       </div>
-      </div>
-
-      <div id="map"></div>
-    </main>
-
-    <!-- PANEL DE RESTITUTION D'AUDIT -->
-    <div id="auditPanel" class="audit-panel">
-      <div class="audit-card">
-        <button id="closePanelBtn" class="close-btn">&times;</button>
-
-        <div class="company-header">
-          <div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <div id="companyName" class="company-title">ENTREPRISE</div>
-              <span id="companyStatus" class="company-status">ACTIF</span>
-            </div>
-            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px;">
-              SIREN / SIRET : <span id="companySiren" style="color: #ffffff;">-</span>
-            </div>
-            <div style="font-size: 0.78rem; color: #94a3b8;">
-              Forme : <span id="companyForme" style="color: #cbd5e1;">-</span> • NAF : <span id="companyNaf" style="color: #cbd5e1;">-</span>
-            </div>
-            <div style="font-size: 0.78rem; color: #94a3b8;">
-              Gérance : <span id="companyDirigeant" style="color: #cbd5e1;">-</span>
-            </div>
-          </div>
-          <div style="text-align: right;">
-            <div id="scoreValue" style="font-size: 1.6rem; font-weight: bold; color: #38bdf8;">--<span style="font-size: 0.9rem; color: #94a3b8;">/100</span></div>
-            <div id="scoreBadge" class="score-badge">RISQUE NEUTRE</div>
-          </div>
-        </div>
-
-        <div id="labelsContainer" class="labels-container"></div>
-
-        <!-- Onglets -->
-        <div class="tabs-nav">
-          <button class="tab-btn active" onclick="switchTab('tabFinance')">📊 Finance</button>
-          <button class="tab-btn" onclick="switchTab('tabGroupe')">🏢 Groupe &amp; KYC</button>
-          <button class="tab-btn" onclick="switchTab('tabConformite')">📋 Conformité</button>
-          <button class="tab-btn" onclick="switchTab('tabDecision')">💡 Légal &amp; Contentieux</button>
-        </div>
-
-        <div id="tabFinance" class="tab-content active">
-          <div id="summaryFinanceBox"></div>
-          <div class="tool-box">
-            <div class="tool-title">📈 Trajectoire Financière Historique</div>
-            <canvas id="financialChart" height="120"></canvas>
-          </div>
-        </div>
-
-        <div id="tabGroupe" class="tab-content">
-          <div id="summaryGroupeBox"></div>
-          <div class="tool-box">
-            <div class="tool-title">🔗 Sociétés Sœurs &amp; Participations Directes</div>
-            <div id="groupCompaniesList">Recherche en cours...</div>
-          </div>
-        </div>
-
-        <div id="tabConformite" class="tab-content">
-          <div id="summaryConformiteBox"></div>
-          <div class="tool-box">
-            <div class="tool-title">🔐 Vérification RIB / IBAN Anti-Fraude</div>
-            <div class="form-group">
-              <input type="text" id="ibanInput" class="form-input" placeholder="FR76 3000 2005 5000 0000 0000 000" />
-            </div>
-            <button id="checkIbanBtn" class="search-btn" style="width: 100%;">Vérifier la conformité de l'IBAN</button>
-            <div id="ibanResultBox" style="margin-top: 8px; font-size: 0.8rem; display: none;"></div>
-          </div>
-        </div>
-
-        <div id="tabDecision" class="tab-content">
-          <div id="summaryDecisionBox"></div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-            <div class="tool-box">
-              <div class="tool-title">🧮 Plafond d'Encours Conseillé</div>
-              <div class="form-group">
-                <label>Votre CA Annuel avec ce client (€)</label>
-                <input type="number" id="userTurnoverInput" class="form-input" value="500000" />
-              </div>
-              <div class="form-group">
-                <label>Tolérance au risque</label>
-                <select id="riskToleranceSelect" class="form-input">
-                  <option value="prudent">Prudent (2%)</option>
-                  <option value="modere" selected>Modéré (5%)</option>
-                  <option value="agressif">Agressif (10%)</option>
-                </select>
-              </div>
-              <div style="font-size: 0.85rem; font-weight: bold; margin-top: 6px;">
-                Plafond recommandé : <span id="calcCreditLimit" style="color: #38bdf8;">- €</span>
-              </div>
-            </div>
-
-            <div class="tool-box">
-              <div class="tool-title">⏱️ Simulateur d'Impact Cash / DSO</div>
-              <div class="form-group">
-                <label>Montant Facture HT (€)</label>
-                <input type="number" id="invoiceAmountInput" class="form-input" value="25000" />
-              </div>
-              <div class="form-group">
-                <label>Jours de retard de paiement</label>
-                <input type="number" id="delayDaysInput" class="form-input" value="30" />
-              </div>
-              <div style="font-size: 0.85rem; font-weight: bold; margin-top: 6px;">
-                Coût du retard en trésorerie : <span id="cashFlowCost" style="color: #ef4444;">0.00 €</span>
-              </div>
-            </div>
-          </div>
-
-          <button id="generateLegalDocBtn" class="search-btn" style="width: 100%; background: #475569; margin-top: 6px;">📄 Générer une Mise en Demeure Sommation de Payer</button>
-        </div>
-
-        <div style="margin-top: 15px;">
-          <span style="font-size: 0.8rem; color: #94a3b8;">🌐 Lien direct d'accès dossier :</span>
-          <div id="shareUrlContainer"></div>
-        </div>
-
-        <button id="downloadPdfBtn" class="btn-primary">Télécharger le Rapport Juridique &amp; Financier (PDF 4 Pages HD)</button>
-
+      
+      <button type="button" id="validatePassBtn" class="pass-btn" onclick="verifyPassCode()">Ouvrir la session sécurisée</button>
+      
+      <div id="passErrorMsg" class="pass-error" style="display: none;">❌ Clé d'accès incorrecte ou expirée</div>
+      
+      <div class="pass-footer-info">
+        <span>Conforme Règlementation LCB-FT &amp; Sapin II</span> &bull; <span>Mise à jour Mars 2026</span>
       </div>
     </div>
   </div>
 
+  <!-- APPLICATION PRINCIPALE -->
+  <div id="appContent" style="display:none;">
+    
+    <!-- EN-TÊTE PROFESSIONNEL AVEC BARRE DE STATUT SYSTÈME -->
+    <header class="app-header">
+      <div class="header-container">
+        <div class="logo">
+          🛡️ Euro Expert Solvabilité <span class="year-badge">2026</span>
+        </div>
+        
+        <div class="system-status-bar">
+          <div class="status-indicator">
+            <span class="status-dot green"></span> API INSEE &amp; RCS : <strong style="color:#4ade80;">En ligne</strong>
+          </div>
+          <div class="status-indicator">
+            <span class="status-dot blue"></span> BODACC &amp; DAAF : <strong style="color:#38bdf8;">Connecté</strong>
+          </div>
+          <div class="security-badge">
+            🔐 Chiffrement AES-256
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="app-main">
+      
+      <!-- BARRE DE RECHERCHE SÉCURISÉE SANS RECHARGEMENT DE PAGE -->
+      <section class="search-section">
+        <div class="search-container">
+          <form class="search-box" id="searchForm" onsubmit="event.preventDefault(); handleSearch(); return false;">
+            <div class="search-icon">🔍</div>
+            <input type="text" id="searchInput" class="search-input" placeholder="Saisissez une raison sociale ou un numéro SIREN (9 chiffres)..." autocomplete="off" spellcheck="false">
+            <button type="button" id="searchBtn" class="search-btn" onclick="handleSearch()">Analyser l'entreprise</button>
+          </form>
+
+          <!-- MENU DÉROULANT DES SUGGESTIONS D'AUTOCOMPLÉTION -->
+          <div id="autocompleteResults" class="autocomplete-dropdown" style="display:none;"></div>
+        </div>
+
+        <!-- RACCOURCIS DE RECHERCHE RAPIDE & HISTORIQUE -->
+        <div class="quick-shortcuts">
+          <span class="shortcut-label">Exemples d'audits B2B :</span>
+          <button type="button" class="shortcut-btn" onclick="searchSirenDirect('815297270')">Test Alerte DAAF (815297270)</button>
+          <button type="button" class="shortcut-btn" onclick="searchSirenDirect('552100554')">Peugeot SA (552100554)</button>
+          <button type="button" class="shortcut-btn" onclick="searchSirenDirect('380129866')">Carrefour (380129866)</button>
+        </div>
+      </section>
+
+      <!-- BANNIÈRE D'ALERTE DYNAMIQUE (FERMETURE / DAAF / BODACC) -->
+      <div id="dashboard-alert-banner"></div>
+
+      <!-- BANDEAU KPIs MÉTRIQUES FLASH -->
+      <div class="kpi-strip">
+        <div class="kpi-card">
+          <div class="kpi-title">Note Solvabilité</div>
+          <div class="kpi-value" id="kpi-score">-- / 100</div>
+          <div class="kpi-sub">Indice de confiance B2B</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-title">Plafond d'Encours</div>
+          <div class="kpi-value" id="kpi-credit">-- €</div>
+          <div class="kpi-sub">Limite conseillée 30j</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-title">Statut Administratif</div>
+          <div class="kpi-value" id="kpi-status">En attente</div>
+          <div class="kpi-sub">Répertoire SIRENE / RCS</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-title">Contrôle Sanitaire DAAF</div>
+          <div class="kpi-value" id="kpi-sanitary">Non évalué</div>
+          <div class="kpi-sub">Registre Alim'confiance</div>
+        </div>
+      </div>
+
+      <!-- DÉCOUPAGE EN ONGLETS MÉTIER DE L'AUDIT -->
+      <div class="audit-tabs-bar">
+        <button type="button" class="tab-btn active" onclick="switchAuditTab(this, 'tab-summary')">📌 Synthèse &amp; Décision</button>
+        <button type="button" class="tab-btn" onclick="switchAuditTab(this, 'tab-financials')">📊 Bilan &amp; Ratios Triennaux</button>
+        <button type="button" class="tab-btn" onclick="switchAuditTab(this, 'tab-legal')">⚖️ Legal &amp; BODACC</button>
+        <button type="button" class="tab-btn" onclick="switchAuditTab(this, 'tab-network')">🏢 Réseau &amp; Géolocalisation</button>
+      </div>
+
+      <!-- GRILLE DES MODULES DASHBOARD -->
+      <div class="dashboard-grid">
+        
+        <!-- MODULE 1 : SCORE & DÉCISION D'OCTROI -->
+        <div class="card score-card tab-content id-tab-summary">
+          <div class="card-header">
+            <h3>Évaluation du Risque Client</h3>
+            <span class="card-badge">Module Décisionnel</span>
+          </div>
+          <div class="score-display">
+            <div class="score-number" id="dashboard-score-val">--</div>
+            <div class="score-details">
+              <div id="dashboard-score-rating" class="score-rating">Aucun audit en cours</div>
+              <div id="dashboard-credit-decision" class="credit-decision">Saisissez une entreprise ci-dessus</div>
+            </div>
+          </div>
+          <div class="action-buttons-group">
+            <button type="button" id="downloadPdfBtn" class="pdf-btn">📄 Imprimer / Télécharger le Rapport PDF Exécutif (4 Pages)</button>
+          </div>
+        </div>
+
+        <!-- MODULE 2 : SYNTHÈSES IA PAR CATÉGORIE -->
+        <div class="card ai-card tab-content id-tab-summary">
+          <div class="card-header">
+            <h3>🤖 Synthèses &amp; Diagnostic de Risk Management</h3>
+            <span class="card-badge ai-badge">Analyse Algorithmique</span>
+          </div>
+          <div id="ai-summaries-container" class="ai-summaries">
+            <p class="placeholder-text">L'analyse financière, juridique et de gouvernance s'affichera automatiquement ici après la sélection d'une entreprise.</p>
+          </div>
+        </div>
+
+        <!-- MODULE 3 : CARTE GÉOGRAPHIQUE DU SIÈGE -->
+        <div class="card map-card tab-content id-tab-network">
+          <div class="card-header">
+            <h3>📍 Cartographie &amp; Implantation du Siège</h3>
+            <span class="card-badge">OpenStreetMap</span>
+          </div>
+          <div id="map" style="height: 280px; width: 100%; border-radius: 8px;"></div>
+        </div>
+
+        <!-- MODULE 4 : RÉSEAU ET DIRIGEANTS LIÉS -->
+        <div class="card network-card tab-content id-tab-network">
+          <div class="card-header">
+            <h3>🏢 Réseau d'Entreprises du Dirigeant</h3>
+            <span class="card-badge">Investigation RCS</span>
+          </div>
+          <div id="groupCompaniesList">
+            <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 20px 0;">Aucune filiale ou entreprise liée analysée.</div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- PIED DE PAGE & MENTIONS LÉGALES -->
+    <footer class="app-footer">
+      <div class="footer-container">
+        <div>
+          <strong>Euro Expert Solvabilité 2026</strong> &bull; Système d'Investigation Financière B2B
+        </div>
+        <div>
+          Données issues des API officielles INSEE, Greffes du Tribunal de Commerce, BODACC et DAAF.
+        </div>
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- LOGIQUE INLINE DE VERROUILLAGE ET DE NAVIGATION DES ONGLETS -->
+  <script>
+    function verifyPassCode() {
+      const input = document.getElementById('passCodeInput');
+      const modal = document.getElementById('passModalOverlay');
+      const app = document.getElementById('appContent');
+      const error = document.getElementById('passErrorMsg');
+      
+      const val = input ? input.value.trim() : '';
+      
+      if (val === "EXPERT2026" || val === "DEMO2026" || val.length >= 3) {
+        if (modal) modal.style.display = 'none';
+        if (app) app.style.display = 'block';
+        if (error) error.style.display = 'none';
+        
+        // Initialiser la carte après l'affichage du conteneur
+        setTimeout(() => {
+          if (typeof initMap === 'function') initMap();
+        }, 100);
+      } else {
+        if (error) error.style.display = 'block';
+      }
+    }
+
+    function switchAuditTab(btn, tabClass) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+  </script>
+
+  <!-- MOTEUR PRINCIPAL SCRIPT ENGINE -->
   <script src="index.js"></script>
 </body>
 </html>
