@@ -6,7 +6,7 @@ body {
     color: #f1f5f9;
 }
 
-/* PANNEAUX ET BORDURES NÉON D'APRÈS LES MAQUETTES */
+/* PANNEAUX ET BORDURES NÉON CONFORMES AUX MAQUETTES */
 .glass-panel {
     background: rgba(14, 23, 38, 0.85);
     backdrop-filter: blur(16px);
@@ -36,6 +36,13 @@ body {
 }
 
 /* FIXATION ET CONTAINMENT SÉCURISÉ CARTE LEAFLET */
+#map {
+    height: 220px !important;
+    min-height: 220px !important;
+    width: 100% !important;
+    border-radius: 0.75rem;
+}
+
 .leaflet-container {
     background-color: #060b13 !important;
     width: 100% !important;
