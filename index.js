@@ -960,18 +960,10 @@
    
 
 
-   // =========================================================================
-// 10. GENERATION DU RAPPORT PDF EXECUTE DENSE SUR 4 PAGES (ZERO ESPACE VIDE)
+  // =========================================================================
+// 10. GÉNÉRATION DU RAPPORT PDF EXÉCUTIF DENSE SUR 4 PAGES (ZERO ESPACE VIDE)
 // =========================================================================
 function generateTechAuditPdf() {
-  // Vérification si l'établissement siège est fermé ou si la société est en sommeil
-const siegeFerme = siege.etat_administratif === 'F' || siege.date_fermeture !== null;
-const isActif = company.etat_administratif === 'A' && !siegeFerme;
-
-// Ajustement automatique du score si l'établissement est fermé
-if (siegeFerme) {
-  scoreVal = Math.min(scoreVal, 25); // Plafonne le score à 25/100 (Risque Critique)
-}
   if (!currentCompanyData) {
     alert("Veuillez d'abord analyser une entreprise.");
     return;
@@ -991,8 +983,11 @@ if (siegeFerme) {
   const dirigeantObj = company.representants && company.representants.length > 0 ? company.representants[0] : null;
   const dirigeant = dirigeantObj ? `${dirigeantObj.prenom || ''} ${dirigeantObj.nom || ''}`.trim() : "Gérant non déclaré";
   const adresse = cleanAddress(siege.adresse_ligne_1);
-  const isActif = company.etat_administratif === 'A';
   const dateToday = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  // CONTRÔLE PRÉCIS D'ACTIVITÉ & FERMETURE SIÈGE
+  const siegeFerme = siege.etat_administratif === 'F' || !!siege.date_fermeture;
+  const isActif = (company.etat_administratif === 'A') && !siegeFerme;
 
   const seed = getSirenSeed(siren);
   const cpVal = isActif ? pseudoRandom(seed, 2, 180, 920) * 1000 : -pseudoRandom(seed, 2, 10, 50) * 1000;
@@ -1004,7 +999,7 @@ if (siegeFerme) {
   const bfrEstime = Math.round(caEstime * 0.08);
 
   let scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
-  if ((company.bodacc && company.bodacc.hasProcedures) || company.sanitaryAlert) {
+  if (siegeFerme || (company.bodacc && company.bodacc.hasProcedures) || company.sanitaryAlert) {
     scoreVal = Math.min(scoreVal, 20);
   }
 
@@ -1065,7 +1060,9 @@ if (siegeFerme) {
         <div style="font-size: 8.5px; line-height: 1.4; color: #f1f5f9;">
           ${company.sanitaryAlert 
             ? `L'analyse approfondie des registres pour <strong>${escapeHtml(nom)}</strong> révèle une <strong>ALERTE CRITIQUE : ARRÊTÉ PRÉFECTORAL DE FERMETURE DAAF</strong>. L'exposition commerciale présente un risque juridique et financier très élevé. L'octroi de tout crédit fournisseur doit être refusé immédiatement avec passage obligatoire au paiement 100% comptant.` 
-            : (isActif ? `L'examen du profil légal et financier de <strong>${escapeHtml(nom)}</strong> (SIREN${escapeHtml(siren)}) confirme une immatriculation active au RCS. Le score de solvabilité s'établit à <strong>${scoreVal}/100</strong> (Rating <strong>${ratingLabel}</strong>), témoignant d'une exploitation régulière sans défaut majeur répertorié au registre du commerce.` : `L'entreprise <strong>${escapeHtml(nom)}</strong> présente un profil de risque très élevé (Score <strong>${scoreVal}/100</strong>). La structure est signalée inactive au registre du commerce ou subit des alertes légales majeures.`)}
+            : (siegeFerme 
+                ? `L'analyse des registres officiels pour <strong>${escapeHtml(nom)}</strong> révèle que l'établissement siège est <strong>FERMÉ / SANS EXPLOITATION ACTIVE</strong>. La poursuite de relations commerciales présente un risque majeur de non-recouvrement. L'octroi de crédit doit être strictement refusé.`
+                : (isActif ? `L'examen du profil légal et financier de <strong>${escapeHtml(nom)}</strong> (SIREN${escapeHtml(siren)}) confirme une immatriculation active au RCS. Le score de solvabilité s'établit à <strong>${scoreVal}/100</strong> (Rating <strong>${ratingLabel}</strong>), témoignant d'une exploitation régulière sans défaut majeur répertorié au registre du commerce.` : `L'entreprise <strong>${escapeHtml(nom)}</strong> présente un profil de risque très élevé (Score <strong>${scoreVal}/100</strong>). La structure est signalée inactive au registre du commerce ou subit des alertes légales majeures.`))}
         </div>
       </div>
 
@@ -1075,7 +1072,7 @@ if (siegeFerme) {
         <tr><td style="font-weight:bold; background:#f8fafc;">SIREN / SIRET Siège</td><td>${escapeHtml(siren)} / ${escapeHtml(siret)}</td><td style="font-weight:bold; background:#f8fafc;">Code NAF / APE</td><td>${escapeHtml(naf)}</td></tr>
         <tr><td style="font-weight:bold; background:#f8fafc;">Numéro TVA Intra</td><td>${escapeHtml(tvaIntra)}</td><td style="font-weight:bold; background:#f8fafc;">Secteur d'Activité</td><td>${escapeHtml(sectorRules.sectorName)}</td></tr>
         <tr><td style="font-weight:bold; background:#f8fafc;">Gérance / Direction</td><td>${escapeHtml(dirigeant)}</td><td style="font-weight:bold; background:#f8fafc;">Tranche d'Effectif</td><td>${escapeHtml(company.tranche_effectif)}</td></tr>
-        <tr><td style="font-weight:bold; background:#f8fafc;">Statut Administratif</td><td>${isActif ? '🟢 ACTIF (Immatriculé RCS)' : '🔴 INACTIF / FERMÉ'}</td><td style="font-weight:bold; background:#f8fafc;">Établissements Actifs</td><td>${company.etablissements_count} site(s) d'exploitation</td></tr>
+        <tr><td style="font-weight:bold; background:#f8fafc;">Statut Administratif</td><td>${isActif ? '🟢 ACTIF (Immatriculé RCS)' : (siegeFerme ? '🔴 ÉTABLISSEMENT FERMÉ' : '🔴 INACTIF / FERMÉ')}</td><td style="font-weight:bold; background:#f8fafc;">Établissements Actifs</td><td>${company.etablissements_count || 1} site(s) d'exploitation</td></tr>
         <tr><td style="font-weight:bold; background:#f8fafc;">Convention Collective</td><td>IDCC ${escapeHtml(company.convention_collective)}</td><td style="font-weight:bold; background:#f8fafc;">Certifications Métier</td><td>${company.complements.est_rge ? 'RGE ADEME' : ''} ${company.complements.est_bio ? 'BIO' : 'Standard'}</td></tr>
         <tr><td style="font-weight:bold; background:#f8fafc;">Adresse du Siège</td><td colspan="3">${escapeHtml(adresse)}</td></tr>
       </table>
@@ -1096,8 +1093,8 @@ if (siegeFerme) {
         </div>
         <div class="card-box" style="flex:1;">
           <div style="font-size: 7px; font-weight: bold; color: #475569; text-transform: uppercase;">Avis d'Octroi de Crédit</div>
-          <div style="font-size: 12px; font-weight: 800; color: ${company.sanitaryAlert || !isActif ? '#dc2626' : '#15803d'}; margin-top: 3px;">
-            ${company.sanitaryAlert || !isActif ? '🔴 REFUSÉ (COMPTANT)' : '🟢 ACCORDÉ (30 Jours)'}
+          <div style="font-size: 12px; font-weight: 800; color: ${company.sanitaryAlert || !isActif || siegeFerme ? '#dc2626' : '#15803d'}; margin-top: 3px;">
+            ${company.sanitaryAlert || !isActif || siegeFerme ? '🔴 REFUSÉ (COMPTANT)' : '🟢 ACCORDÉ (30 Jours)'}
           </div>
         </div>
       </div>
@@ -1109,9 +1106,9 @@ if (siegeFerme) {
         </thead>
         <tbody>
           <tr><td><strong>Structure Financière &amp; Solvabilité</strong></td><td style="text-align:center; font-weight:bold;">${scoreVal}/100</td><td style="text-align:center; font-weight:bold; color:${scoreVal > 50 ? '#15803d' : '#b91c1c'};">${scoreVal > 50 ? 'FAIBLE' : 'ÉLEVÉ'}</td><td>Solidité des fonds propres et niveau d'endettement</td></tr>
-          <tr><td><strong>Conformité Légale &amp; Registres RCS</strong></td><td style="text-align:center; font-weight:bold;">${company.bodacc && company.bodacc.hasProcedures ? '15/100' : '95/100'}</td><td style="text-align:center; font-weight:bold; color:${company.bodacc && company.bodacc.hasProcedures ? '#b91c1c' : '#15803d'};">${company.bodacc && company.bodacc.hasProcedures ? 'CRITIQUE' : 'MINIME'}</td><td>Absence de privilèges Urssaf et de procédures collectives</td></tr>
+          <tr><td><strong>Conformité Légale &amp; Registres RCS</strong></td><td style="text-align:center; font-weight:bold;">${(company.bodacc && company.bodacc.hasProcedures) || siegeFerme ? '15/100' : '95/100'}</td><td style="text-align:center; font-weight:bold; color:${(company.bodacc && company.bodacc.hasProcedures) || siegeFerme ? '#b91c1c' : '#15803d'};">${(company.bodacc && company.bodacc.hasProcedures) || siegeFerme ? 'CRITIQUE' : 'MINIME'}</td><td>Absence de privilèges Urssaf et de procédures collectives</td></tr>
           <tr><td><strong>Conformité Sanitaire DAAF &amp; Hygiène</strong></td><td style="text-align:center; font-weight:bold;">${company.sanitaryAlert ? '0/100' : '90/100'}</td><td style="text-align:center; font-weight:bold; color:${company.sanitaryAlert ? '#b91c1c' : '#15803d'};">${company.sanitaryAlert ? 'EXTRÊME' : 'CONFORME'}</td><td>Contrôle ministériel Alim'confiance et arrêtés préfectoraux</td></tr>
-          <tr><td><strong>Gouvernance &amp; Pérennité Dirigeants</strong></td><td style="text-align:center; font-weight:bold;">85/100</td><td style="text-align:center; font-weight:bold; color:#15803d;">FAIBLE</td><td>Stabilité de la gérance et régularité des mandats sociaux</td></tr>
+          <tr><td><strong>Gouvernance &amp; Pérennité Dirigeants</strong></td><td style="text-align:center; font-weight:bold;">${siegeFerme ? '20/100' : '85/100'}</td><td style="text-align:center; font-weight:bold; color:${siegeFerme ? '#b91c1c' : '#15803d'};">${siegeFerme ? 'ÉLEVÉ' : 'FAIBLE'}</td><td>Stabilité de la gérance et régularité des mandats sociaux</td></tr>
         </tbody>
       </table>
 
@@ -1218,7 +1215,7 @@ if (siegeFerme) {
       <div class="footer-bar"><span>Euro Expert Solvabilité &nbsp;—&nbsp; Document Confidentiel B2B</span><span>Page 2 sur 4</span></div>
     </div>
 
-    <!-- PAGE 3 : GOUVERNANCE, PRIVILÈGES, BODACC, DAAF & HISTORIQUE ANNONCES (REMPLIE A 100%) -->
+    <!-- PAGE 3 : GOUVERNANCE, PRIVILÈGES, BODACC, DAAF & HISTORIQUE ANNONCES -->
     <div class="pdf-page">
       <div class="header-brand">
         <div>
@@ -1245,11 +1242,11 @@ if (siegeFerme) {
       <div class="section-title">13. ÉVALUATION DE LA STABILITÉ DU MANAGEMENT &amp; RISQUE HOMME-CLÉ</div>
       <table class="table-custom">
         <thead>
-          <tr><th>Critère de Gouvernance</th><th style="text-align:center;">Évaluation IA</th><th>Diagnostic de Pérennité Operationalle</th></tr>
+          <tr><th>Critère de Gouvernance</th><th style="text-align:center;">Évaluation IA</th><th>Diagnostic de Pérennité Opérationnelle</th></tr>
         </thead>
         <tbody>
-          <tr><td><strong>Ancienneté de la Gérance</strong></td><td style="text-align:center; font-weight:bold; color:#15803d;">> 3 Ans</td><td>Gérance stable assurant la continuité de l'exploitation</td></tr>
-          <tr><td><strong>Risque de Dissolution / Frictions Associés</strong></td><td style="text-align:center; font-weight:bold; color:#15803d;">FAIBLE</td><td>Aucun litige d'associés ni modification de capital conflictuelle</td></tr>
+          <tr><td><strong>Ancienneté de la Gérance</strong></td><td style="text-align:center; font-weight:bold; color:${siegeFerme ? '#b91c1c' : '#15803d'};">${siegeFerme ? 'CESSATION' : '> 3 Ans'}</td><td>${siegeFerme ? 'Établissement siège fermé / Inactivité constatée' : 'Gérance stable assurant la continuité de l\'exploitation'}</td></tr>
+          <tr><td><strong>Risque de Dissolution / Frictions Associés</strong></td><td style="text-align:center; font-weight:bold; color:${siegeFerme ? '#b91c1c' : '#15803d'};">${siegeFerme ? 'ÉLEVÉ' : 'FAIBLE'}</td><td>${siegeFerme ? 'Inactivité prolongée à risque de radiation de office' : 'Aucun litige d\'associés ni modification de capital conflictuelle'}</td></tr>
           <tr><td><strong>Risque Homme-Clé (Key-Man Risk)</strong></td><td style="text-align:center; font-weight:bold; color:#b45309;">MODÉRÉ</td><td>Dépendance de l'activité vis-à-vis des fondateurs statutaires</td></tr>
         </tbody>
       </table>
@@ -1286,9 +1283,9 @@ if (siegeFerme) {
           <tr><th>Catégorie d'Annonce Légale</th><th style="text-align:center;">Niveau de Vigilance</th><th>Historique Détecté dans le Registre National</th></tr>
         </thead>
         <tbody>
-          <tr><td><strong>Dépôt des Comptes Annuels (RCS)</strong></td><td style="text-align:center; font-weight:bold; color:#15803d;">CONFORME</td><td>Bilans financiers déposés régulièrement auprès du Greffe</td></tr>
+          <tr><td><strong>Dépôt des Comptes Annuels (RCS)</strong></td><td style="text-align:center; font-weight:bold; color:${siegeFerme ? '#b45309' : '#15803d'};">${siegeFerme ? 'INTERROMPU' : 'CONFORME'}</td><td>${siegeFerme ? 'Derniers comptes non déposés ou arrêtés' : 'Bilans financiers déposés régulièrement auprès du Greffe'}</td></tr>
           <tr><td><strong>Modifications de Capital / Siège</strong></td><td style="text-align:center; font-weight:bold; color:#15803d;">NEUTRE</td><td>Aucun transfert de siège suspect ni réduction de capital à risque</td></tr>
-          <tr><td><strong>Avis de Sauvegarde, Redressement, Liquidation</strong></td><td style="text-align:center; font-weight:bold; color:${company.bodacc && company.bodacc.hasProcedures ? '#b91c1c' : '#15803d'};">${company.bodacc && company.bodacc.hasProcedures ? 'CRITIQUE' : 'VIERGE'}</td><td>${company.bodacc && company.bodacc.hasProcedures ? 'Publication de procédure collective enregistrée au BODACC' : 'Absence totale de jugement de défaillance judiciaire'}</td></tr>
+          <tr><td><strong>Avis de Sauvegarde, Redressement, Liquidation</strong></td><td style="text-align:center; font-weight:bold; color:${(company.bodacc && company.bodacc.hasProcedures) || siegeFerme ? '#b91c1c' : '#15803d'};">${(company.bodacc && company.bodacc.hasProcedures) || siegeFerme ? 'CRITIQUE' : 'VIERGE'}</td><td>${(company.bodacc && company.bodacc.hasProcedures) || siegeFerme ? 'Établissement fermé ou procédure enregistrée au BODACC' : 'Absence totale de jugement de défaillance judiciaire'}</td></tr>
         </tbody>
       </table>
 
@@ -1315,7 +1312,7 @@ if (siegeFerme) {
       <div class="footer-bar"><span>Euro Expert Solvabilité &nbsp;—&nbsp; Document Confidentiel B2B</span><span>Page 3 sur 4</span></div>
     </div>
 
-    <!-- PAGE 4 : DECISION CREDIT, INSTRUMENTS PAIEMENT, PROTOCOLE RECOUVREMENT & CLAUSES (REMPLIE A 100%) -->
+    <!-- PAGE 4 : DECISION CREDIT, INSTRUMENTS PAIEMENT, PROTOCOLE RECOUVREMENT & CLAUSES -->
     <div class="pdf-page">
       <div class="header-brand">
         <div>
@@ -1333,17 +1330,17 @@ if (siegeFerme) {
         <tbody>
           <tr>
             <td><strong>Prudente (2% FP)</strong></td>
-            <td style="text-align:right; font-weight:bold; color:#0284c7;">${company.sanitaryAlert ? '0 €' : limitPrudent.toLocaleString('fr-FR') + ' € HT'}</td>
+            <td style="text-align:right; font-weight:bold; color:#0284c7;">${company.sanitaryAlert || !isActif ? '0 €' : limitPrudent.toLocaleString('fr-FR') + ' € HT'}</td>
             <td>Règlement comptant recommandé, escompte 1% pour paiement immédiat.</td>
           </tr>
           <tr style="background:#f0fdf4;">
             <td><strong>Modérée Conseillée (5% FP)</strong></td>
-            <td style="text-align:right; font-weight:bold; color:#15803d; font-size:9.5px;">${company.sanitaryAlert ? '0 €' : limitModere.toLocaleString('fr-FR') + ' € HT'}</td>
-            <td><strong>Virement automatique à 30 jours fin de mois.</strong></td>
+            <td style="text-align:right; font-weight:bold; color:#15803d; font-size:9.5px;">${company.sanitaryAlert || !isActif ? '0 €' : limitModere.toLocaleString('fr-FR') + ' € HT'}</td>
+            <td><strong>${company.sanitaryAlert || !isActif ? 'Paiement 100% Comptant obligatoire à la commande.' : 'Virement automatique à 30 jours fin de mois.'}</strong></td>
           </tr>
           <tr>
             <td><strong>Dynamique (10% FP)</strong></td>
-            <td style="text-align:right; font-weight:bold; color:#b91c1c;">${company.sanitaryAlert ? '0 €' : limitAgressif.toLocaleString('fr-FR') + ' € HT'}</td>
+            <td style="text-align:right; font-weight:bold; color:#b91c1c;">${company.sanitaryAlert || !isActif ? '0 €' : limitAgressif.toLocaleString('fr-FR') + ' € HT'}</td>
             <td>Assurance-crédit obligatoire ou traite acceptée au-delà de ce seuil.</td>
           </tr>
         </tbody>
