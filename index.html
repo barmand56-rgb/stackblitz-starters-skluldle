@@ -42,11 +42,12 @@
 
     <main>
       <div class="search-container">
-        <div class="search-box">
-          <input type="text" id="searchInput" class="search-input" placeholder="Saisissez un Nom ou Numéro SIREN..." autocomplete="off" />
-          <button id="searchBtn" class="search-btn">Analyser</button>
-        </div>
+        <form class="search-box" onsubmit="event.preventDefault(); handleSearch(); return false;">
+          <input type="text" id="searchInput" class="search-input" placeholder="Saisissez un Nom ou Numéro SIREN..." autocomplete="off">
+          <button type="button" id="searchBtn" class="search-btn" onclick="handleSearch()">Analyser</button>
+        </form>
         <div id="autocompleteResults"></div>
+      </div>
       </div>
 
       <div id="map"></div>
