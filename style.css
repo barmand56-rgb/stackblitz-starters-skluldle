@@ -6,7 +6,6 @@ body {
     color: #f1f5f9;
 }
 
-/* PANNEAUX ET BORDURES NÉON CONFORMES AUX MAQUETTES */
 .glass-panel {
     background: rgba(14, 23, 38, 0.85);
     backdrop-filter: blur(16px);
@@ -35,10 +34,10 @@ body {
     border-bottom-color: #060b13;
 }
 
-/* FIXATION ET CONTAINMENT SÉCURISÉ CARTE LEAFLET */
+/* CARTE LEAFLET */
 #map {
-    height: 220px !important;
-    min-height: 220px !important;
+    height: 280px !important;
+    min-height: 280px !important;
     width: 100% !important;
     border-radius: 0.75rem;
 }
@@ -50,26 +49,20 @@ body {
     border-radius: 0.75rem;
 }
 
-/* SCROLLBAR NÉON */
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-::-webkit-scrollbar-track {
-    background: rgba(15, 23, 42, 0.8);
-}
-::-webkit-scrollbar-thumb {
-    background: #1e293b;
-    border-radius: 4px;
-    border: 1px solid rgba(0, 242, 254, 0.3);
-}
-::-webkit-scrollbar-thumb:hover {
-    background: #00f2fe;
+/* FORMATAGE PDF A4 STRICTEMENT 4 PAGES */
+.pdf-page-a4 {
+    width: 210mm !important;
+    height: 296mm !important;
+    padding: 12mm 15mm !important;
+    box-sizing: border-box !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    font-family: 'Inter', sans-serif !important;
+    page-break-after: always !important;
+    page-break-inside: avoid !important;
+    overflow: hidden !important;
 }
 
-/* STYLE TEMPLATE PDF */
-.pdf-template {
-    background-color: #ffffff;
-    color: #0f172a;
-    font-family: 'Inter', sans-serif;
+.pdf-page-a4:last-child {
+    page-break-after: auto !important;
 }
