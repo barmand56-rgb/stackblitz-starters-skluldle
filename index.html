@@ -3,30 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Euro Expert Solvabilité 2026 - Plateforme d'Audit B2B</title>
+    <title>Euro Expert Solvabilité 2026 - Plateforme d'Audit B2B Institutionnel</title>
 
-    <!-- FAVICON SVG CERTIFIÉ (LOGO BOUCLIER NÉON & HISTOGRAMME) -->
+    <!-- FAVICON SVG INSTITUTIONNEL -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%2300f2fe'/><stop offset='100%25' stop-color='%2310b981'/></linearGradient></defs><path fill='%230e1726' stroke='url(%23g)' stroke-width='22' d='M256 32L64 96v176c0 128 85 240 192 272 107-32 192-144 192-272V96L256 32z'/><rect x='150' y='280' width='36' height='100' rx='6' fill='url(%23g)'/><rect x='210' y='220' width='36' height='160' rx='6' fill='url(%23g)'/><rect x='270' y='160' width='36' height='220' rx='6' fill='url(%23g)'/><path fill='none' stroke='%23ffffff' stroke-width='16' stroke-linecap='round' stroke-linejoin='round' d='M140 320 L220 240 L280 270 L360 160'/><polygon points='360,160 330,165 355,190' fill='%23ffffff'/></svg>">
 
     <!-- TAILWIND CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- LEAFLET CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-    
+
     <!-- CHART.JS & HTML2PDF.JS -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="min-h-screen flex flex-col relative text-slate-100 bg-[#060b13]">
+<body class="min-h-screen flex flex-col relative text-slate-100 bg-[#060b13] selection:bg-cyan-500 selection:text-slate-950">
 
     <!-- MODAL D'AUTHENTIFICATION CLIENT 24H -->
     <div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md transition-opacity duration-300">
         <div class="glass-panel max-w-md w-full mx-4 p-8 rounded-2xl shadow-2xl border-2 border-cyan-400/40 text-center relative overflow-hidden neon-glow-box">
+            <div class="absolute -top-12 -right-12 w-36 h-36 bg-cyan-500/10 rounded-full blur-3xl"></div>
+
             <div class="w-20 h-20 mx-auto mb-4 flex items-center justify-center">
                 <svg class="w-full h-full drop-shadow-[0_0_15px_rgba(0,242,254,0.5)]" viewBox="0 0 512 512">
                     <defs>
@@ -43,33 +45,32 @@
                     <polygon points="360,160 330,165 355,190" fill="#ffffff"/>
                 </svg>
             </div>
-            
+
             <h2 class="text-2xl font-black text-white mb-1 uppercase tracking-tight">Accès Illimité 24h</h2>
             <p class="text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-6">Plateforme d'Audit de Solvabilité B2B</p>
 
             <form id="auth-form" onsubmit="validateAccessCode(event)" class="space-y-4">
                 <div>
                     <input type="password" id="access-code-input" placeholder="Clé d'accès (ex: EES-1210 ou EURO2026)" 
-                           class="w-full px-4 py-3.5 bg-slate-900/90 border border-cyan-500/40 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 text-center text-lg font-mono" required>
+                           class="w-full px-4 py-3.5 bg-slate-900/90 border border-cyan-500/40 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 text-center text-lg font-mono tracking-widest" required>
                 </div>
-                <div id="auth-error" class="text-red-400 text-xs hidden">
-                    <i class="fa-solid fa-circle-exclamation"></i> Clé invalide ou expirée.
+                <div id="auth-error" class="text-red-400 text-xs hidden flex items-center justify-center gap-1 font-medium">
+                    <i class="fa-solid fa-circle-exclamation"></i> Clé d'accès invalide ou expirée.
                 </div>
                 <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-cyan-400 to-emerald-400 text-slate-950 font-extrabold rounded-xl shadow-lg hover:brightness-110 transition-all flex items-center justify-center gap-2">
                     <i class="fa-solid fa-unlock"></i> Déverrouiller la Session
                 </button>
             </form>
 
-            <div class="mt-6 pt-4 border-t border-slate-800 text-xs text-slate-400 flex justify-between">
-                <span><i class="fa-solid fa-lock text-cyan-400"></i> Cryptage AES-256</span>
+            <div class="mt-6 pt-4 border-t border-slate-800 text-xs text-slate-400 flex justify-between items-center">
+                <span><i class="fa-solid fa-lock text-cyan-400"></i> Cryptage Certifié AES-256</span>
                 <span id="display-today-code-hint" class="font-mono text-cyan-400">EES-PRO</span>
             </div>
         </div>
     </div>
 
-    <!-- EN-TÊTE PRINCIPAL AVEC REDIRECTION ACCUEIL AU CLIC -->
+    <!-- EN-TÊTE INSTITUTIONNEL -->
     <header class="glass-panel sticky top-0 z-40 border-b border-cyan-500/20 px-6 py-3.5 flex flex-wrap justify-between items-center gap-4">
-        <!-- CLIC SUR LE LOGO / TITRE RENVOIE À L'ACCUEIL -->
         <div onclick="resetToHome()" class="flex items-center gap-3 cursor-pointer group" title="Retourner à l'accueil">
             <div class="w-10 h-10 flex items-center justify-center transition-transform group-hover:scale-105">
                 <svg class="w-full h-full drop-shadow-[0_0_10px_rgba(0,242,254,0.4)]" viewBox="0 0 512 512">
@@ -109,20 +110,21 @@
             <div class="flex items-center gap-2 bg-slate-900/90 border border-cyan-500/30 px-3 py-1.5 rounded-lg text-slate-300">
                 <i class="fa-regular fa-clock text-cyan-400"></i>
                 <span>Session 24h : <strong id="session-time-remaining" class="text-cyan-400 font-mono">23h 59m</strong></span>
-                <button onclick="lockSession()" class="ml-2 text-slate-400 hover:text-red-400" title="Verrouiller"><i class="fa-solid fa-lock"></i></button>
+                <button onclick="lockSession()" class="ml-2 text-slate-400 hover:text-red-400 transition-colors" title="Verrouiller"><i class="fa-solid fa-lock"></i></button>
             </div>
         </div>
     </header>
 
-    <!-- MAIN CONTENT -->
+    <!-- APPLICATION PRINCIPALE -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
+        
         <!-- BARRE DE RECHERCHE PRINCIPALE -->
         <section class="glass-panel p-6 rounded-2xl relative border border-cyan-500/30 neon-glow-box search-wrapper">
             <div class="flex flex-col md:flex-row gap-4 items-center">
                 <div class="relative flex-1 w-full">
                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 text-lg"></i>
                     <input type="text" id="search-input" placeholder="Saisissez un SIREN, SIRET ou nom d'entreprise (ex: L'UNI VERT)..." 
-                           class="w-full pl-12 pr-36 py-4 bg-slate-900/90 border border-slate-700/80 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 text-base font-medium"
+                           class="w-full pl-12 pr-36 py-4 bg-slate-900/90 border border-slate-700/80 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 text-base font-medium transition-all"
                            onkeyup="handleSearchKeyup(event)">
                     <button onclick="executeSearch()" class="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-slate-950 font-extrabold rounded-lg transition-all flex items-center gap-2 shadow-md">
                         <span>Lancer l'Audit</span>
@@ -130,11 +132,11 @@
                     </button>
                 </div>
             </div>
-            <!-- Autocomplétion Isolée (z-index: 100) -->
+            <!-- Autocomplétion Isolée (Z-Index Elevé) -->
             <div id="autocomplete-results" class="hidden absolute left-0 right-0 top-[100%] mt-2 bg-slate-900 border border-cyan-500/40 rounded-xl shadow-2xl z-[100] max-h-80 overflow-y-auto divide-y divide-slate-800"></div>
         </section>
 
-        <!-- SECTION CARTE INTERACTIVE TOUJOURS ACCESSIBLE ET CENTRÉE SUR L'EUROPE À L'ACCUEIL -->
+        <!-- CARTE INTERACTIVE EUROPE / SIÈGE SOCIAL -->
         <section class="glass-panel p-4 rounded-2xl border border-cyan-500/30 space-y-3">
             <div class="flex justify-between items-center pb-2 border-b border-slate-800">
                 <h3 class="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
@@ -150,10 +152,10 @@
             <p id="map-address-text" class="text-[11px] text-slate-400 font-mono truncate">Sélectionnez une entreprise ou utilisez la barre de recherche ci-dessus pour géolocaliser le siège social.</p>
         </section>
 
-        <!-- DASHBOARD D'AUDIT DÉTAILLÉ (MASQUÉ À L'ACCUEIL, APPARAÎT APRÈS RECHERCHE) -->
+        <!-- DASHBOARD D'AUDIT DÉTAILLÉ (MASQUÉ À L'ACCUEIL) -->
         <div id="dashboard-content" class="space-y-6 hidden">
 
-            <!-- FICHE SIGNALÉTIQUE & BADGES -->
+            <!-- FICHE SIGNALÉTIQUE & BADGES DE CONFORMITÉ -->
             <div class="glass-panel p-6 rounded-2xl border border-cyan-500/30 flex flex-col justify-between">
                 <div>
                     <div class="flex flex-wrap items-center gap-3 mb-2">
@@ -188,7 +190,7 @@
                 </div>
             </div>
 
-            <!-- BANNIÈRE ALERTE DAAF -->
+            <!-- BANNIÈRE HISTORIQUE DAAF -->
             <div id="alert-banner-daaf" class="hidden rounded-2xl p-4 border bg-amber-500/10 border-amber-500/30 text-amber-200 flex items-start gap-4">
                 <div class="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl text-xl">
                     <i class="fa-solid fa-triangle-exclamation"></i>
@@ -201,7 +203,7 @@
                 </div>
             </div>
 
-            <!-- ONGLETS CATÉGORIES -->
+            <!-- ONGLETS DE NAVIGATION -->
             <div class="flex flex-wrap border-b border-slate-800 gap-2">
                 <button onclick="switchTab('cat-finances')" id="tab-btn-cat-finances" class="tab-btn active px-5 py-3 font-semibold text-sm rounded-t-xl flex items-center gap-2">
                     <i class="fa-solid fa-chart-line text-cyan-400"></i> 1. Finances & Solvabilité
@@ -217,13 +219,13 @@
                 </button>
             </div>
 
-            <!-- TAB 1 : FINANCES -->
+            <!-- ONGLET 1 : FINANCES -->
             <div id="cat-finances" class="tab-content space-y-6">
                 <div class="glass-panel p-5 rounded-2xl border-l-4 border-cyan-400">
                     <h3 class="text-sm font-bold text-cyan-400 uppercase tracking-wider mb-2 flex items-center gap-2">
                         <i class="fa-solid fa-file-signature"></i> Diagnostic Analytique : Performance Financière & Octroi de Crédit
                     </h3>
-                    <div id="ai-synthesis-finances" class="text-xs text-slate-300 space-y-2 leading-relaxed">Calcul des équilibres financiers en cours...</div>
+                    <div id="ai-synthesis-finances" class="text-xs text-slate-300 space-y-2 leading-relaxed">Calcul des équilibres financiers...</div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -289,7 +291,7 @@
                 </div>
             </div>
 
-            <!-- TAB 2 : KYC -->
+            <!-- ONGLET 2 : KYC -->
             <div id="cat-kyc" class="tab-content hidden space-y-6">
                 <div class="glass-panel p-5 rounded-2xl border-l-4 border-indigo-500">
                     <h3 class="text-sm font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -320,7 +322,7 @@
                 </div>
             </div>
 
-            <!-- TAB 3 : CONFORMITÉ -->
+            <!-- ONGLET 3 : CONFORMITÉ -->
             <div id="cat-conformite" class="tab-content hidden space-y-6">
                 <div class="glass-panel p-5 rounded-2xl border-l-4 border-amber-500">
                     <h3 class="text-sm font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -335,7 +337,7 @@
                 </div>
             </div>
 
-            <!-- TAB 4 : LÉGAL & FONCIER -->
+            <!-- ONGLET 4 : LÉGAL & FONCIER -->
             <div id="cat-legal" class="tab-content hidden space-y-6">
                 <div class="glass-panel p-5 rounded-2xl border-l-4 border-purple-500">
                     <h3 class="text-sm font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -366,7 +368,7 @@
         <p>© 2026 Euro Expert Solvabilité - Plateforme Institutionnelle d'Audit B2B.</p>
     </footer>
 
-    <!-- TEMPLATE RAPPORT PDF PARENT MASQUÉ -->
+    <!-- CONTENEUR PDF PARENT MASQUÉ -->
     <div id="pdf-report-template" class="hidden"></div>
 
     <script src="index.js"></script>
