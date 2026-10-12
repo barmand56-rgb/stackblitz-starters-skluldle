@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Euro Expert Solvabilité - 2026</title>
+    <title>Euro Expert Solvabilité 2026 - Plateforme d'Audit B2B</title>
     
-    <!-- Favicon SVG dynamique (Bouclier Euro Expert avec Graphique) -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%2310b981'/><stop offset='100%' stop-color='%233b82f6'/></linearGradient></defs><path d='M50 5 L85 20 V45 C85 70 50 92 50 92 C50 92 15 70 15 45 V20 Z' fill='none' stroke='url(%23g)' stroke-width='6'/><path d='M35 60 V48 M50 60 V38 M65 60 V28' stroke='%2310b981' stroke-width='6' stroke-linecap='round'/></svg>">
+    <!-- Favicon Base64 SVG (Garantie de chargement 100% fonctionnelle) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48ZGVmcz48bGluZWFyR3JhZGllbnQgaWQ9ImciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPjxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMxMGI5ODEiLz48c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMzYjgyZjYiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cGF0aCBkPSJNNTAgNSBMODUgMjAgVjQ1IEM4NSA3MCA1MCA5MiA1MCA5MiBDNTAgOTIgMTUgNzAgMTUgNDUgVjIwIFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0idXJsKCNnKSIgc3Ryb2tlLXdpZHRoPSI2Ii8+PHBhdGggZD0iTTM1IDYwIFY0OCBNNTAgNjAgVjM4IE02NSA2MCBWMjgiIHN0cm9rZT0iIzEwYjk4MSIgc3Ryb2tlLXdpZHRoPSI2IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4=">
     
-    <!-- Leaflet CSS Cartographie -->
+    <!-- Leaflet Cartographie CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     
     <style>
@@ -25,7 +25,6 @@
             --warning: #f59e0b;
             --danger: #ef4444;
             --border: #1f2937;
-            --card-border: #059669;
             --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6);
             --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
         }
@@ -38,85 +37,48 @@
             --text-primary: #0f172a;
             --text-secondary: #475569;
             --border: #cbd5e1;
-            --card-border: #10b981;
             --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: var(--font-family); background-color: var(--bg-primary); color: var(--text-primary); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
 
-        /* Splash Screen Loading Overlay (Photo 1) */
+        /* Splash Screen Loader */
         #splash-screen {
-            position: fixed;
-            top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(7, 11, 20, 0.88);
-            backdrop-filter: blur(8px);
-            z-index: 10000;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(7, 11, 20, 0.92); backdrop-filter: blur(8px);
+            z-index: 10000; display: none; justify-content: center; align-items: center; flex-direction: column;
         }
 
         .splash-card {
-            background: #0d1527;
-            border: 2px solid #10b981;
-            border-radius: 16px;
-            padding: 2.5rem 3rem;
-            text-align: center;
-            max-width: 550px;
+            background: #0d1527; border: 2px solid #10b981; border-radius: 16px;
+            padding: 2.5rem 3rem; text-align: center; max-width: 550px;
             box-shadow: 0 0 40px rgba(16, 185, 129, 0.25);
             animation: fadeInScale 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .splash-logo-icon {
-            width: 80px; height: 80px; margin: 0 auto 1.5rem auto;
-            position: relative;
-        }
-
-        .splash-title {
-            font-size: 1.35rem; font-weight: 800; color: #ffffff; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 0.75rem;
-        }
-
-        .splash-sub {
-            font-size: 0.85rem; color: #60a5fa; font-weight: 600; margin-bottom: 0.5rem;
-        }
-
-        .splash-detail {
-            font-size: 0.75rem; color: #94a3b8; margin-bottom: 1.5rem;
-        }
-
-        .splash-progress-bar {
-            width: 100%; height: 6px; background: #1e293b; border-radius: 10px; overflow: hidden;
-        }
-
-        .splash-progress-fill {
-            height: 100%; width: 0%; background: linear-gradient(90deg, #10b981, #3b82f6); transition: width 0.2s ease;
-        }
+        .splash-logo-icon { width: 80px; height: 80px; margin: 0 auto 1.5rem auto; }
+        .splash-title { font-size: 1.35rem; font-weight: 800; color: #ffffff; text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.05em; }
+        .splash-sub { font-size: 0.85rem; color: #60a5fa; font-weight: 600; margin-bottom: 0.5rem; }
+        .splash-detail { font-size: 0.75rem; color: #94a3b8; margin-bottom: 1.5rem; }
+        .splash-progress-bar { width: 100%; height: 6px; background: #1e293b; border-radius: 10px; overflow: hidden; }
+        .splash-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #10b981, #3b82f6); transition: width 0.2s ease; }
 
         @keyframes fadeInScale { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
 
-        /* Top Navigation Header */
-        header {
-            background-color: var(--bg-secondary); border-bottom: 1px solid var(--border);
-            padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;
-        }
-
+        /* Header */
+        header { background-color: var(--bg-secondary); border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
         .brand-container { display: flex; align-items: center; gap: 1rem; }
         .brand-logo-svg { width: 42px; height: 42px; }
-        .brand-text h1 { font-size: 1.25rem; font-weight: 800; color: #ffffff; letter-spacing: -0.01em; }
+        .brand-text h1 { font-size: 1.25rem; font-weight: 800; color: #ffffff; }
         .brand-text span { font-size: 0.75rem; color: var(--accent-green); font-weight: 600; }
 
         .header-actions { display: flex; align-items: center; gap: 1rem; }
-        .badge-pill { padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        .badge-pill { padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
         .badge-b2b { background: rgba(59, 130, 246, 0.2); border: 1px solid var(--accent-blue); color: #60a5fa; }
 
         /* Search Section */
-        .search-hero {
-            background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
-            padding: 2rem; border-bottom: 1px solid var(--border);
-        }
-
+        .search-hero { background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%); padding: 2rem; border-bottom: 1px solid var(--border); }
         .search-wrap { max-width: 900px; margin: 0 auto; position: relative; display: flex; gap: 1rem; }
         .search-input-box { flex: 1; position: relative; }
         .search-input-box input {
@@ -139,42 +101,36 @@
         .btn-green { background: var(--accent-green); color: #ffffff; }
         .btn-green:hover { background: #059669; }
         .btn-blue { background: var(--accent-blue); color: #ffffff; }
-        .btn-blue:hover { background: var(--accent-hover); }
         .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
 
-        /* Dashboard Container & Cards */
+        /* Dashboard Grid */
         main { flex: 1; padding: 2rem; max-width: 1600px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 1.5rem; }
         .dashboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
         @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; } }
 
-        .card {
-            background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem;
-            box-shadow: var(--card-shadow); display: flex; flex-direction: column; position: relative; overflow: hidden;
-        }
-
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; box-shadow: var(--card-shadow); display: flex; flex-direction: column; }
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; }
         .card-header h3 { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
 
-        /* Status & Risk Badges (Photo 2) */
-        .status-badges-row { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
-        .badge-alert-daaf { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); color: #f87171; }
-        .badge-bodacc-clean { background: rgba(16, 185, 129, 0.2); border: 1px solid var(--accent-green); color: #34d399; }
+        /* Status & Alert Badges */
+        .status-badges-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .badge-alert { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); color: #f87171; }
+        .badge-success { background: rgba(16, 185, 129, 0.2); border: 1px solid var(--accent-green); color: #34d399; }
+        .badge-warning { background: rgba(245, 158, 11, 0.2); border: 1px solid var(--warning); color: #fbbf24; }
 
-        /* Score Display Gauge Meter */
+        /* Score Box */
         .score-circle-box { text-align: center; padding: 1.5rem; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--border); margin-bottom: 1rem; }
-        .score-number { font-size: 3rem; font-weight: 900; color: var(--accent-green); }
+        .score-number { font-size: 3.25rem; font-weight: 900; color: var(--accent-green); }
         .score-label { font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
 
-        /* Map Element */
         #map-container { height: 320px; width: 100%; border-radius: 10px; border: 1px solid var(--border); }
 
-        /* Data Tables */
+        /* Tables */
         .table-wrap { overflow-x: auto; margin-top: 1rem; }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
         th, td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); }
         th { background: var(--bg-tertiary); color: var(--text-secondary); font-weight: 700; }
 
-        /* Toast Notifications */
         #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 0.75rem; }
         .toast { padding: 1rem 1.5rem; border-radius: 10px; color: #ffffff; font-weight: 600; box-shadow: var(--card-shadow); animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         .toast-info { background: var(--accent-blue); }
@@ -182,20 +138,11 @@
         .toast-error { background: var(--danger); }
 
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
-
-        /* Printable Report View Container (Hidden on Screen) */
-        #printable-report { display: none; }
-        @media print {
-            body * { visibility: hidden; }
-            #printable-report, #printable-report * { visibility: visible; }
-            #printable-report { display: block !important; position: absolute; left: 0; top: 0; width: 100%; color: #000000; background: #ffffff; }
-            .pdf-page { page-break-after: always; padding: 2cm; min-height: 297mm; }
-        }
     </style>
 </head>
 <body>
 
-    <!-- Splash Screen Modal Loader (Visuel conforme Photo 1) -->
+    <!-- Splash Screen Modal Loader -->
     <div id="splash-screen">
         <div class="splash-card">
             <div class="splash-logo-icon">
@@ -211,15 +158,15 @@
                 </svg>
             </div>
             <div class="splash-title">Euro Expert Solvabilité</div>
-            <div class="splash-sub">Recherche sur les API officielles INSEE & Greffes...</div>
-            <div class="splash-detail">Interrogation des Greffes, BODACC, DAAF & Presse...</div>
+            <div class="splash-sub">Interrogation Réelle des API Officielles...</div>
+            <div class="splash-detail">INSEE, Greffes, BODACC, DAAF Alim'confiance & Fichier Décès...</div>
             <div class="splash-progress-bar">
                 <div id="splash-progress-fill" class="splash-progress-fill"></div>
             </div>
         </div>
     </div>
 
-    <!-- Header navigation -->
+    <!-- Header -->
     <header>
         <div class="brand-container">
             <svg class="brand-logo-svg" viewBox="0 0 100 100">
@@ -228,7 +175,7 @@
             </svg>
             <div class="brand-text">
                 <h1>EURO EXPERT SOLVABILITÉ</h1>
-                <span>Plateforme d'Audit de Solvabilité B2B 2026</span>
+                <span>Plateforme d'Audit B2B Multi-APIs 2026</span>
             </div>
         </div>
         <div class="header-actions">
@@ -237,45 +184,47 @@
         </div>
     </header>
 
-    <!-- Global Search Hero -->
+    <!-- Search Hero -->
     <section class="search-hero">
         <div class="search-wrap">
             <div class="search-input-box">
-                <input type="text" id="company-search-input" placeholder="Sélectionnez un SIREN ou une raison sociale (ex: L'uni vert, 808398123)..." autocomplete="off">
+                <input type="text" id="company-search-input" placeholder="Entrez un SIREN, SIRET ou raison sociale (ex: L'uni vert, 808398123)..." autocomplete="off">
                 <div id="autocomplete-dropdown" class="autocomplete-list"></div>
             </div>
             <button id="btn-analyze" class="btn btn-green">🔍 Analyser l'entreprise</button>
         </div>
     </section>
 
-    <!-- Main Dashboard Workspace -->
+    <!-- Main Workspace -->
     <main>
-        <!-- Row 1: Score & Badges + IA Audit Synthèse -->
+        <!-- Row 1: Score & Status Badges + AI Synthesis -->
         <div class="dashboard-grid">
             <div class="card">
                 <div class="card-header">
-                    <h3>📊 Fiche de Score & Conformité</h3>
-                    <span id="kpi-updated-tag" style="font-size: 0.8rem; color: var(--text-secondary);">Mise à jour en temps réel</span>
+                    <h3>📊 Fiche de Score & Solvabilité</h3>
+                    <span id="kpi-updated-tag" style="font-size: 0.8rem; color: var(--text-secondary);">En temps réel</span>
                 </div>
                 
                 <div class="status-badges-row">
-                    <span id="badge-daaf-status" class="badge-pill badge-bodacc-clean">✓ CONFORME DAAF / HYGIÈNE</span>
-                    <span id="badge-bodacc-status" class="badge-pill badge-bodacc-clean">✓ REGISTRE BODACC VIERGE</span>
+                    <span id="badge-admin-status" class="badge-pill badge-success">✓ SOCIÉTÉ ACTIVE</span>
+                    <span id="badge-daaf-status" class="badge-pill badge-success">✓ DAAF / HYGIÈNE CONFORME</span>
+                    <span id="badge-bodacc-status" class="badge-pill badge-success">✓ BODACC VIERGE</span>
+                    <span id="badge-deces-status" class="badge-pill badge-success">✓ DIRIGEANTS VIVANTS</span>
                 </div>
 
                 <div class="score-circle-box">
-                    <div class="score-number" id="kpi-score-val">100</div>
-                    <div class="score-label" id="kpi-score-label">Score de Solvabilité Globale</div>
+                    <div class="score-number" id="kpi-score-val">--</div>
+                    <div class="score-label" id="kpi-score-label">Indice de Solvabilité Globale</div>
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.9rem; margin-bottom: 1.5rem;">
                     <div style="display: flex; justify-content: space-between;">
                         <span style="color: var(--text-secondary);">Probabilité de Défaillance (12M):</span>
-                        <strong id="kpi-default-prob">0.8 %</strong>
+                        <strong id="kpi-default-prob">-- %</strong>
                     </div>
                     <div style="display: flex; justify-content: space-between;">
                         <span style="color: var(--text-secondary);">Limite d'Encours Conseillée:</span>
-                        <strong id="kpi-credit-limit">125 000 €</strong>
+                        <strong id="kpi-credit-limit">-- €</strong>
                     </div>
                 </div>
 
@@ -284,14 +233,14 @@
                 </button>
             </div>
 
-            <!-- Synthèse d'IA Audit -->
+            <!-- Synthèse & Legal Details -->
             <div class="card">
                 <div class="card-header">
-                    <h3>🤖 IA Synthèse & Analyse Financière</h3>
-                    <span class="badge-pill badge-b2b">Audit B2B</span>
+                    <h3>🤖 Synthèse d'Audit Financier & Juridique</h3>
+                    <span class="badge-pill badge-b2b">Analyse IA</span>
                 </div>
                 <div id="audit-synthesis-text" style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;">
-                    Saisissez un numéro SIREN pour générer l'analyse financière, juridique et de gouvernance automatisée par l'IA.
+                    Saisissez un nom ou numéro SIREN pour interroger les bases officielles INSEE, DAAF, BODACC et Fichier des Décès.
                 </div>
 
                 <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
@@ -301,18 +250,45 @@
                         <div>Forme Juridique : <strong id="meta-legal-form" style="color: var(--text-primary);">-</strong></div>
                         <div>Code NAF/APE : <strong id="meta-naf" style="color: var(--text-primary);">-</strong></div>
                         <div>Date Création : <strong id="meta-creation-date" style="color: var(--text-primary);">-</strong></div>
-                        <div>Capital Social : <strong id="meta-capital" style="color: var(--text-primary);">-</strong></div>
+                        <div>Date Fermeture : <strong id="meta-closure-date" style="color: var(--text-primary);">-</strong></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Row 2: Map & Financial Balance Canvas Chart -->
+        <!-- Row 2: Governance & Managers -->
+        <div class="card">
+            <div class="card-header">
+                <h3>👥 Gouvernance & Liste des Dirigeants Réels (INSEE / RNE)</h3>
+                <span style="font-size: 0.8rem; color: var(--text-secondary);">Contrôle de Viabilité & Décès</span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nom & Prénom</th>
+                            <th>Qualité / Mandat</th>
+                            <th>Année de Naissance</th>
+                            <th>Statut Vital / Contrôle Décès</th>
+                        </tr>
+                    </thead>
+                    <tbody id="governance-table-body">
+                        <tr>
+                            <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 1.5rem;">
+                                Lancez une recherche pour extraire la liste officielle des dirigeants.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Row 3: Spatial Map & Financial Balance Canvas -->
         <div class="dashboard-grid">
             <div class="card">
                 <div class="card-header">
-                    <h3>📍 Localisation du Siège Social</h3>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary);">Source : BAN / INSEE</span>
+                    <h3>📍 Localisation GPS du Siège Social</h3>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary);">Base Adresse Nationale (BAN)</span>
                 </div>
                 <div id="map-container"></div>
                 <div id="geo-address-text" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.75rem;">
@@ -331,10 +307,10 @@
             </div>
         </div>
 
-        <!-- Row 3: BODACC & DAAF Table -->
+        <!-- Row 4: BODACC & DAAF Table -->
         <div class="card">
             <div class="card-header">
-                <h3>📜 Annonces Légales, BODACC & Registres DAAF</h3>
+                <h3>📜 Annonces Légales, BODACC & Inspections DAAF / Hygiène</h3>
                 <button id="btn-export-csv" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">Exporter CSV</button>
             </div>
             <div class="table-wrap">
@@ -342,8 +318,8 @@
                     <thead>
                         <tr>
                             <th>Date Parution</th>
-                            <th>Type d'Annonce</th>
-                            <th>Greffe / Tribunal</th>
+                            <th>Type d'Annonce / Contrôle</th>
+                            <th>Greffe / Organisme</th>
                             <th>Description & Décisions Officielles</th>
                         </tr>
                     </thead>
@@ -361,7 +337,7 @@
 
     <div id="toast-container"></div>
 
-    <!-- Leaflet Map Engine JS -->
+    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     
     <!-- Code Principal JavaScript -->
