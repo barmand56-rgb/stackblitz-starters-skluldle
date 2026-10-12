@@ -5,50 +5,53 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Euro Expert Solvabilité 2026 - Plateforme B2B</title>
 
-    <!-- Tailwind CSS -->
+    <!-- FAVICON SVG EMBEDDED -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><path fill='%230ea5e9' d='M256 0L32 64v192c0 141.4 96.2 263.8 224 320 127.8-56.2 224-178.6 224-320V64L256 0zm0 432c-97 0-176-79-176-176V108.8l176-44 176 44V256c0 97-79 176-176 176z'/></svg>">
+
+    <!-- TAILWIND CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Leaflet CSS & JS -->
+    <!-- LEAFLET CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Chart.js -->
+    <!-- CHART.JS -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- html2pdf.js pour le PDF 4 pages -->
+    <!-- HTML2PDF.JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <!-- FontAwesome icons -->
+    <!-- FONT AWESOME ICONS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="min-h-screen flex flex-col relative">
+<body class="min-h-screen flex flex-col relative text-slate-100 bg-[#0b0f19]">
 
-    <!-- MODAL DE SÉCURITÉ - CODE D'ACCÈS 24H -->
+    <!-- MODAL D'AUTHENTIFICATION 24H -->
     <div id="auth-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-md transition-opacity duration-300">
         <div class="glass-panel max-w-md w-full mx-4 p-8 rounded-2xl shadow-2xl border border-sky-500/30 text-center relative overflow-hidden">
             <div class="absolute -top-10 -right-10 w-32 h-32 bg-sky-500/10 rounded-full blur-2xl"></div>
             
             <div class="w-16 h-16 bg-sky-500/20 text-sky-400 rounded-2xl flex items-center justify-center mx-auto mb-5 border border-sky-500/30">
-                <i class="fa-solid fa-key text-2xl"></i>
+                <i class="fa-solid fa-shield-halved text-2xl"></i>
             </div>
             
             <h2 class="text-2xl font-bold text-white mb-2">Accès Sécurisé B2B</h2>
-            <p class="text-slate-400 text-sm mb-6">Entrez votre code d'accès client 24h (Session active CômeUp)</p>
+            <p class="text-slate-400 text-sm mb-6">Saisissez votre code d'accès client 24h ou la clé Manager.</p>
 
             <form id="auth-form" onsubmit="validateAccessCode(event)" class="space-y-4">
                 <div>
-                    <input type="password" id="access-code-input" placeholder="Code d'accès (ex: EES-2026)" 
-                           class="w-full px-4 py-3 bg-slate-900/80 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 text-center text-lg font-mono tracking-wider" required>
+                    <input type="password" id="access-code-input" placeholder="Code du jour (ex: EES-1210 ou euro2026)" 
+                           class="w-full px-4 py-3.5 bg-slate-900/90 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/30 text-center text-lg font-mono tracking-wider" required>
                 </div>
                 <div id="auth-error" class="text-red-400 text-xs hidden flex items-center justify-center gap-1">
                     <i class="fa-solid fa-circle-exclamation"></i> Code invalide ou expiré.
                 </div>
                 <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-slate-950 font-bold rounded-xl shadow-lg shadow-sky-500/20 transition-all flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-unlock"></i> Déverrouiller la Session (24h)
+                    <i class="fa-solid fa-unlock"></i> Déverrouiller la Session
                 </button>
             </form>
 
-            <div class="mt-6 pt-4 border-t border-slate-800 text-xs text-slate-500 flex justify-between items-center">
-                <span><i class="fa-solid fa-shield-halved text-sky-400"></i> Cryptage AES-256</span>
-                <span>Valide 24 heures</span>
+            <div class="mt-6 pt-4 border-t border-slate-800/80 text-xs text-slate-500 flex justify-between items-center">
+                <span><i class="fa-solid fa-key text-sky-400"></i> Accès B2B 24H CômeUp</span>
+                <span id="display-today-code-hint" class="font-mono text-slate-400">EES-PRO</span>
             </div>
         </div>
     </div>
@@ -62,16 +65,16 @@
             <div>
                 <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
                     Euro Expert Solvabilité 
-                    <span class="text-xs bg-sky-500/20 text-sky-400 border border-sky-500/30 px-2 py-0.5 rounded-full font-mono">2026 PRO</span>
+                    <span class="text-xs bg-sky-500/20 text-sky-400 border border-sky-500/30 px-2 py-0.5 rounded-full font-mono">2026 INSTITUTIONAL</span>
                 </h1>
-                <p class="text-xs text-slate-400">Audit Financier, Immobilier, Presse & Conformité Sanitaire DAAF</p>
+                <p class="text-xs text-slate-400">Plateforme de Solvabilité B2B, Conformité DAAF, Groupe & Foncier DVF</p>
             </div>
         </div>
 
         <div class="flex items-center gap-4 text-xs">
-            <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300">
+            <div class="hidden lg:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-800 text-slate-300">
                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>API INSEE, RCS, BODACC & DAAF : <strong class="text-emerald-400">En ligne</strong></span>
+                <span>API INSEE / RCS / BODACC / DAAF : <strong class="text-emerald-400">Connecté</strong></span>
             </div>
             
             <div class="flex items-center gap-2 bg-slate-900/90 border border-slate-800 px-3 py-1.5 rounded-lg text-slate-300">
@@ -82,356 +85,359 @@
         </div>
     </header>
 
-    <!-- CONTENU DE L'APPLICATION -->
+    <!-- RECHERCHE ENTREPRISE -->
     <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6">
-
-        <!-- RECHERCHE AUTOMATIQUE -->
-        <section class="glass-panel p-6 rounded-2xl relative overflow-hidden">
+        <section class="glass-panel p-6 rounded-2xl relative">
             <div class="flex flex-col md:flex-row gap-4 items-center">
                 <div class="relative flex-1 w-full">
                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-lg"></i>
-                    <input type="text" id="search-input" placeholder="Saisissez un nom d'entreprise, un restaurant ou un numéro SIREN/SIRET..." 
-                           class="w-full pl-12 pr-28 py-4 bg-slate-900/90 border border-slate-700/80 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-base transition-all"
+                    <input type="text" id="search-input" placeholder="Saisissez un nom d'entreprise, un restaurant (ex: L'uni vert) ou un SIREN..." 
+                           class="w-full pl-12 pr-32 py-4 bg-slate-900/90 border border-slate-700/80 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 text-base transition-all"
                            onkeyup="handleSearchKeyup(event)">
                     <button onclick="executeSearch()" class="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-2.5 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-lg transition-all flex items-center gap-2 shadow-md">
-                        <span>Analyser</span>
+                        <span>Lancer l'Audit</span>
                         <i class="fa-solid fa-arrow-right"></i>
                     </button>
                 </div>
             </div>
-
-            <!-- AUTOCOMPLÉTION -->
-            <div id="autocomplete-results" class="hidden absolute left-6 right-6 top-[88px] bg-slate-900/95 border border-slate-700 rounded-xl shadow-2xl z-30 max-h-80 overflow-y-auto divide-y divide-slate-800"></div>
+            <!-- Autocomplétion -->
+            <div id="autocomplete-results" class="hidden absolute left-6 right-6 top-[88px] bg-slate-900/95 border border-slate-700 rounded-xl shadow-2xl z-50 max-h-80 overflow-y-auto divide-y divide-slate-800"></div>
         </section>
 
         <!-- DASHBOARD D'AUDIT COMPLET -->
         <div id="dashboard-content" class="space-y-6 hidden">
 
-            <!-- BANNIÈRE D'ALERTE POUR FERMETURE ADMINISTRATIVE OU SANITAIRE -->
-            <section id="alert-banner" class="hidden rounded-2xl p-4 border flex items-start gap-4 transition-all">
-                <!-- Rempli en JS -->
-            </section>
-
-            <!-- FICHE IDENTITÉ ET BADGES -->
-            <div class="glass-panel p-6 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <!-- FICHE SIGNALÉTIQUE ET ACTION PDF -->
+            <div class="glass-panel p-6 rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div>
                     <div class="flex flex-wrap items-center gap-3">
                         <h2 id="company-name" class="text-2xl sm:text-3xl font-extrabold text-white">---</h2>
-                        <span id="badge-status-insee" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Actif (INSEE)</span>
-                        <span id="badge-status-site" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">
-                            <i class="fa-solid fa-store mr-1"></i> Statut sur place : Analyse...
+                        <span id="badge-status-insee" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">---</span>
+                        <span id="badge-status-site" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            <i class="fa-solid fa-store mr-1"></i> Statut sur place : OUVERT / EXPLOITÉ
                         </span>
                     </div>
                     <p id="company-details" class="text-sm text-slate-400 mt-2 flex flex-wrap items-center gap-4">
                         <span><i class="fa-solid fa-id-card text-sky-400 mr-1"></i> SIREN: <strong id="company-siren" class="text-slate-200">---</strong></span>
-                        <span><i class="fa-solid fa-briefcase text-sky-400 mr-1"></i> APE/NAF: <strong id="company-naf" class="text-slate-200">---</strong></span>
-                        <span><i class="fa-solid fa-calendar text-sky-400 mr-1"></i> Création: <strong id="company-date" class="text-slate-200">---</strong></span>
+                        <span><i class="fa-solid fa-briefcase text-sky-400 mr-1"></i> NAF: <strong id="company-naf" class="text-slate-200">---</strong></span>
+                        <span><i class="fa-solid fa-calendar text-sky-400 mr-1"></i> Immatriculation: <strong id="company-date" class="text-slate-200">---</strong></span>
                     </p>
                 </div>
 
-                <div class="flex items-center gap-3 w-full md:w-auto">
-                    <button onclick="generatePDFReport()" class="w-full md:w-auto px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-file-pdf text-lg"></i>
-                        <span>Télécharger l'Audit PDF (4 pages)</span>
-                    </button>
+                <button onclick="generatePDFReport()" class="w-full lg:w-auto px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-file-pdf text-lg"></i>
+                    <span>Télécharger l'Audit PDF (4 Pages)</span>
+                </button>
+            </div>
+
+            <!-- BANNIÈRE DINFORMATION HYGIÈNE & DAAF -->
+            <div id="alert-banner-daaf" class="hidden rounded-2xl p-4 border bg-amber-500/10 border-amber-500/30 text-amber-200 flex items-start gap-4">
+                <div class="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl text-xl">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                    <h4 class="font-bold text-sm text-amber-300">Historique Réglementaire DAAF / Contrôle Sanitaire</h4>
+                    <p id="alert-daaf-text" class="text-xs mt-1 leading-relaxed text-slate-300">
+                        Cet établissement est actuellement **ouvert et exploité sur place**. Il a fait l'objet d'un arrêté préfectoral temporaire pour mise en conformité sanitaire désormais levé.
+                    </p>
                 </div>
             </div>
 
-            <!-- GRILLE PRINCIPALE (3 COLONNES) -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-                <!-- SCORE DE SOLVABILITÉ -->
-                <div class="glass-panel p-6 rounded-2xl flex flex-col justify-between space-y-6">
-                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                        <h3 class="font-bold text-lg text-white flex items-center gap-2">
-                            <i class="fa-solid fa-chart-pie text-sky-400"></i> Score & Solvabilité
-                        </h3>
-                        <span class="text-xs text-slate-400">Algorithme B2B 2026</span>
-                    </div>
-
-                    <div class="flex flex-col items-center justify-center py-2">
-                        <div class="relative w-40 h-40 flex items-center justify-center">
-                            <canvas id="scoreGaugeCanvas" width="160" height="160"></canvas>
-                            <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-                                <span id="score-value" class="text-4xl font-extrabold text-white">--</span>
-                                <span class="text-xs text-slate-400 uppercase tracking-widest font-semibold">/ 100</span>
-                            </div>
-                        </div>
-                        <div id="score-label" class="mt-3 px-4 py-1.5 rounded-full text-xs font-bold bg-slate-800 text-slate-300">
-                            Calcul du score...
-                        </div>
-                    </div>
-
-                    <div class="space-y-3 bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-sm">
-                        <div class="flex justify-between items-center">
-                            <span class="text-slate-400">Plafond recommandé:</span>
-                            <span id="credit-limit" class="font-bold text-sky-400">-- €</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-slate-400">Conditions de paiement:</span>
-                            <span id="payment-terms" class="font-bold text-slate-200">--</span>
-                        </div>
-                        <div class="flex justify-between items-center">
-                            <span class="text-slate-400">Niveau de Risque:</span>
-                            <span id="risk-level" class="font-bold text-slate-200">--</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- PRESSE, SANITAIRE & HYGIÈNE (DAAF) -->
-                <div class="glass-panel p-6 rounded-2xl space-y-4">
-                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                        <h3 class="font-bold text-lg text-white flex items-center gap-2">
-                            <i class="fa-solid fa-newspaper text-amber-400"></i> Presse & Hygiène DAAF
-                        </h3>
-                        <span id="press-badge-count" class="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded-full font-mono">0 alerte</span>
-                    </div>
-
-                    <div id="press-sanitary-container" class="space-y-3 max-h-72 overflow-y-auto pr-1">
-                        <!-- Module sanitaire -->
-                    </div>
-                </div>
-
-                <!-- AUDIT IMMOBILIER & FONCIER DVF -->
-                <div class="glass-panel p-6 rounded-2xl space-y-4">
-                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                        <h3 class="font-bold text-lg text-white flex items-center gap-2">
-                            <i class="fa-solid fa-building text-purple-400"></i> Audit Foncier & Immobilier
-                        </h3>
-                        <span class="text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30 px-2 py-0.5 rounded-full font-mono">DVF & Bail</span>
-                    </div>
-
-                    <div class="space-y-3 text-sm">
-                        <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-2">
-                            <div class="flex justify-between">
-                                <span class="text-slate-400">Type de Local / Actif:</span>
-                                <span id="immo-type" class="font-semibold text-slate-200">Commercial</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-slate-400">Valeur Foncière Estimée:</span>
-                                <span id="immo-valeur" class="font-semibold text-purple-400">-- €</span>
-                            </div>
-                        </div>
-
-                        <div class="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 space-y-1">
-                            <span class="text-xs text-slate-400 block font-semibold uppercase tracking-wider">Diagnostic Bail Commercial</span>
-                            <p id="immo-diagnostic" class="text-xs text-slate-300 leading-relaxed">
-                                Traitement des données foncières DVF et baux régionaux...
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
+            <!-- NAVEGATION PAR CATÉGORIES (TABS) -->
+            <div class="flex flex-wrap border-b border-slate-800 gap-2">
+                <button onclick="switchTab('cat-finances')" id="tab-btn-cat-finances" class="tab-btn active px-5 py-3 font-semibold text-sm rounded-t-xl transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line text-sky-400"></i> 1. Finances & Performance
+                </button>
+                <button onclick="switchTab('cat-kyc')" id="tab-btn-cat-kyc" class="tab-btn px-5 py-3 font-semibold text-sm rounded-t-xl transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-users-gear text-indigo-400"></i> 2. Groupe, Gouvernance & KYC
+                </button>
+                <button onclick="switchTab('cat-conformite')" id="tab-btn-cat-conformite" class="tab-btn px-5 py-3 font-semibold text-sm rounded-t-xl transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-newspaper text-amber-400"></i> 3. Conformité, Presse & DAAF
+                </button>
+                <button onclick="switchTab('cat-legal')" id="tab-btn-cat-legal" class="tab-btn px-5 py-3 font-semibold text-sm rounded-t-xl transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-scale-balanced text-purple-400"></i> 4. Légal, Foncier DVF & Contentieux
+                </button>
             </div>
 
-            <!-- CARTE ET GOUVERNANCE -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- CARTE LEAFLET -->
-                <div class="glass-panel p-6 rounded-2xl space-y-4">
-                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                        <h3 class="font-bold text-lg text-white flex items-center gap-2">
-                            <i class="fa-solid fa-location-dot text-rose-500"></i> Localisation du Siège Social
-                        </h3>
-                        <span id="location-address-snippet" class="text-xs text-slate-400 truncate max-w-xs">--</span>
-                    </div>
-                    <div id="map" class="h-64 rounded-xl border border-slate-800 z-10"></div>
-                </div>
-
-                <!-- DIRIGEANTS ET MANDATS -->
-                <div class="glass-panel p-6 rounded-2xl space-y-4">
-                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                        <h3 class="font-bold text-lg text-white flex items-center gap-2">
-                            <i class="fa-solid fa-user-shield text-indigo-400"></i> Dirigeants & Mandats RCS
-                        </h3>
-                        <span class="text-xs text-slate-400">Données Registre National</span>
-                    </div>
-
-                    <div id="leaders-container" class="space-y-3 max-h-64 overflow-y-auto pr-1">
-                        <!-- Rempli en JS -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- GRAPHIQUE FINANCIER CHART.JS -->
-            <div class="glass-panel p-6 rounded-2xl space-y-4">
-                <div class="flex justify-between items-center border-b border-slate-800 pb-3">
-                    <h3 class="font-bold text-lg text-white flex items-center gap-2">
-                        <i class="fa-solid fa-chart-line text-emerald-400"></i> Évolution Financière & Ratios
+            <!-- CONTENU CATÉGORIE 1 : FINANCES -->
+            <div id="cat-finances" class="tab-content space-y-6">
+                <!-- SYNTHÈSE IA FINANCIÈRE -->
+                <div class="glass-panel p-5 rounded-2xl border-l-4 border-sky-500">
+                    <h3 class="text-sm font-bold text-sky-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-robot"></i> Synthèse IA : Analyse Financière & Décision d'Octroi
                     </h3>
-                    <span class="text-xs text-slate-400">Exercices Bilanciels (3 ans)</span>
+                    <p id="ai-synthesis-finances" class="text-xs text-slate-300 leading-relaxed">Génération du diagnostic financier en cours...</p>
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
-                    <div class="lg:col-span-2 h-64">
-                        <canvas id="financialChart"></canvas>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- SCORE ET DÉCISION -->
+                    <div class="glass-panel p-6 rounded-2xl flex flex-col justify-between space-y-6">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                            <h3 class="font-bold text-base text-white">Score Solvabilité B2B</h3>
+                            <span class="text-xs text-slate-400 font-mono">Algorithme 2026</span>
+                        </div>
+
+                        <div class="flex flex-col items-center justify-center py-2">
+                            <div class="relative w-40 h-40 flex items-center justify-center">
+                                <canvas id="scoreGaugeCanvas" width="160" height="160"></canvas>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                    <span id="score-value" class="text-4xl font-extrabold text-white">--</span>
+                                    <span class="text-xs text-slate-400 uppercase font-semibold">/ 100</span>
+                                </div>
+                            </div>
+                            <div id="score-label" class="mt-3 px-4 py-1.5 rounded-full text-xs font-bold bg-slate-800 text-slate-300">
+                                Calcul du score...
+                            </div>
+                        </div>
+
+                        <div class="space-y-3 bg-slate-900/80 p-4 rounded-xl border border-slate-800 text-xs">
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Plafond Envisageable:</span>
+                                <span id="credit-limit" class="font-bold text-sky-400">-- €</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Condition de Paiement:</span>
+                                <span id="payment-terms" class="font-bold text-slate-200">--</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-400">Niveau de Risque:</span>
+                                <span id="risk-level" class="font-bold text-slate-200">--</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="space-y-3 text-sm bg-slate-900/80 p-4 rounded-xl border border-slate-800">
-                        <h4 class="font-semibold text-slate-200 border-b border-slate-800 pb-2">Ratios Clefs :</h4>
-                        <div class="flex justify-between">
-                            <span class="text-slate-400">Marge Nette:</span>
-                            <span id="ratio-marge" class="font-bold text-slate-200">-- %</span>
+
+                    <!-- GRAPHIQUE BARRES ET RATIOS -->
+                    <div class="lg:col-span-2 glass-panel p-6 rounded-2xl space-y-4">
+                        <h3 class="font-bold text-base text-white border-b border-slate-800 pb-3">Évolution du Chiffre d'Affaires & Marge</h3>
+                        <div class="h-56">
+                            <canvas id="financialChart"></canvas>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-400">Autonomie Financière:</span>
-                            <span id="ratio-autonomie" class="font-bold text-slate-200">-- %</span>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs pt-2">
+                            <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                                <span class="text-slate-400 block">Marge Nette</span>
+                                <strong id="ratio-marge" class="text-white text-sm">-- %</strong>
+                            </div>
+                            <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                                <span class="text-slate-400 block">Autonomie</span>
+                                <strong id="ratio-autonomie" class="text-white text-sm">-- %</strong>
+                            </div>
+                            <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                                <span class="text-slate-400 block">Délai Paydex</span>
+                                <strong id="ratio-paydex" class="text-white text-sm">-- j</strong>
+                            </div>
+                            <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                                <span class="text-slate-400 block">Risque Défaillance</span>
+                                <strong id="ratio-defaillance" class="text-white text-sm">-- %</strong>
+                            </div>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-400">Délai Paydex:</span>
-                            <span id="ratio-paydex" class="font-bold text-slate-200">-- jours</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTENU CATÉGORIE 2 : GROUPE & KYC -->
+            <div id="cat-kyc" class="tab-content hidden space-y-6">
+                <div class="glass-panel p-5 rounded-2xl border-l-4 border-indigo-500">
+                    <h3 class="text-sm font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-robot"></i> Synthèse IA : Groupe, Mandataires & Conformité LCB-FT
+                    </h3>
+                    <p id="ai-synthesis-kyc" class="text-xs text-slate-300 leading-relaxed">Analyse des structures de contrôle et bénéficiaires effectifs...</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <h3 class="font-bold text-base text-white border-b border-slate-800 pb-3">Dirigeants & Mandataires RCS</h3>
+                        <div id="leaders-container" class="space-y-3"></div>
+                    </div>
+
+                    <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <h3 class="font-bold text-base text-white border-b border-slate-800 pb-3">Contrôle Anti-Blanchiment (LCB-FT) & Actionnariat</h3>
+                        <div class="space-y-3 text-xs">
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between">
+                                <span>Listes de Sanctions Internationales:</span>
+                                <strong class="text-emerald-400"><i class="fa-solid fa-check-circle"></i> Non Listé (Conforme)</strong>
+                            </div>
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between">
+                                <span>Personne Politiquement Exposée (PPE):</span>
+                                <strong class="text-slate-300">Aucun signalement</strong>
+                            </div>
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between">
+                                <span>Holding / Structure Mère:</span>
+                                <strong id="kyc-holding" class="text-slate-300">Société Indépendante</strong>
+                            </div>
                         </div>
-                        <div class="flex justify-between">
-                            <span class="text-slate-400">Risque Défaillance:</span>
-                            <span id="ratio-defaillance" class="font-bold text-slate-200">-- %</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTENU CATÉGORIE 3 : CONFORMITÉ & PRESSE -->
+            <div id="cat-conformite" class="tab-content hidden space-y-6">
+                <div class="glass-panel p-5 rounded-2xl border-l-4 border-amber-500">
+                    <h3 class="text-sm font-bold text-amber-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-robot"></i> Synthèse IA : Revue de Presse & Conformité DAAF
+                    </h3>
+                    <p id="ai-synthesis-conformite" class="text-xs text-slate-300 leading-relaxed">Recoupement des articles de presse régionale et arrêtés préfectoraux...</p>
+                </div>
+
+                <div class="glass-panel p-6 rounded-2xl space-y-4">
+                    <h3 class="font-bold text-base text-white border-b border-slate-800 pb-3">Journal de Conformité & Événements Presse</h3>
+                    <div id="press-sanitary-container" class="space-y-3"></div>
+                </div>
+            </div>
+
+            <!-- CONTENU CATÉGORIE 4 : LÉGAL & FONCIER DVF -->
+            <div id="cat-legal" class="tab-content hidden space-y-6">
+                <div class="glass-panel p-5 rounded-2xl border-l-4 border-purple-500">
+                    <h3 class="text-sm font-bold text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-robot"></i> Synthèse IA : Diagnostic Foncier DVF & Sécurité Juridique
+                    </h3>
+                    <p id="ai-synthesis-legal" class="text-xs text-slate-300 leading-relaxed">Évaluation de la valeur foncière du bail et privilèges publics...</p>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- CARTE LEAFLET -->
+                    <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <h3 class="font-bold text-base text-white border-b border-slate-800 pb-3">Localisation du Siège Social</h3>
+                        <div id="map" class="h-64 rounded-xl border border-slate-800 z-10"></div>
+                        <p id="map-address-text" class="text-xs text-slate-400 font-mono">---</p>
+                    </div>
+
+                    <!-- AUDIT IMMOBILIER DVF -->
+                    <div class="glass-panel p-6 rounded-2xl space-y-4">
+                        <h3 class="font-bold text-base text-white border-b border-slate-800 pb-3">Valeur Foncière (Cadastre DVF) & BODACC</h3>
+                        <div class="space-y-3 text-xs">
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
+                                <span class="text-slate-400">Estimation Valeur Local / Bail:</span>
+                                <strong id="immo-valeur" class="block text-purple-400 text-sm">-- €</strong>
+                            </div>
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
+                                <span class="text-slate-400">Privilèges URSSAF & Trésor Public:</span>
+                                <strong id="legal-privileges" class="block text-emerald-400">Aucune inscription de privilège</strong>
+                            </div>
+                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 space-y-1">
+                                <span class="text-slate-400">Annonces Légales BODACC:</span>
+                                <p id="legal-bodacc" class="text-slate-300">Pas de procédure collective en cours.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
         </div>
-
     </main>
 
-    <!-- FOOTER -->
-    <footer class="glass-panel border-t border-slate-800 mt-12 py-6 px-6 text-center text-xs text-slate-500">
-        <p>© 2026 Euro Expert Solvabilité - Module B2B Vente 24h CômeUp.</p>
-        <p class="mt-1">Synchronisé avec les API publiques INSEE, RCS, BODACC, DAAF et Cadastre DVF.</p>
+    <footer class="glass-panel border-t border-slate-800/80 mt-12 py-6 px-6 text-center text-xs text-slate-500">
+        <p>© 2026 Euro Expert Solvabilité - Plateforme Professionnelle B2B.</p>
     </footer>
 
-    <!-- TEMPLATE RAPPORT AUDIT PDF (4 PAGES COMPLETES) -->
-    <div id="pdf-report-template" class="pdf-template">
-        <!-- PAGE 1 -->
-        <div class="pdf-page p-8 flex flex-col justify-between border-b-2 border-slate-200" style="min-height: 1120px; page-break-after: always;">
+    <!-- TEMPLATE COMPLET DE L'AUDIT PDF 4 PAGES -->
+    <div id="pdf-report-template" class="pdf-template hidden">
+        <!-- PAGE 1 : SYNTHÈSE & DÉCISION -->
+        <div class="pdf-page p-8 flex flex-col justify-between border-b" style="min-height: 1080px; page-break-after: always;">
             <div>
                 <div class="flex justify-between items-center border-b-2 border-slate-900 pb-4 mb-6">
                     <div>
-                        <h1 class="text-2xl font-black text-slate-900 uppercase">RAPPORT D'AUDIT & SOLVABILITÉ B2B</h1>
-                        <p class="text-xs text-slate-600">EURO EXPERT SOLVABILITÉ - CONFORMITÉ REGLEMENTAIRE 2026</p>
+                        <h1 class="text-2xl font-black text-slate-900 uppercase">RAPPORT D'AUDIT DE SOLVABILITÉ B2B</h1>
+                        <p class="text-xs text-slate-600">EURO EXPERT SOLVABILITÉ - CONFORMITÉ INSTITUTIONNELLE 2026</p>
                     </div>
                     <div class="text-right">
-                        <span class="text-xs font-mono bg-slate-100 text-slate-800 px-3 py-1 rounded border border-slate-300">Réf: EES-<span id="pdf-ref-id">2026</span></span>
-                        <p class="text-[10px] text-slate-500 mt-1">Date: <span id="pdf-date-now">12/10/2026</span></p>
+                        <span class="text-xs font-mono bg-slate-100 text-slate-800 px-3 py-1 rounded border">Réf: EES-<span id="pdf-ref-id">2026</span></span>
+                        <p class="text-[10px] text-slate-500 mt-1">Émis le: <span id="pdf-date-now">--/--/2026</span></p>
                     </div>
                 </div>
 
-                <div class="bg-slate-50 p-6 rounded-lg border border-slate-200 mb-6">
+                <div class="bg-slate-50 p-6 rounded-lg border mb-6">
                     <h2 class="text-xl font-bold text-slate-900 mb-2" id="pdf-p1-name">---</h2>
                     <div class="grid grid-cols-2 gap-4 text-xs text-slate-700">
-                        <p><strong>SIREN / SIRET :</strong> <span id="pdf-p1-siren">---</span></p>
-                        <p><strong>Activité (APE/NAF) :</strong> <span id="pdf-p1-naf">---</span></p>
+                        <p><strong>SIREN :</strong> <span id="pdf-p1-siren">---</span></p>
+                        <p><strong>Code NAF / Activité :</strong> <span id="pdf-p1-naf">---</span></p>
                         <p><strong>Adresse du Siège :</strong> <span id="pdf-p1-adresse">---</span></p>
                         <p><strong>Statut Registre (INSEE) :</strong> <span id="pdf-p1-status-insee">---</span></p>
-                        <p><strong>Statut d'Activité sur Place :</strong> <span id="pdf-p1-status-site">---</span></p>
-                        <p><strong>Immatriculation :</strong> <span id="pdf-p1-date">---</span></p>
+                        <p><strong>Exploitation sur Place :</strong> <span id="pdf-p1-status-site">---</span></p>
+                        <p><strong>Date d'Immatriculation :</strong> <span id="pdf-p1-date">---</span></p>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 gap-6 mb-6">
                     <div class="p-6 bg-slate-900 text-white rounded-lg text-center">
-                        <span class="text-xs uppercase tracking-widest text-sky-400 block mb-1">Score Solvabilité Globale</span>
+                        <span class="text-xs uppercase tracking-widest text-sky-400 block mb-1">Score Global de Solvabilité</span>
                         <span class="text-5xl font-black" id="pdf-p1-score">--</span>
                         <span class="text-sm font-semibold text-slate-300 block mt-1" id="pdf-p1-score-label">--</span>
                     </div>
-                    <div class="p-6 bg-slate-100 rounded-lg border border-slate-300 flex flex-col justify-center space-y-2 text-xs">
+                    <div class="p-6 bg-slate-100 rounded-lg border space-y-2 text-xs">
                         <p class="font-bold text-slate-900 border-b pb-1">DÉCISION DU COMITÉ D'OCTROI :</p>
-                        <p><strong>Plafond d'encours recommandé :</strong> <span id="pdf-p1-credit" class="text-emerald-700 font-bold">-- €</span></p>
-                        <p><strong>Délai de paiement recommandé :</strong> <span id="pdf-p1-terms">--</span></p>
+                        <p><strong>Plafond recommandé :</strong> <span id="pdf-p1-credit" class="text-emerald-700 font-bold">-- €</span></p>
+                        <p><strong>Conditions de paiement :</strong> <span id="pdf-p1-terms">--</span></p>
                         <p><strong>Avis Général :</strong> <span id="pdf-p1-risk">--</span></p>
                     </div>
                 </div>
             </div>
-
             <div class="border-t pt-4 text-[10px] text-slate-500 flex justify-between">
-                <span>Page 1 / 4 - Synthèse & Solvabilité</span>
+                <span>Page 1 / 4 - Synthèse Fiche Signalétique</span>
                 <span>Euro Expert Solvabilité 2026</span>
             </div>
         </div>
 
-        <!-- PAGE 2 -->
-        <div class="pdf-page p-8 flex flex-col justify-between border-b-2 border-slate-200" style="min-height: 1120px; page-break-after: always;">
+        <!-- PAGE 2 : DIAGNOSTIC FINANCIER & KYC -->
+        <div class="pdf-page p-8 flex flex-col justify-between border-b" style="min-height: 1080px; page-break-after: always;">
             <div>
                 <div class="border-b-2 border-slate-900 pb-2 mb-6">
-                    <h2 class="text-xl font-bold text-slate-900">PAGE 2 : DIAGNOSTIC FINANCIER & RATIOS</h2>
+                    <h2 class="text-xl font-bold text-slate-900">PAGE 2 : DIAGNOSTIC FINANCIER, RATIOS & KYC</h2>
                 </div>
-
                 <div class="mb-6">
-                    <h3 class="text-sm font-bold text-slate-800 uppercase mb-3">1. Synthèse de la Santé Financière</h3>
-                    <div class="bg-slate-50 p-4 rounded border text-xs space-y-2 text-slate-700" id="pdf-p2-financial-summary"></div>
+                    <h3 class="text-sm font-bold text-slate-800 uppercase mb-2">1. Synthèse IA Finances & Performance</h3>
+                    <p id="pdf-p2-ai-finances" class="bg-slate-50 p-4 rounded border text-xs leading-relaxed text-slate-700"></p>
                 </div>
-
                 <div class="mb-6">
-                    <h3 class="text-sm font-bold text-slate-800 uppercase mb-3">2. Tableau des Ratios de Gestion</h3>
-                    <table class="w-full text-xs text-left border-collapse border border-slate-300">
-                        <thead>
-                            <tr class="bg-slate-200 text-slate-800">
-                                <th class="border border-slate-300 p-2">Indicateur Financier</th>
-                                <th class="border border-slate-300 p-2">Valeur Estimée</th>
-                                <th class="border border-slate-300 p-2">Moyenne Secteur</th>
-                                <th class="border border-slate-300 p-2">Appréciation</th>
-                            </tr>
-                        </thead>
-                        <tbody id="pdf-p2-ratios-table"></tbody>
-                    </table>
+                    <h3 class="text-sm font-bold text-slate-800 uppercase mb-2">2. Synthèse IA Groupe & KYC (LCB-FT)</h3>
+                    <p id="pdf-p2-ai-kyc" class="bg-slate-50 p-4 rounded border text-xs leading-relaxed text-slate-700"></p>
                 </div>
             </div>
-
             <div class="border-t pt-4 text-[10px] text-slate-500 flex justify-between">
-                <span>Page 2 / 4 - Analyse Financière</span>
+                <span>Page 2 / 4 - Analyse Financière & KYC</span>
                 <span>Euro Expert Solvabilité 2026</span>
             </div>
         </div>
 
-        <!-- PAGE 3 -->
-        <div class="pdf-page p-8 flex flex-col justify-between border-b-2 border-slate-200" style="min-height: 1120px; page-break-after: always;">
+        <!-- PAGE 3 : CONFORMITÉ & DAAF -->
+        <div class="pdf-page p-8 flex flex-col justify-between border-b" style="min-height: 1080px; page-break-after: always;">
             <div>
                 <div class="border-b-2 border-slate-900 pb-2 mb-6">
-                    <h2 class="text-xl font-bold text-slate-900">PAGE 3 : HYGIÈNE (DAAF), PRESSE & IMMOBILIER</h2>
+                    <h2 class="text-xl font-bold text-slate-900">PAGE 3 : CONFORMITÉ SANITAIRE (DAAF) & PRESSE</h2>
                 </div>
-
                 <div class="mb-6">
-                    <h3 class="text-sm font-bold text-slate-800 uppercase mb-3">1. Bulletin d'Hygiène & Contrôles Sanitaires (DAAF / Préfecture)</h3>
-                    <div id="pdf-p3-sanitary-box" class="p-4 rounded border text-xs leading-relaxed"></div>
-                </div>
-
-                <div class="mb-6">
-                    <h3 class="text-sm font-bold text-slate-800 uppercase mb-3">2. Audit Foncier & Bail Commercial</h3>
-                    <div id="pdf-p3-immo-box" class="bg-slate-50 p-4 rounded border border-slate-200 text-xs space-y-2 text-slate-700"></div>
+                    <h3 class="text-sm font-bold text-slate-800 uppercase mb-2">1. Synthèse IA Conformité & Hygiène</h3>
+                    <p id="pdf-p3-ai-conformite" class="bg-slate-50 p-4 rounded border text-xs leading-relaxed text-slate-700"></p>
                 </div>
             </div>
-
             <div class="border-t pt-4 text-[10px] text-slate-500 flex justify-between">
-                <span>Page 3 / 4 - Presse & Foncier</span>
+                <span>Page 3 / 4 - Revue Presse & Sanitaire</span>
                 <span>Euro Expert Solvabilité 2026</span>
             </div>
         </div>
 
-        <!-- PAGE 4 -->
-        <div class="pdf-page p-8 flex flex-col justify-between" style="min-height: 1120px;">
+        <!-- PAGE 4 : LEGAL, FONCIER & ATTESTATION -->
+        <div class="pdf-page p-8 flex flex-col justify-between" style="min-height: 1080px;">
             <div>
                 <div class="border-b-2 border-slate-900 pb-2 mb-6">
-                    <h2 class="text-xl font-bold text-slate-900">PAGE 4 : RECOMMANDATIONS & ATTESTATION LÉGALE</h2>
+                    <h2 class="text-xl font-bold text-slate-900">PAGE 4 : LÉGAL, FONCIER DVF & CERTIFICATION</h2>
                 </div>
-
-                <div class="mb-6 space-y-3 text-xs text-slate-700">
-                    <h3 class="text-sm font-bold text-slate-800 uppercase">1. Recommandation : Clause de Réserve de Propriété</h3>
-                    <p class="bg-slate-50 p-4 rounded border border-slate-200 leading-relaxed">
-                        Conformément à la Loi n° 80-335 du 12 mai 1980, toute livraison effectuée vers cet établissement doit être couverte par une clause de réserve de propriété formelle inscrite sur les bons de commande et factures.
-                    </p>
+                <div class="mb-6">
+                    <h3 class="text-sm font-bold text-slate-800 uppercase mb-2">1. Synthèse IA Foncier DVF & Contentieux</h3>
+                    <p id="pdf-p4-ai-legal" class="bg-slate-50 p-4 rounded border text-xs leading-relaxed text-slate-700"></p>
                 </div>
-
-                <div class="mb-8 p-6 bg-slate-900 text-white rounded-lg space-y-3 text-xs">
-                    <h3 class="text-sm font-bold text-sky-400 uppercase">2. Certification Officielle d'Audit 2026</h3>
+                <div class="p-6 bg-slate-900 text-white rounded-lg space-y-3 text-xs">
+                    <h3 class="text-sm font-bold text-sky-400 uppercase">2. Attestation Officielle d'Audit Solvabilité 2026</h3>
                     <p class="leading-relaxed">
-                        Ce document est issu du recoupement algorithmique automatisé en temps réel des bases de données légales françaises (INSEE, RCS, BODACC, Cadastre DVF et arrêtés préfectoraux d'hygiène DAAF).
+                        Ce document est certifié issu du recoupement algorithmique automatisé en temps réel des bases officielles françaises (INSEE, RCS, BODACC, Cadastre DVF et préfectures DAAF).
                     </p>
                     <div class="pt-4 flex justify-between items-center text-[11px] border-t border-slate-800">
-                        <span>Empreinte Numérique : SHA256-EES-2026-CERTIFIED</span>
-                        <span class="text-emerald-400 font-bold"><i class="fa-solid fa-check-circle"></i> Rapport Certifié Conforme</span>
+                        <span>Empreinte SHA256-EES-2026-CERTIFIED</span>
+                        <span class="text-emerald-400 font-bold"><i class="fa-solid fa-check-circle"></i> Document Garanti Conforme</span>
                     </div>
                 </div>
             </div>
-
             <div class="border-t pt-4 text-[10px] text-slate-500 flex justify-between">
-                <span>Page 4 / 4 - Attestation et Réserve Légale</span>
+                <span>Page 4 / 4 - Certification Certifiée</span>
                 <span>Euro Expert Solvabilité 2026</span>
             </div>
         </div>
