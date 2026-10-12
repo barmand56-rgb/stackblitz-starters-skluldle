@@ -5,6 +5,9 @@
 const MASTER_MANAGER_CODE = "EURO2026";
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
+// Cache en mémoire pour rendre les recherches instantanées
+const apiSearchCache = new Map();
+
 let leafletMapInstance = null;
 let financialChartInstance = null;
 let currentCompanyData = null;
@@ -26,6 +29,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     initHomeMap();
 });
+
+// --- RECHERCHE AVEC CACHE FLUIDIFIÉ ---
+async function fetchGouvAPI(url) {
+    if (apiSearchCache.has(url)) {
+        return apiSearchCache.get(url);
+    }
+    try {
+        const res = await fetch(url);
+        const data = await res.json();
+        apiSearchCache.set(url, data);
+        return data;
+    } catch (e) {
+        console.error("Erreur API:", e);
+        return null;
+    }
+}
 
 // --- RECHERCHE DIRECTE D'UNE ENTITÉ DU GROUPE PAR SIREN OU NOM ---
 function triggerSearchBySiren(queryTarget) {
@@ -66,7 +85,7 @@ function initHomeMap() {
         L.marker([50.1109, 8.6821]).addTo(map).bindPopup("<b>Francfort</b><br>Place Financière");
 
         window.leafletMapInstance = map;
-        setTimeout(() => { if (window.leafletMapInstance) window.leafletMapInstance.invalidateSize(); }, 200);
+        setTimeout(() => { if (window.leafletMapInstance) window.leafletMapInstance.invalidateSize(); }, 150);
     } catch (e) {
         console.error("Erreur carte d'accueil:", e);
     }
@@ -135,7 +154,7 @@ function switchTab(tabId) {
     document.getElementById(`tab-btn-${tabId}`).classList.add("active");
 }
 
-// --- RECHERCHE ET AUTOCOMPLÉTION ---
+// --- RECHERCHE ET AUTOCOMPLÉTION OPTIMISÉE ---
 let searchTimeout = null;
 
 function handleSearchKeyup(event) {
@@ -153,18 +172,15 @@ function handleSearchKeyup(event) {
         return;
     }
 
-    searchTimeout = setTimeout(() => {
-        fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=5`)
-            .then(res => res.json())
-            .then(data => {
-                if (data.results && data.results.length > 0) {
-                    renderAutocompleteResults(data.results);
-                } else {
-                    resultsContainer.classList.add("hidden");
-                }
-            })
-            .catch(() => resultsContainer.classList.add("hidden"));
-    }, 300);
+    searchTimeout = setTimeout(async () => {
+        const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=5`;
+        const data = await fetchGouvAPI(url);
+        if (data && data.results && data.results.length > 0) {
+            renderAutocompleteResults(data.results);
+        } else {
+            resultsContainer.classList.add("hidden");
+        }
+    }, 250);
 }
 
 function renderAutocompleteResults(results) {
@@ -200,20 +216,18 @@ function renderAutocompleteResults(results) {
     resultsContainer.classList.remove("hidden");
 }
 
-function executeSearch() {
+async function executeSearch() {
     const query = document.getElementById("search-input").value.trim();
     document.getElementById("autocomplete-results").classList.add("hidden");
     if (!query) return;
 
-    fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=1`)
-        .then(res => res.json())
-        .then(data => {
-            if (data.results && data.results.length > 0) {
-                selectCompany(data.results[0]);
-            } else {
-                alert("Aucun résultat d'immatriculation trouvé.");
-            }
-        });
+    const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=1`;
+    const data = await fetchGouvAPI(url);
+    if (data && data.results && data.results.length > 0) {
+        selectCompany(data.results[0]);
+    } else {
+        alert("Aucun résultat d'immatriculation trouvé.");
+    }
 }
 
 // --- SELECTION ENTREPRISE & EVALUATION DU GROUPE & SOLVABILITÉ ---
@@ -229,7 +243,6 @@ function selectCompany(company) {
     const siege = company.siege || {};
     const adresse = `${siege.adresse || ''} ${siege.code_postal || ''} ${siege.libelle_commune || ''}`.trim() || "Adresse non communiquée";
 
-    // Détection spécifique : L'UNI VERT & cas de vigilance DAAF / paiement
     const isUniVert = name.toLowerCase().includes("uni vert") || siren === "815297270";
     const isMarrakech = name.toLowerCase().includes("marrakech");
     const isRestaurant = (naf.startsWith("56") || name.toLowerCase().includes("resto") || isUniVert || isMarrakech);
@@ -242,7 +255,7 @@ function selectCompany(company) {
     document.getElementById("company-naf").textContent = naf;
     document.getElementById("company-date").textContent = dateCreation;
 
-    // Liens officiels Data.gouv & Pappers pour l'entreprise auditée
+    // Liens officiels Data.gouv & Pappers
     const linksBox = document.getElementById("company-official-links");
     if (linksBox) {
         linksBox.innerHTML = `
@@ -257,7 +270,7 @@ function selectCompany(company) {
         `;
     }
 
-    // Badges de statut : L'ÉTABLISSEMENT APPARAÎT BIEN COMME OUVERT / EXPLOITÉ
+    // Badges de statut
     const badgeINSEE = document.getElementById("badge-status-insee");
     const badgeStatusSite = document.getElementById("badge-status-site");
     const badgeDAAFStatus = document.getElementById("badge-daaf-status");
@@ -280,7 +293,7 @@ function selectCompany(company) {
         badgeDAAFStatus.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> VIGILANCE DAAF & RETARDS FOURNISSEURS`;
         alertBannerDAAF.classList.remove("hidden");
         document.getElementById("alert-daaf-text").innerHTML = `
-            <strong>Alerte Vigilance Solvabilité & Hygiène :</strong> L'établissement est actuellement <strong>OUVERT et en activité</strong>. Il fait toutefois l'objet d'un <strong>historique de contrôle sanitaire DAAF</strong> et de <strong>retards de règlement fournisseurs (Paydex &gt; 90 jours)</strong>. Ces facteurs impactent directement la cotation globale et la limite d'encours recommandée.
+            <strong>Alerte Vigilance Solvabilité & Hygiène :</strong> L'établissement est actuellement <strong>OUVERT et en activité</strong>. Il fait toutefois l'objet d'un <strong>historique de contrôle sanitaire DAAF</strong> et de <strong>retards de règlement fournisseurs (Paydex &gt; 90 jours)</strong>.
         `;
     } else {
         badgeDAAFStatus.className = "px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5";
@@ -313,7 +326,7 @@ function updateCompanyMapLocation(lat, lon, title, address) {
             window.leafletMapInstance.setView([lat, lon], 15);
             L.marker([lat, lon]).addTo(window.leafletMapInstance)
                 .bindPopup(`<b>${title}</b><br><span style="font-size:11px;">${address}</span>`).openPopup();
-            setTimeout(() => { window.leafletMapInstance.invalidateSize(); }, 200);
+            setTimeout(() => { window.leafletMapInstance.invalidateSize(); }, 150);
         } catch(e) {
             initHomeMap();
         }
@@ -322,7 +335,7 @@ function updateCompanyMapLocation(lat, lon, title, address) {
     }
 }
 
-// --- ORGANIGRAMME GROUPE : RATTACHEMENT SPÉCIFIQUE (HOLDING ABONDANCE / BOMA BEACH / UNIVERSITY) ---
+// --- ORGANIGRAMME GROUPE : RATTACHEMENT SPÉCIFIQUE (HOLDING ABONDANCE / BOMA BEACH / UNIVER CITY LA POSSESSION) ---
 async function renderGroupAndHoldingStructure(name, siren, dirigeants) {
     const holdingContainer = document.getElementById("holding-container");
     const associatedContainer = document.getElementById("associated-restaurants-container");
@@ -333,19 +346,19 @@ async function renderGroupAndHoldingStructure(name, siren, dirigeants) {
     associatedContainer.innerHTML = `<div class="p-3 text-xs text-slate-400 font-mono col-span-full flex items-center gap-2"><i class="fa-solid fa-spinner animate-spin text-cyan-400"></i> Chargement des restaurants et filiales du groupe...</div>`;
 
     if (isUniVert) {
-        // CAS SPÉCIFIQUE L'UNI VERT : HOLDING ABONDANCE & RESTAURANTS BOMA BEACH / UNIVERSITY
+        // HOLDING ABONDANCE
         let holdingSiren = "838491205";
         let holdingName = "HOLDING ABONDANCE";
 
-        try {
-            const resH = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=ABONDANCE&per_page=5`);
-            const dataH = await resH.json();
-            const foundH = (dataH.results || []).find(r => r.nom_complet.toLowerCase().includes("abondance"));
+        const urlH = `https://recherche-entreprises.api.gouv.fr/search?q=ABONDANCE&per_page=5`;
+        const dataH = await fetchGouvAPI(urlH);
+        if (dataH && dataH.results) {
+            const foundH = dataH.results.find(r => r.nom_complet.toLowerCase().includes("abondance"));
             if (foundH) {
                 holdingSiren = foundH.siren;
                 holdingName = foundH.nom_complet;
             }
-        } catch (e) {}
+        }
 
         holdingContainer.innerHTML = `
             <div class="p-4 bg-slate-900/90 border border-indigo-500/40 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
@@ -374,10 +387,10 @@ async function renderGroupAndHoldingStructure(name, siren, dirigeants) {
             </div>
         `;
 
-        // Établissements et restaurants associés réels
+        // MODIFICATION : BOMA BEACH & UNIVER CITY (RESTAURANT A LA POSSESSION)
         const targetEntities = [
             { searchName: "BOMA BEACH", fallbackName: "BOMA BEACH (RESTAURANT BEACH CLUB)", defaultSiren: "891234567", type: "Restaurant / Beach Club", location: "La Saline-Les-Bains" },
-            { searchName: "UNIVERSITY", fallbackName: "UNIVERSITY (BAR RESTAURANT)", defaultSiren: "898765432", type: "Restauration / Bar", location: "La Réunion" }
+            { searchName: "UNIVER CITY LA POSSESSION", fallbackName: "UNIVER CITY (RESTAURANT LA POSSESSION)", defaultSiren: "898765432", type: "Restaurant / Brasserie", location: "La Possession, La Réunion" }
         ];
 
         associatedContainer.innerHTML = "";
@@ -387,16 +400,14 @@ async function renderGroupAndHoldingStructure(name, siren, dirigeants) {
             let itemName = item.fallbackName;
             let itemLocation = item.location;
 
-            try {
-                const resA = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(item.searchName)}&per_page=3`);
-                const dataA = await resA.json();
-                if (dataA.results && dataA.results.length > 0) {
-                    const match = dataA.results[0];
-                    itemSiren = match.siren;
-                    itemName = match.nom_complet || match.nom_raison_sociale;
-                    if (match.siege) itemLocation = `${match.siege.code_postal || ''} ${match.siege.libelle_commune || ''}`.trim() || itemLocation;
-                }
-            } catch(e) {}
+            const urlA = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(item.searchName)}&per_page=3`;
+            const dataA = await fetchGouvAPI(urlA);
+            if (dataA && dataA.results && dataA.results.length > 0) {
+                const match = dataA.results[0];
+                itemSiren = match.siren;
+                itemName = match.nom_complet || match.nom_raison_sociale;
+                if (match.siege) itemLocation = `${match.siege.code_postal || ''} ${match.siege.libelle_commune || ''}`.trim() || itemLocation;
+            }
 
             const div = document.createElement("div");
             div.className = "p-4 bg-slate-900/80 border border-slate-800 rounded-xl hover:border-cyan-500/40 transition-all flex flex-col justify-between space-y-3";
@@ -424,13 +435,13 @@ async function renderGroupAndHoldingStructure(name, siren, dirigeants) {
         return;
     }
 
-    // Traitement générique pour autres entreprises B2B
+    // Traitement générique
     const cleanBaseName = name.toUpperCase().replace(/SARL|EURL|SAS|SASU|SA/g, '').trim();
-    try {
-        const res = await fetch(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanBaseName)}&per_page=5`);
-        const data = await res.json();
-        const results = (data.results || []).filter(item => item.siren !== siren);
-
+    const urlGen = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanBaseName)}&per_page=5`;
+    const dataGen = await fetchGouvAPI(urlGen);
+    
+    if (dataGen && dataGen.results) {
+        const results = dataGen.results.filter(item => item.siren !== siren);
         const holdingSiren = results.length > 0 ? results[0].siren : siren;
         const holdingName = results.length > 0 ? results[0].nom_complet : `HOLDING ${cleanBaseName} INVEST`;
 
@@ -465,8 +476,6 @@ async function renderGroupAndHoldingStructure(name, siren, dirigeants) {
             `;
             associatedContainer.appendChild(div);
         });
-    } catch (e) {
-        console.error("Erreur groupe API générique:", e);
     }
 }
 
@@ -558,7 +567,7 @@ function generateInstitutionalSyntheses(name, isRestaurant, hasHygieneVigilance,
     `;
 
     document.getElementById("ai-synthesis-kyc").innerHTML = `
-        <p class="mb-2"><strong>Gouvernance, Filiation & Holding Mère :</strong> L'établissement <strong>${name}</strong> est rattaché au groupe piloté par la <strong>HOLDING ABONDANCE</strong>, aux côtés des restaurants partenaires <strong>BOMA BEACH</strong> et <strong>UNIVERSITY</strong>.</p>
+        <p class="mb-2"><strong>Gouvernance, Filiation & Holding Mère :</strong> L'établissement <strong>${name}</strong> est rattaché au groupe piloté par la <strong>HOLDING ABONDANCE</strong>, aux côtés des restaurants partenaires <strong>BOMA BEACH</strong> et <strong>UNIVER CITY (La Possession)</strong>.</p>
         <p class="mb-2"><strong>Conformité LCB-FT :</strong> Registre RBO conforme et absence de correspondance sur les listes de sanctions internationales.</p>
     `;
 
@@ -602,7 +611,11 @@ function renderFinancialChart(hasHygieneVigilance, hasSupplierDefault) {
                 { label: 'Résultat Net (k€)', data: isDegraded ? [12, -22, -35] : [45, 52, 61], backgroundColor: 'rgba(16, 185, 129, 0.6)' }
             ]
         },
-        options: { responsive: true, maintainAspectRatio: false }
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false,
+            animation: { duration: 300 } // Rendu plus rapide
+        }
     });
 
     document.getElementById("ratio-marge").textContent = isDegraded ? "- 8.4 %" : "9.8 %";
@@ -623,7 +636,7 @@ function renderPressAndConformite(name, hasHygieneVigilance, hasSupplierDefault)
 }
 
 // ============================================================================
-// GENERATION PDF A4 PAPPERS STYLE - FIXation DU STATUT "OUVERT" & GROUPE ABONDANCE
+// GENERATION PDF A4 PAPPERS STYLE - FIXation UNIVER CITY LA POSSESSION
 // ============================================================================
 function generatePDFReport() {
     if (!currentCompanyData) return;
@@ -752,7 +765,7 @@ function generatePDFReport() {
                         <td style="padding: 3px; border: 1px solid #cbd5e1; font-weight: 700;">Gouvernance & Groupe (Holding ABONDANCE)</td>
                         <td style="padding: 3px; border: 1px solid #cbd5e1; text-align: center; font-weight: 800; color:#16a34a;">78/100</td>
                         <td style="padding: 3px; border: 1px solid #cbd5e1; text-align: center; color: #16a34a; font-weight: 700;">FAIBLE</td>
-                        <td style="padding: 3px; border: 1px solid #cbd5e1;">Ancrage dans le groupe avec Boma Beach et University.</td>
+                        <td style="padding: 3px; border: 1px solid #cbd5e1;">Ancrage dans le groupe avec Boma Beach et Univer City (La Possession).</td>
                     </tr>
                 </tbody>
             </table>
@@ -825,13 +838,13 @@ function generatePDFReport() {
             </div>
             <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 6px 8px; border-radius: 4px; margin-bottom: 8px; font-size: 8px; color: #0f172a;">
                 <div style="font-weight: 800; font-size: 9px; color: #4338ca; margin-bottom: 2px;">HOLDING ABONDANCE</div>
-                <div>• Role Groupe : <strong>Maison Mère / Holding d'Exploitation HCR</strong></div>
+                <div>• Rôle Groupe : <strong>Maison Mère / Holding d'Exploitation HCR</strong></div>
                 <div>• Lien Officiel Data.gouv : <span style="font-family: monospace; color:#0284c7;">annuaire-entreprises.data.gouv.fr/entreprise/838491205</span></div>
                 <div>• Lien Officiel Pappers : <span style="font-family: monospace; color:#4f46e5;">pappers.fr/entreprise/838491205</span></div>
             </div>
 
             <div style="font-size: 9px; font-weight: 800; color: #0284c7; text-transform: uppercase; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; margin-bottom: 4px;">
-                2. RESTAURANTS & ÉTABLISSEMENTS ASOCIÉS DU GROUPE
+                2. RESTAURANTS & ÉTABLISSEMENTS ASSOCIÉS DU GROUPE
             </div>
             <table style="width: 100%; border-collapse: collapse; font-size: 7.5px; margin-bottom: 8px; border: 1px solid #cbd5e1; color:#0f172a;">
                 <thead>
@@ -850,9 +863,9 @@ function generatePDFReport() {
                         <td style="padding: 4px; border: 1px solid #cbd5e1; font-family:monospace; color:#0284c7;">annuaire-entreprises.data.gouv.fr</td>
                     </tr>
                     <tr style="background-color: #f8fafc;">
-                        <td style="padding: 4px; border: 1px solid #cbd5e1; font-weight:700;">UNIVERSITY</td>
-                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align:center;">Restauration / Bar</td>
-                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align:center;">La Réunion</td>
+                        <td style="padding: 4px; border: 1px solid #cbd5e1; font-weight:700;">UNIVER CITY</td>
+                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align:center;">Restaurant / Brasserie</td>
+                        <td style="padding: 4px; border: 1px solid #cbd5e1; text-align:center;">La Possession (La Réunion)</td>
                         <td style="padding: 4px; border: 1px solid #cbd5e1; font-family:monospace; color:#0284c7;">annuaire-entreprises.data.gouv.fr</td>
                     </tr>
                 </tbody>
