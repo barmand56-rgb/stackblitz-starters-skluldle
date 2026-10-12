@@ -964,6 +964,14 @@
 // 10. GENERATION DU RAPPORT PDF EXECUTE DENSE SUR 4 PAGES (ZERO ESPACE VIDE)
 // =========================================================================
 function generateTechAuditPdf() {
+  // Vérification si l'établissement siège est fermé ou si la société est en sommeil
+const siegeFerme = siege.etat_administratif === 'F' || siege.date_fermeture !== null;
+const isActif = company.etat_administratif === 'A' && !siegeFerme;
+
+// Ajustement automatique du score si l'établissement est fermé
+if (siegeFerme) {
+  scoreVal = Math.min(scoreVal, 25); // Plafonne le score à 25/100 (Risque Critique)
+}
   if (!currentCompanyData) {
     alert("Veuillez d'abord analyser une entreprise.");
     return;
