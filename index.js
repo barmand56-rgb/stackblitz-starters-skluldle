@@ -424,103 +424,106 @@ function renderPressAndConformite(name, hasSanction) {
 }
 
 // --- GENERATION PDF 4 PAGES STRICTES ---
+// ============================================================================
+// EXPORT PDF CORRIGÉ (4 PAGES STRICTES A4 SANS PAGES BLANCHES)
+// ============================================================================
 function generatePDFReport() {
-    if (!currentCompanyData) return;
+  if (!currentCompanyData) return;
 
-    const name = currentCompanyData.nom_complet || currentCompanyData.nom_raison_sociale || "ENTREPRISE";
-    const siren = currentCompanyData.siren || "Non renseigné";
-    const naf = currentCompanyData.activite_principale || "Non renseigné";
-    const siege = currentCompanyData.siege || {};
-    const adresse = `${siege.adresse || ''} ${siege.code_postal || ''} ${siege.libelle_commune || ''}`.trim() || "N/C";
+  const name = currentCompanyData.nom_complet || currentCompanyData.nom_raison_sociale || "ENTREPRISE";
+  const siren = currentCompanyData.siren || "Non renseigné";
+  const naf = currentCompanyData.activite_principale || "Non renseigné";
+  const siege = currentCompanyData.siege || {};
+  const adresse = `${siege.adresse || ''} ${siege.code_postal || ''} ${siege.libelle_commune || ''}`.trim() || "N/C";
 
-    const pdfContainer = document.getElementById("pdf-report-template");
-    pdfContainer.innerHTML = `
-        <!-- PAGE 1 -->
-        <div class="pdf-page-a4">
-            <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h1 style="font-size: 20px; font-weight: 900; color: #0f172a; text-transform: uppercase;">RAPPORT D'AUDIT DE SOLVABILITÉ B2B</h1>
-                    <p style="font-size: 10px; color: #475569;">EURO EXPERT SOLVABILITÉ - CERTIFICATION INSTITUTIONNELLE 2026</p>
-                </div>
-                <div style="text-align: right; font-size: 10px; font-family: monospace;">
-                    <strong>Réf: EES-${siren}</strong><br>Date: ${new Date().toLocaleDateString("fr-FR")}
-                </div>
-            </div>
+  const pdfContainer = document.getElementById("pdf-report-template");
+  pdfContainer.innerHTML = `
+      <!-- PAGE 1 -->
+      <div class="pdf-page-a4">
+          <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                  <h1 style="font-size: 20px; font-weight: 900; color: #0f172a; text-transform: uppercase;">RAPPORT D'AUDIT DE SOLVABILITÉ B2B</h1>
+                  <p style="font-size: 10px; color: #475569;">EURO EXPERT SOLVABILITÉ - CERTIFICATION INSTITUTIONNELLE</p>
+              </div>
+              <div style="text-align: right; font-size: 10px; font-family: monospace;">
+                  <strong>Réf: EES-${siren}</strong><br>Date: ${new Date().toLocaleDateString("fr-FR")}
+              </div>
+          </div>
 
-            <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 8px; margin-bottom: 20px; font-size: 11px;">
-                <h2 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">${name}</h2>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                    <p><strong>SIREN :</strong> ${siren}</p>
-                    <p><strong>Code NAF :</strong> ${naf}</p>
-                    <p><strong>Adresse :</strong> ${adresse}</p>
-                    <p><strong>Statut INSEE :</strong> Actif</p>
-                </div>
-            </div>
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 8px; margin-bottom: 20px; font-size: 11px;">
+              <h2 style="font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 8px;">${name}</h2>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                  <p><strong>SIREN :</strong> ${siren}</p>
+                  <p><strong>Code NAF :</strong> ${naf}</p>
+                  <p><strong>Adresse :</strong> ${adresse}</p>
+                  <p><strong>Statut INSEE :</strong> Actif</p>
+              </div>
+          </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div style="background-color: #0f172a; color: #ffffff; padding: 20px; border-radius: 8px; text-align: center;">
-                    <span style="font-size: 11px; text-transform: uppercase; color: #38bdf8;">Score de Solvabilité</span>
-                    <div style="font-size: 48px; font-weight: 900; margin: 10px 0;">${document.getElementById("score-value").textContent}</div>
-                    <span style="font-size: 12px; font-weight: 700;">${document.getElementById("score-label").textContent}</span>
-                </div>
-                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 8px; font-size: 11px;">
-                    <p style="font-weight: 800; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px;">DÉCISION D'OCTROI DE CRÉDIT :</p>
-                    <p><strong>Encours Max :</strong> ${document.getElementById("credit-limit").textContent}</p>
-                    <p><strong>Paiement :</strong> ${document.getElementById("payment-terms").textContent}</p>
-                    <p><strong>Classe de Risque :</strong> ${document.getElementById("risk-level").textContent}</p>
-                </div>
-            </div>
-        </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <div style="background-color: #0f172a; color: #ffffff; padding: 20px; border-radius: 8px; text-align: center;">
+                  <span style="font-size: 11px; text-transform: uppercase; color: #38bdf8;">Score de Solvabilité</span>
+                  <div style="font-size: 48px; font-weight: 900; margin: 10px 0;">${document.getElementById("score-value").textContent}</div>
+                  <span style="font-size: 12px; font-weight: 700;">${document.getElementById("score-label").textContent}</span>
+              </div>
+              <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; border-radius: 8px; font-size: 11px;">
+                  <p style="font-weight: 800; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-bottom: 8px;">DÉCISION D'OCTROI DE CRÉDIT :</p>
+                  <p><strong>Encours Max :</strong> ${document.getElementById("credit-limit").textContent}</p>
+                  <p><strong>Paiement :</strong> ${document.getElementById("payment-terms").textContent}</p>
+                  <p><strong>Classe de Risque :</strong> ${document.getElementById("risk-level").textContent}</p>
+              </div>
+          </div>
+      </div>
 
-        <!-- PAGE 2 -->
-        <div class="pdf-page-a4">
-            <h2 style="font-size: 16px; font-weight: 800; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 16px;">PAGE 2 : DIAGNOSTIC FINANCIER & RATIOS</h2>
-            <div style="font-size: 11px; line-height: 1.5; margin-bottom: 16px;">${document.getElementById("ai-synthesis-finances").innerHTML}</div>
-            <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 10px;">
-                <thead>
-                    <tr style="background-color: #0f172a; color: #ffffff;">
-                        <th style="padding: 8px; border: 1px solid #cbd5e1;">Indicateur</th>
-                        <th style="padding: 8px; border: 1px solid #cbd5e1;">Valeur</th>
-                        <th style="padding: 8px; border: 1px solid #cbd5e1;">Norme</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr><td style="padding: 8px; border: 1px solid #cbd5e1;">Taux de Marge Nette</td><td style="padding: 8px; border: 1px solid #cbd5e1;">${document.getElementById("ratio-marge").textContent}</td><td style="padding: 8px; border: 1px solid #cbd5e1;">> 6.5%</td></tr>
-                    <tr><td style="padding: 8px; border: 1px solid #cbd5e1;">Autonomie Financière</td><td style="padding: 8px; border: 1px solid #cbd5e1;">${document.getElementById("ratio-autonomie").textContent}</td><td style="padding: 8px; border: 1px solid #cbd5e1;">> 30%</td></tr>
-                    <tr><td style="padding: 8px; border: 1px solid #cbd5e1;">Indice Paydex</td><td style="padding: 8px; border: 1px solid #cbd5e1;">${document.getElementById("ratio-paydex").textContent}</td><td style="padding: 8px; border: 1px solid #cbd5e1;">< 45j</td></tr>
-                </tbody>
-            </table>
-        </div>
+      <!-- PAGE 2 -->
+      <div class="pdf-page-a4">
+          <h2 style="font-size: 16px; font-weight: 800; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 16px;">PAGE 2 : DIAGNOSTIC FINANCIER & RATIOS</h2>
+          <div style="font-size: 11px; line-height: 1.5; margin-bottom: 16px;">${document.getElementById("ai-synthesis-finances").innerHTML}</div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 10px; margin-top: 10px;">
+              <thead>
+                  <tr style="background-color: #0f172a; color: #ffffff;">
+                      <th style="padding: 8px; border: 1px solid #cbd5e1;">Indicateur</th>
+                      <th style="padding: 8px; border: 1px solid #cbd5e1;">Valeur</th>
+                      <th style="padding: 8px; border: 1px solid #cbd5e1;">Norme</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  <tr><td style="padding: 8px; border: 1px solid #cbd5e1;">Taux de Marge Nette</td><td style="padding: 8px; border: 1px solid #cbd5e1;">${document.getElementById("ratio-marge").textContent}</td><td style="padding: 8px; border: 1px solid #cbd5e1;">> 6.5%</td></tr>
+                  <tr><td style="padding: 8px; border: 1px solid #cbd5e1;">Autonomie Financière</td><td style="padding: 8px; border: 1px solid #cbd5e1;">${document.getElementById("ratio-autonomie").textContent}</td><td style="padding: 8px; border: 1px solid #cbd5e1;">> 30%</td></tr>
+                  <tr><td style="padding: 8px; border: 1px solid #cbd5e1;">Indice Paydex</td><td style="padding: 8px; border: 1px solid #cbd5e1;">${document.getElementById("ratio-paydex").textContent}</td><td style="padding: 8px; border: 1px solid #cbd5e1;">< 45j</td></tr>
+              </tbody>
+          </table>
+      </div>
 
-        <!-- PAGE 3 -->
-        <div class="pdf-page-a4">
-            <h2 style="font-size: 16px; font-weight: 800; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 16px;">PAGE 3 : REGISTRE DAAF & SANITAIRE</h2>
-            <div style="font-size: 11px; line-height: 1.5;">${document.getElementById("ai-synthesis-conformite").innerHTML}</div>
-        </div>
+      <!-- PAGE 3 -->
+      <div class="pdf-page-a4">
+          <h2 style="font-size: 16px; font-weight: 800; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 16px;">PAGE 3 : REGISTRE DAAF & SANITAIRE</h2>
+          <div style="font-size: 11px; line-height: 1.5;">${document.getElementById("ai-synthesis-conformite").innerHTML}</div>
+      </div>
 
-        <!-- PAGE 4 -->
-        <div class="pdf-page-a4">
-            <h2 style="font-size: 16px; font-weight: 800; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 16px;">PAGE 4 : CERTIFICATION & CADASTRE DVF</h2>
-            <div style="font-size: 11px; line-height: 1.5;">${document.getElementById("ai-synthesis-legal").innerHTML}</div>
-            <div style="margin-top: 40px; background-color: #0f172a; color: #ffffff; padding: 16px; border-radius: 8px; font-size: 10px;">
-                <strong>ATTESTATION D'AUDIT CONFORME SHA-256</strong><br>
-                Document certifié issu du traitement automatisé des données légales françaises.
-            </div>
-        </div>
-    `;
+      <!-- PAGE 4 -->
+      <div class="pdf-page-a4">
+          <h2 style="font-size: 16px; font-weight: 800; border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 16px;">PAGE 4 : CERTIFICATION & CADASTRE DVF</h2>
+          <div style="font-size: 11px; line-height: 1.5;">${document.getElementById("ai-synthesis-legal").innerHTML}</div>
+          <div style="margin-top: 40px; background-color: #0f172a; color: #ffffff; padding: 16px; border-radius: 8px; font-size: 10px;">
+              <strong>ATTESTATION D'AUDIT CONFORME SHA-256</strong><br>
+              Document certifié issu du traitement automatisé des données légales françaises.
+          </div>
+      </div>
+  `;
 
-    pdfContainer.classList.remove("hidden");
+  pdfContainer.classList.remove("hidden");
 
-    const opt = {
-        margin: 0,
-        filename: `Audit_Solvabilite_${siren}_EuroExpert.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'] }
-    };
+  const opt = {
+      margin: 0,
+      filename: `Audit_Solvabilite_${siren}_EuroExpert.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] }
+  };
 
-    html2pdf().set(opt).from(pdfContainer).save().then(() => {
-        pdfContainer.classList.add("hidden");
-    });
+  html2pdf().set(opt).from(pdfContainer).save().then(() => {
+      pdfContainer.classList.add("hidden");
+  });
 }
