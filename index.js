@@ -115,10 +115,12 @@
          <svg viewBox="0 0 400 80" style="width:100%; height:70px; font-family:sans-serif;">
            <line x1="40" y1="65" x2="380" y2="65" stroke="#cbd5e1" stroke-width="1"/>
            <line x1="40" y1="15" x2="380" y2="15" stroke="#f1f5f9" stroke-width="1"/>
+           
            <polyline fill="none" stroke="#0284c7" stroke-width="2.5" points="80,50 210,35 340,20"/>
            <circle cx="80" cy="50" r="3.5" fill="#0284c7"/>
            <circle cx="210" cy="35" r="3.5" fill="#0284c7"/>
            <circle cx="340" cy="20" r="3.5" fill="#0284c7"/>
+           
            <text x="80" y="62" font-size="7" text-anchor="middle" fill="#475569">2023 : ${cp2023.toLocaleString('fr-FR')} €</text>
            <text x="210" y="47" font-size="7" text-anchor="middle" fill="#475569">2024 : ${cp2024.toLocaleString('fr-FR')} €</text>
            <text x="340" y="32" font-size="7" text-anchor="middle" fill="#0284c7" font-weight="bold">2025 : ${cp2025.toLocaleString('fr-FR')} €</text>
@@ -152,10 +154,10 @@
        labels: (c) => {
          const hasSanitaryAlert = c.sanitaire && c.sanitaryAlert;
          const sanitText = hasSanitaryAlert
-           ? ` FERMETURE / ALERTE DAAF & HYGIÈNE (${(c.sanitaire.eval || 'Arrêté préfectoral').toUpperCase()})`
-           : (c.sanitaire && c.sanitaire.eval ? ` Hygiène : ${c.sanitaire.eval}` : ' Contrôle Sanitaire');
+           ? `FERMETURE / ALERTE DAAF & HYGIÈNE (${(c.sanitaire.eval || 'Arrêté préfectoral').toUpperCase()})`
+           : (c.sanitaire && c.sanitaire.eval ? `Hygiène : ${c.sanitaire.eval}` : 'Contrôle Sanitaire');
          return [
-           { text: c.complements && c.complements.est_bio ? ' Certification BIO' : ' Restauration Classique', status: c.complements && c.complements.est_bio },
+           { text: c.complements && c.complements.est_bio ? 'Certification BIO' : 'Restauration Classique', status: c.complements && c.complements.est_bio },
            { text: sanitText, status: !hasSanitaryAlert }
          ];
        },
@@ -164,8 +166,8 @@
      '41': {
        name: 'BTP & Construction',
        labels: (c) => [
-         { text: c.complements && c.complements.est_rge ? ' Qualit\'Enr / RGE' : ' Entreprise BTP Standard', status: c.complements && c.complements.est_rge },
-         { text: ' Assurance Décennale Validée', status: true }
+         { text: c.complements && c.complements.est_rge ? 'Qualit\'Enr / RGE' : 'Entreprise BTP Standard', status: c.complements && c.complements.est_rge },
+         { text: 'Assurance Décennale Validée', status: true }
        ],
        riskFocus: 'Risque de défaillance en cascade, garanties décennales et sécurité sur chantier'
      }
@@ -178,7 +180,7 @@
      }
      return {
        name: "Services B2B & Commerce Général",
-       labels: () => [{ text: ' Exploitation Commerciale Standard', status: true }],
+       labels: () => [{ text: 'Exploitation Commerciale Standard', status: true }],
        riskFocus: 'Analyse standard du BFR et des délais de paiement inter-entreprises'
      };
    }
@@ -190,7 +192,6 @@
      const m = targetMap || map;
      if (!m) return;
    
-     // Centrage géographique fixe sur l'Europe (Lat: 48.8566, Lng: 10.0, Zoom: 4)
      if (typeof m.setView === 'function') {
        m.setView([48.8566, 10.0], 4);
      } else if (typeof m.setCenter === 'function') {
@@ -204,20 +205,27 @@
      if (!mapElement) return;
    
      if (map) {
-       try { map.remove(); } catch (e) {}
+       try {
+         map.remove();
+       } catch (e) {}
        map = null;
      }
    
      if (typeof L !== 'undefined') {
-       // Initialisation centrée par défaut sur l'Europe
-       map = L.map('map', { center: [48.8566, 10.0], zoom: 4, zoomControl: true });
+       map = L.map('map', {
+         center: [48.8566, 10.0],
+         zoom: 4,
+         zoomControl: true
+       });
    
        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
          maxZoom: 19,
          attribution: '&copy; OpenStreetMap contributors'
        }).addTo(map);
    
-       setTimeout(() => { if (map) map.invalidateSize(); }, 200);
+       setTimeout(() => {
+         if (map) map.invalidateSize();
+       }, 200);
      }
    }
    
@@ -231,7 +239,9 @@
    
      if (lat && lng) {
        currentMarker = L.marker([lat, lng]).addTo(map);
-       if (title) currentMarker.bindPopup(`<b>${escapeHtml(title)}</b>`).openPopup();
+       if (title) {
+         currentMarker.bindPopup(`<b>${escapeHtml(title)}</b>`).openPopup();
+       }
        map.setView([lat, lng], 13);
      } else {
        centerMapOnEurope(map);
@@ -277,17 +287,82 @@
    
        const style = document.createElement('style');
        style.innerHTML = `
-         #eesLoaderOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.92); backdrop-filter: blur(10px); z-index: 999999; display: flex; justify-content: center; align-items: center; opacity: 0; transition: opacity 0.25s ease-in-out; pointer-events: auto; }
-         #eesLoaderOverlay.visible { opacity: 1; }
-         .ees-loader-card { background: #1e293b; border: 1.5px solid #0284c7; border-radius: 12px; padding: 24px 32px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); max-width: 400px; }
-         .ees-spinner-container { position: relative; width: 70px; height: 70px; margin: 0 auto 16px; }
-         .ees-spinner-ring { width: 100%; height: 100%; border: 4px solid #334155; border-top: 4px solid #0284c7; border-radius: 50%; animation: eesSpin 1s linear infinite; }
-         .ees-spinner-core { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 38px; height: 38px; }
-         .ees-brand-logo-img { width: 100%; height: 100%; object-fit: contain; }
-         .ees-loader-title { color: #f8fafc; font-size: 14px; font-weight: 800; letter-spacing: 0.5px; margin-bottom: 6px; }
-         .ees-loader-status { color: #38bdf8; font-size: 12px; font-weight: 600; margin-bottom: 4px; }
-         .ees-loader-subtext { color: #94a3b8; font-size: 10px; }
-         @keyframes eesSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+         #eesLoaderOverlay {
+           position: fixed;
+           top: 0;
+           left: 0;
+           width: 100vw;
+           height: 100vh;
+           background: rgba(15, 23, 42, 0.92);
+           backdrop-filter: blur(10px);
+           z-index: 999999;
+           display: flex;
+           justify-content: center;
+           align-items: center;
+           opacity: 0;
+           transition: opacity 0.25s ease-in-out;
+           pointer-events: auto;
+         }
+         #eesLoaderOverlay.visible {
+           opacity: 1;
+         }
+         .ees-loader-card {
+           background: #1e293b;
+           border: 1.5px solid #0284c7;
+           border-radius: 12px;
+           padding: 24px 32px;
+           text-align: center;
+           box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);
+           max-width: 400px;
+         }
+         .ees-spinner-container {
+           position: relative;
+           width: 70px;
+           height: 70px;
+           margin: 0 auto 16px;
+         }
+         .ees-spinner-ring {
+           width: 100%;
+           height: 100%;
+           border: 4px solid #334155;
+           border-top: 4px solid #0284c7;
+           border-radius: 50%;
+           animation: eesSpin 1s linear infinite;
+         }
+         .ees-spinner-core {
+           position: absolute;
+           top: 50%;
+           left: 50%;
+           transform: translate(-50%, -50%);
+           width: 38px;
+           height: 38px;
+         }
+         .ees-brand-logo-img {
+           width: 100%;
+           height: 100%;
+           object-fit: contain;
+         }
+         .ees-loader-title {
+           color: #f8fafc;
+           font-size: 14px;
+           font-weight: 800;
+           letter-spacing: 0.5px;
+           margin-bottom: 6px;
+         }
+         .ees-loader-status {
+           color: #38bdf8;
+           font-size: 12px;
+           font-weight: 600;
+           margin-bottom: 4px;
+         }
+         .ees-loader-subtext {
+           color: #94a3b8;
+           font-size: 10px;
+         }
+         @keyframes eesSpin {
+           0% { transform: rotate(0deg); }
+           100% { transform: rotate(360deg); }
+         }
        `;
        document.head.appendChild(style);
        document.body.appendChild(loader);
@@ -302,7 +377,9 @@
      const loader = document.getElementById('eesLoaderOverlay');
      if (loader) {
        loader.classList.remove('visible');
-       setTimeout(() => { if (loader.parentNode) loader.parentNode.removeChild(loader); }, 300);
+       setTimeout(() => {
+         if (loader.parentNode) loader.parentNode.removeChild(loader);
+       }, 300);
      }
    }
    
@@ -315,9 +392,13 @@
        let sectorKeywords = "fermeture+OR+sanction+OR+tribunal+OR+fraude";
        const prefix = (nafCode || "").substring(0, 2);
    
-       if (prefix === "56") sectorKeywords = "fermeture+OR+DAAF+OR+hygiene+OR+insalubre";
-       else if (["41", "42", "43"].includes(prefix)) sectorKeywords = "chantier+OR+accident+OR+malfacon";
-       else if (prefix === "68") sectorKeywords = "escroquerie+OR+tracfin+OR+sanction+OR+saisie";
+       if (prefix === "56") {
+         sectorKeywords = "fermeture+OR+DAAF+OR+hygiene+OR+insalubre";
+       } else if (["41", "42", "43"].includes(prefix)) {
+         sectorKeywords = "chantier+OR+accident+OR+malfacon";
+       } else if (prefix === "68") {
+         sectorKeywords = "escroquerie+OR+tracfin+OR+sanction+OR+saisie";
+       }
    
        const rssUrl = `https://news.google.com/rss/search?q=${cleanName}+(${sectorKeywords})&hl=fr&gl=FR&ceid=FR:fr`;
        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(rssUrl)}`;
@@ -330,7 +411,10 @@
        const isCritical = lowerText.includes('fermeture') || lowerText.includes('arrêté') || lowerText.includes('sanction');
    
        if (isCritical) {
-         return { hasAlert: true, detail: "Arrêté préfectoral ou signalement d'urgence détecté dans la presse" };
+         return {
+           hasAlert: true,
+           detail: "Arrêté préfectoral ou signalement d'urgence détecté dans la presse"
+         };
        }
        return { hasAlert: false, detail: "" };
      } catch (e) {
@@ -343,6 +427,7 @@
        const url = `https://bodacc-api.open-data.fr/api/records/1.0/search/?dataset=annonces-commerciales&q=${encodeURIComponent(siren)}`;
        const res = await fetch(url);
        if (!res.ok) return { hasProcedures: false, records: [] };
+   
        const data = await res.json();
        const records = data.records || [];
        const hasProcedures = records.some(r => {
@@ -356,7 +441,6 @@
    }
    
    async function fetchSanitaryData(siren, commune) {
-     // Contrôle local direct prioritaires
      if (CRITICAL_SECURITY_REGISTER[siren]) {
        return { hasAlert: true, eval: CRITICAL_SECURITY_REGISTER[siren] };
      }
@@ -426,6 +510,17 @@
      }
    }
    
+   function handleSearch() {
+     const input = document.getElementById('searchInput') || document.getElementById('search-input');
+     if (!input) return;
+     const q = input.value.trim();
+     if (q) {
+       fetchCompanyDataBySiren(q);
+     } else {
+       alert("Veuillez saisir un numéro SIREN ou une raison sociale.");
+     }
+   }
+   
    function handleAutocomplete(query) {
      clearTimeout(debounceTimer);
      const container = document.getElementById('autocompleteResults');
@@ -465,9 +560,9 @@
    function selectAutocompleteSuggestion(siren) {
      const container = document.getElementById('autocompleteResults');
      if (container) container.style.display = 'none';
-     const input = document.getElementById('searchInput');
+     const input = document.getElementById('searchInput') || document.getElementById('search-input');
      if (input) input.value = siren;
-     fetchCompanyDataBySiren(siren);
+     handleSearch();
    }
    
    window.selectAutocompleteSuggestion = selectAutocompleteSuggestion;
@@ -485,15 +580,12 @@
    
      const hasBodacc = company.bodacc && company.bodacc.hasProcedures;
      const hasSanitary = company.sanitaryAlert;
-     const sanitaryDetail = company.sanitaire ? (company.sanitaire.eval || "") : "";
    
      const sector = getSectorRules(company.code_naf, company);
      const seed = getSirenSeed(siren);
    
      const cpVal = isActif ? pseudoRandom(seed, 2, 180, 920) * 1000 : -pseudoRandom(seed, 2, 10, 50) * 1000;
-     const dettesVal = pseudoRandom(seed, 3, 40, 250) * 1000;
      const frngVal = isActif ? Math.round(cpVal * 0.28) : -Math.round(Math.abs(cpVal) * 1.5);
-     const caEstime = isActif ? pseudoRandom(seed, 4, 450, 1850) * 1000 : 0;
    
      let scoreVal = isActif ? pseudoRandom(seed, 1, 68, 96) : pseudoRandom(seed, 1, 12, 34);
      if (hasBodacc || hasSanitary || siegeFerme) scoreVal = Math.min(scoreVal, 20);
@@ -557,9 +649,9 @@
    // 9. AFFICHAGE DES DONNÉES & OUTILS INTERACTIFS
    // =========================================================================
    function searchSirenDirect(siren) {
-     const input = document.getElementById('searchInput');
+     const input = document.getElementById('searchInput') || document.getElementById('search-input');
      if (input) input.value = siren;
-     fetchCompanyDataBySiren(siren);
+     handleSearch();
    }
    
    window.searchSirenDirect = searchSirenDirect;
@@ -686,7 +778,7 @@
    
    function updateAISummariesUI(company, scoreData) {
      const summaries = generateCategoryAISummaries(company);
-     const container = document.getElementById('ai-summaries-container');
+     const container = document.getElementById('ai-summaries-container') || document.getElementById('ai-summary-text');
      if (container) {
        container.innerHTML = `
          <div style="margin-bottom:10px;">${summaries.finance}</div>
@@ -721,7 +813,6 @@
      const adresse = cleanAddress(siege.adresse_ligne_1);
      const dateToday = new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
    
-     // CONTRÔLE PRÉCIS D'ACTIVITÉ & FERMETURE SIÈGE
      const siegeFerme = siege.etat_administratif === 'F' || !!siege.date_fermeture;
      const isActif = (company.etat_administratif === 'A') && !siegeFerme;
    
@@ -1179,26 +1270,42 @@
    }
    
    // =========================================================================
-   // 11. INITIALISATION AU CHARGEMENT DU DOM
+   // 11. INITIALISATION ET ATTACHEMENT DES ÉVÉNEMENTS DOM (CLAVIER & BOUTONS)
    // =========================================================================
    document.addEventListener('DOMContentLoaded', () => {
      initBrandFavicon();
      initMap();
    
-     const searchInput = document.getElementById('searchInput');
+     const searchInput = document.getElementById('searchInput') || document.getElementById('search-input');
      if (searchInput) {
        searchInput.addEventListener('input', (e) => handleAutocomplete(e.target.value));
-     }
-   
-     const searchBtn = document.getElementById('searchBtn');
-     if (searchBtn) {
-       searchBtn.addEventListener('click', () => {
-         const q = searchInput ? searchInput.value.trim() : '';
-         if (q) fetchCompanyDataBySiren(q);
+       
+       // Déclenchement lors de l'appui sur la touche Entrée
+       searchInput.addEventListener('keydown', (e) => {
+         if (e.key === 'Enter') {
+           e.preventDefault();
+           handleSearch();
+         }
        });
      }
    
-     const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+     const searchForm = document.getElementById('searchForm') || document.getElementById('search-form');
+     if (searchForm) {
+       searchForm.addEventListener('submit', (e) => {
+         e.preventDefault();
+         handleSearch();
+       });
+     }
+   
+     const searchBtn = document.getElementById('searchBtn') || document.getElementById('search-btn');
+     if (searchBtn) {
+       searchBtn.addEventListener('click', (e) => {
+         e.preventDefault();
+         handleSearch();
+       });
+     }
+   
+     const downloadPdfBtn = document.getElementById('downloadPdfBtn') || document.getElementById('download-pdf-btn');
      if (downloadPdfBtn) {
        downloadPdfBtn.addEventListener('click', (e) => {
          e.preventDefault();
