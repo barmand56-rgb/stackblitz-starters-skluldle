@@ -3,456 +3,354 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Euro Expert Solvabilité 2026 - Plateforme d'Audit & Risque Crédit</title>
+    <title>Euro Expert Solvabilité - 2026</title>
     
-    <!-- Leaflet CSS pour la cartographie interactive -->
+    <!-- Favicon SVG dynamique (Bouclier Euro Expert avec Graphique) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%2310b981'/><stop offset='100%' stop-color='%233b82f6'/></linearGradient></defs><path d='M50 5 L85 20 V45 C85 70 50 92 50 92 C50 92 15 70 15 45 V20 Z' fill='none' stroke='url(%23g)' stroke-width='6'/><path d='M35 60 V48 M50 60 V38 M65 60 V28' stroke='%2310b981' stroke-width='6' stroke-linecap='round'/></svg>">
+    
+    <!-- Leaflet CSS Cartographie -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     
     <style>
         :root {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-tertiary: #334155;
+            --bg-primary: #070b14;
+            --bg-secondary: #0f172a;
+            --bg-tertiary: #1e293b;
+            --bg-card: #111827;
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
-            --accent: #2563eb;
-            --accent-hover: #1d4ed8;
-            --success: #10b981;
+            --accent-green: #10b981;
+            --accent-blue: #3b82f6;
+            --accent-hover: #2563eb;
             --warning: #f59e0b;
             --danger: #ef4444;
-            --border: #334155;
-            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
-            --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --border: #1f2937;
+            --card-border: #059669;
+            --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6);
+            --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         [data-theme="light"] {
             --bg-primary: #f1f5f9;
             --bg-secondary: #ffffff;
             --bg-tertiary: #e2e8f0;
+            --bg-card: #ffffff;
             --text-primary: #0f172a;
             --text-secondary: #475569;
             --border: #cbd5e1;
-            --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            --card-border: #10b981;
+            --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: var(--font-family); background-color: var(--bg-primary); color: var(--text-primary); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
 
-        /* Banner Header */
-        header {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            border-bottom: 1px solid var(--border);
-            padding: 1.25rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        }
-
-        .brand-logo {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .brand-logo h1 {
-            font-size: 1.4rem;
-            font-weight: 700;
-            color: #ffffff;
-            letter-spacing: -0.02em;
-        }
-
-        .brand-badge {
-            background: rgba(37, 99, 235, 0.2);
-            border: 1px solid var(--accent);
-            color: #60a5fa;
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-weight: 600;
-        }
-
-        .header-meta {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-        }
-
-        /* Top Search Section */
-        .search-container {
-            background: var(--bg-secondary);
-            padding: 1.5rem 2rem;
-            border-bottom: 1px solid var(--border);
-            position: relative;
-        }
-
-        .search-box-wrapper {
-            max-width: 900px;
-            margin: 0 auto;
-            position: relative;
-            display: flex;
-            gap: 1rem;
-        }
-
-        .search-input-group {
-            flex: 1;
-            position: relative;
-        }
-
-        .search-input-group input {
-            width: 100%;
-            padding: 0.85rem 1.25rem;
-            font-size: 1rem;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            outline: none;
-            transition: all 0.2s;
-        }
-
-        .search-input-group input:focus {
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
-        }
-
-        .autocomplete-dropdown {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            right: 0;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            margin-top: 0.5rem;
-            max-height: 350px;
-            overflow-y: auto;
-            z-index: 1000;
-            box-shadow: var(--card-shadow);
+        /* Splash Screen Loading Overlay (Photo 1) */
+        #splash-screen {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(7, 11, 20, 0.88);
+            backdrop-filter: blur(8px);
+            z-index: 10000;
             display: none;
-        }
-
-        .autocomplete-item {
-            padding: 0.85rem 1.25rem;
-            border-bottom: 1px solid var(--border);
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-
-        .autocomplete-item:last-child { border-bottom: none; }
-        .autocomplete-item:hover { background: var(--bg-tertiary); }
-        .autocomplete-item .company-title { font-weight: 600; color: var(--text-primary); }
-        .autocomplete-item .company-sub { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.2rem; }
-
-        .btn {
-            padding: 0.85rem 1.5rem;
-            border-radius: 8px;
-            border: none;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
+            justify-content: center;
             align-items: center;
-            gap: 0.5rem;
-            font-size: 0.95rem;
-        }
-
-        .btn-primary { background: var(--accent); color: #ffffff; }
-        .btn-primary:hover { background: var(--accent-hover); }
-        .btn-success { background: var(--success); color: #ffffff; }
-        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
-        .btn-secondary:hover { background: var(--border); }
-
-        /* Main Dashboard Grid Layout */
-        main {
-            flex: 1;
-            padding: 2rem;
-            max-width: 1600px;
-            margin: 0 auto;
-            width: 100%;
-            display: flex;
             flex-direction: column;
-            gap: 1.5rem;
         }
 
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
+        .splash-card {
+            background: #0d1527;
+            border: 2px solid #10b981;
+            border-radius: 16px;
+            padding: 2.5rem 3rem;
+            text-align: center;
+            max-width: 550px;
+            box-shadow: 0 0 40px rgba(16, 185, 129, 0.25);
+            animation: fadeInScale 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        @media (max-width: 1024px) {
-            .dashboard-grid { grid-template-columns: 1fr; }
+        .splash-logo-icon {
+            width: 80px; height: 80px; margin: 0 auto 1.5rem auto;
+            position: relative;
         }
+
+        .splash-title {
+            font-size: 1.35rem; font-weight: 800; color: #ffffff; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 0.75rem;
+        }
+
+        .splash-sub {
+            font-size: 0.85rem; color: #60a5fa; font-weight: 600; margin-bottom: 0.5rem;
+        }
+
+        .splash-detail {
+            font-size: 0.75rem; color: #94a3b8; margin-bottom: 1.5rem;
+        }
+
+        .splash-progress-bar {
+            width: 100%; height: 6px; background: #1e293b; border-radius: 10px; overflow: hidden;
+        }
+
+        .splash-progress-fill {
+            height: 100%; width: 0%; background: linear-gradient(90deg, #10b981, #3b82f6); transition: width 0.2s ease;
+        }
+
+        @keyframes fadeInScale { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+
+        /* Top Navigation Header */
+        header {
+            background-color: var(--bg-secondary); border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;
+        }
+
+        .brand-container { display: flex; align-items: center; gap: 1rem; }
+        .brand-logo-svg { width: 42px; height: 42px; }
+        .brand-text h1 { font-size: 1.25rem; font-weight: 800; color: #ffffff; letter-spacing: -0.01em; }
+        .brand-text span { font-size: 0.75rem; color: var(--accent-green); font-weight: 600; }
+
+        .header-actions { display: flex; align-items: center; gap: 1rem; }
+        .badge-pill { padding: 0.3rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        .badge-b2b { background: rgba(59, 130, 246, 0.2); border: 1px solid var(--accent-blue); color: #60a5fa; }
+
+        /* Search Section */
+        .search-hero {
+            background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+            padding: 2rem; border-bottom: 1px solid var(--border);
+        }
+
+        .search-wrap { max-width: 900px; margin: 0 auto; position: relative; display: flex; gap: 1rem; }
+        .search-input-box { flex: 1; position: relative; }
+        .search-input-box input {
+            width: 100%; padding: 1rem 1.25rem; font-size: 1rem; border-radius: 10px;
+            border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); outline: none; transition: all 0.2s;
+        }
+        .search-input-box input:focus { border-color: var(--accent-green); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
+
+        .autocomplete-list {
+            position: absolute; top: 100%; left: 0; right: 0; background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 10px; margin-top: 0.5rem; max-height: 360px; overflow-y: auto; z-index: 1000; display: none; box-shadow: var(--card-shadow);
+        }
+
+        .autocomplete-item { padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.15s; }
+        .autocomplete-item:hover { background: var(--bg-tertiary); }
+        .autocomplete-item .item-title { font-weight: 700; color: var(--text-primary); }
+        .autocomplete-item .item-sub { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem; }
+
+        .btn { padding: 0.85rem 1.5rem; border-radius: 10px; border: none; font-weight: 700; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.95rem; }
+        .btn-green { background: var(--accent-green); color: #ffffff; }
+        .btn-green:hover { background: #059669; }
+        .btn-blue { background: var(--accent-blue); color: #ffffff; }
+        .btn-blue:hover { background: var(--accent-hover); }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
+
+        /* Dashboard Container & Cards */
+        main { flex: 1; padding: 2rem; max-width: 1600px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 1.5rem; }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        @media (max-width: 1024px) { .dashboard-grid { grid-template-columns: 1fr; } }
 
         .card {
-            background-color: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: var(--card-shadow);
-            display: flex;
-            flex-direction: column;
+            background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem;
+            box-shadow: var(--card-shadow); display: flex; flex-direction: column; position: relative; overflow: hidden;
         }
 
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.25rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid var(--border);
-        }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; }
+        .card-header h3 { font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; }
 
-        .card-header h3 {
-            font-size: 1.1rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
+        /* Status & Risk Badges (Photo 2) */
+        .status-badges-row { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+        .badge-alert-daaf { background: rgba(239, 68, 68, 0.2); border: 1px solid var(--danger); color: #f87171; }
+        .badge-bodacc-clean { background: rgba(16, 185, 129, 0.2); border: 1px solid var(--accent-green); color: #34d399; }
 
-        /* KPI Solvency Box */
-        .solvency-box {
-            text-align: center;
-            padding: 1.5rem;
-            background: var(--bg-primary);
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            margin-bottom: 1.25rem;
-        }
+        /* Score Display Gauge Meter */
+        .score-circle-box { text-align: center; padding: 1.5rem; background: var(--bg-secondary); border-radius: 10px; border: 1px solid var(--border); margin-bottom: 1rem; }
+        .score-number { font-size: 3rem; font-weight: 900; color: var(--accent-green); }
+        .score-label { font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
 
-        .solvency-score-val {
-            font-size: 2.75rem;
-            font-weight: 800;
-            color: var(--text-secondary);
-            margin: 0.5rem 0;
-        }
-
-        .solvency-status-badge {
-            display: inline-block;
-            padding: 0.35rem 1rem;
-            border-radius: 50px;
-            font-size: 0.85rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .status-pending { background: rgba(148, 163, 184, 0.2); color: #94a3b8; }
-        .status-low-risk { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-        .status-medium-risk { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-        .status-high-risk { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-
-        /* Map Container */
-        #map-container {
-            height: 320px;
-            width: 100%;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            z-index: 10;
-        }
+        /* Map Element */
+        #map-container { height: 320px; width: 100%; border-radius: 10px; border: 1px solid var(--border); }
 
         /* Data Tables */
-        .table-responsive {
-            overflow-x: auto;
-            margin-top: 1rem;
-        }
+        .table-wrap { overflow-x: auto; margin-top: 1rem; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.875rem; }
+        th, td { padding: 0.85rem 1rem; border-bottom: 1px solid var(--border); }
+        th { background: var(--bg-tertiary); color: var(--text-secondary); font-weight: 700; }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            text-align: left;
-            font-size: 0.9rem;
-        }
-
-        th, td {
-            padding: 0.85rem 1rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        th {
-            background-color: var(--bg-tertiary);
-            color: var(--text-secondary);
-            font-weight: 600;
-        }
-
-        /* Toast Container */
-        #toast-container {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .toast {
-            padding: 1rem 1.5rem;
-            border-radius: 8px;
-            color: #ffffff;
-            font-weight: 500;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-            animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            max-width: 400px;
-        }
-
-        .toast-info { background: var(--accent); }
-        .toast-success { background: var(--success); }
+        /* Toast Notifications */
+        #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 0.75rem; }
+        .toast { padding: 1rem 1.5rem; border-radius: 10px; color: #ffffff; font-weight: 600; box-shadow: var(--card-shadow); animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .toast-info { background: var(--accent-blue); }
+        .toast-success { background: var(--accent-green); }
         .toast-error { background: var(--danger); }
-        .toast-warning { background: var(--warning); color: #000; }
 
-        @keyframes slideInRight {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        /* Printable Report View Container (Hidden on Screen) */
+        #printable-report { display: none; }
+        @media print {
+            body * { visibility: hidden; }
+            #printable-report, #printable-report * { visibility: visible; }
+            #printable-report { display: block !important; position: absolute; left: 0; top: 0; width: 100%; color: #000000; background: #ffffff; }
+            .pdf-page { page-break-after: always; padding: 2cm; min-height: 297mm; }
         }
-
-        .text-muted { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
-        .badge { padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
-        .badge-blue { background: rgba(37, 99, 235, 0.2); color: #60a5fa; }
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="brand-logo">
-            <span style="font-size: 1.5rem;">🛡️</span>
-            <div>
-                <h1>Euro Expert Solvabilité</h1>
-                <div style="font-size: 0.75rem; color: var(--text-secondary); margin-top: -2px;">Système National d'Analyse Financière & Conformité</div>
+    <!-- Splash Screen Modal Loader (Visuel conforme Photo 1) -->
+    <div id="splash-screen">
+        <div class="splash-card">
+            <div class="splash-logo-icon">
+                <svg viewBox="0 0 100 100" style="width: 100%; height: 100%;">
+                    <defs>
+                        <linearGradient id="splashG" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#10b981"/>
+                            <stop offset="100%" stop-color="#3b82f6"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M50 5 L85 20 V45 C85 70 50 92 50 92 C50 92 15 70 15 45 V20 Z" fill="none" stroke="url(#splashG)" stroke-width="5"/>
+                    <path d="M35 60 V48 M50 60 V38 M65 60 V28" stroke="#10b981" stroke-width="6" stroke-linecap="round"/>
+                </svg>
             </div>
-            <span class="brand-badge">2026 PRO</span>
+            <div class="splash-title">Euro Expert Solvabilité</div>
+            <div class="splash-sub">Recherche sur les API officielles INSEE & Greffes...</div>
+            <div class="splash-detail">Interrogation des Greffes, BODACC, DAAF & Presse...</div>
+            <div class="splash-progress-bar">
+                <div id="splash-progress-fill" class="splash-progress-fill"></div>
+            </div>
         </div>
-        <div class="header-meta">
-            <span>🔒 Chiffrement AES-256</span>
-            <span>📡 Connecteurs Registre INSEE & BODACC</span>
+    </div>
+
+    <!-- Header navigation -->
+    <header>
+        <div class="brand-container">
+            <svg class="brand-logo-svg" viewBox="0 0 100 100">
+                <path d="M50 5 L85 20 V45 C85 70 50 92 50 92 C50 92 15 70 15 45 V20 Z" fill="none" stroke="#10b981" stroke-width="6"/>
+                <path d="M35 60 V48 M50 60 V38 M65 60 V28" stroke="#3b82f6" stroke-width="6" stroke-linecap="round"/>
+            </svg>
+            <div class="brand-text">
+                <h1>EURO EXPERT SOLVABILITÉ</h1>
+                <span>Plateforme d'Audit de Solvabilité B2B 2026</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <span class="badge-pill badge-b2b">Accès Illimité 24h</span>
             <button id="theme-toggle-btn" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">🌓 Thème</button>
         </div>
     </header>
 
-    <section class="search-container">
-        <div class="search-box-wrapper">
-            <div class="search-input-group">
-                <input type="text" id="company-search-input" placeholder="Saisissez une dénomination sociale, SIREN ou SIRET (ex: L'uni vert, 808398123)..." autocomplete="off">
-                <div id="autocomplete-dropdown" class="autocomplete-dropdown"></div>
+    <!-- Global Search Hero -->
+    <section class="search-hero">
+        <div class="search-wrap">
+            <div class="search-input-box">
+                <input type="text" id="company-search-input" placeholder="Sélectionnez un SIREN ou une raison sociale (ex: L'uni vert, 808398123)..." autocomplete="off">
+                <div id="autocomplete-dropdown" class="autocomplete-list"></div>
             </div>
-            <button id="btn-analyze" class="btn btn-primary">
-                🔍 Analyser l'entreprise
-            </button>
+            <button id="btn-analyze" class="btn btn-green">🔍 Analyser l'entreprise</button>
         </div>
     </section>
 
+    <!-- Main Dashboard Workspace -->
     <main>
-        <!-- Top Row: Score & Audit Synthesis -->
+        <!-- Row 1: Score & Badges + IA Audit Synthèse -->
         <div class="dashboard-grid">
-            <!-- Card 1: Score & Decision -->
             <div class="card">
                 <div class="card-header">
-                    <h3>📊 Score de Solvabilité & Décision</h3>
-                    <span id="last-updated-tag" class="badge badge-blue">En attente</span>
+                    <h3>📊 Fiche de Score & Conformité</h3>
+                    <span id="kpi-updated-tag" style="font-size: 0.8rem; color: var(--text-secondary);">Mise à jour en temps réel</span>
                 </div>
                 
-                <div class="solvency-box">
-                    <div class="text-muted">Indice de Solvabilité Globale</div>
-                    <div class="solvency-score-val" id="kpi-score-value">-- / 100</div>
-                    <div class="solvency-status-badge status-pending" id="kpi-status-badge">Bilan en attente</div>
+                <div class="status-badges-row">
+                    <span id="badge-daaf-status" class="badge-pill badge-bodacc-clean">✓ CONFORME DAAF / HYGIÈNE</span>
+                    <span id="badge-bodacc-status" class="badge-pill badge-bodacc-clean">✓ REGISTRE BODACC VIERGE</span>
                 </div>
 
-                <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.75rem;">
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-                        <span class="text-muted">Probabilité de Défaillance (12 mois):</span>
-                        <strong id="kpi-default-prob">-- %</strong>
+                <div class="score-circle-box">
+                    <div class="score-number" id="kpi-score-val">100</div>
+                    <div class="score-label" id="kpi-score-label">Score de Solvabilité Globale</div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.9rem; margin-bottom: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-secondary);">Probabilité de Défaillance (12M):</span>
+                        <strong id="kpi-default-prob">0.8 %</strong>
                     </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-                        <span class="text-muted">Encours Crédit Conseillé:</span>
-                        <strong id="kpi-credit-limit">-- €</strong>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem;">
-                        <span class="text-muted">Statut Procédure Collective (BODACC):</span>
-                        <strong id="kpi-bodacc-status" style="color: var(--success);">Aucun incident</strong>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span style="color: var(--text-secondary);">Limite d'Encours Conseillée:</span>
+                        <strong id="kpi-credit-limit">125 000 €</strong>
                     </div>
                 </div>
 
-                <div style="margin-top: auto; padding-top: 1.5rem;">
-                    <button id="btn-download-pdf" class="btn btn-success" style="width: 100%; justify-content: center;" disabled>
-                        📄 Télécharger le Rapport PDF Détaillé
-                    </button>
-                </div>
+                <button id="btn-download-pdf" class="btn btn-blue" style="justify-content: center; width: 100%; margin-top: auto;">
+                    📄 Télécharger le Rapport PDF 4 Pages
+                </button>
             </div>
 
-            <!-- Card 2: Audit & Credit Risk Synthesis -->
+            <!-- Synthèse d'IA Audit -->
             <div class="card">
                 <div class="card-header">
-                    <h3>🏛️ Synthèse d'Audit & Risque Crédit</h3>
-                    <span class="badge badge-blue">Revue Officielle</span>
+                    <h3>🤖 IA Synthèse & Analyse Financière</h3>
+                    <span class="badge-pill badge-b2b">Audit B2B</span>
                 </div>
-                <div id="audit-synthesis-content" class="text-muted" style="white-space: pre-line;">
-                    Saisissez un nom ou un numéro SIREN ci-dessus pour générer l'analyse financière, juridique, fiscale et de gouvernance de la société.
+                <div id="audit-synthesis-text" style="font-size: 0.95rem; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;">
+                    Saisissez un numéro SIREN pour générer l'analyse financière, juridique et de gouvernance automatisée par l'IA.
                 </div>
-                
+
                 <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-                    <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem; color: var(--text-primary);">Informations Légales d'Identification</h4>
-                    <div id="company-legal-details" class="text-muted" style="font-size: 0.85rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                        <div>SIREN : <span id="meta-siren">-</span></div>
-                        <div>SIRET Siège : <span id="meta-siret">-</span></div>
-                        <div>Forme Juridique : <span id="meta-legal-form">-</span></div>
-                        <div>Code NAF/APE : <span id="meta-naf">-</span></div>
-                        <div>Date Création : <span id="meta-creation-date">-</span></div>
-                        <div>Capital Social : <span id="meta-capital">-</span></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; font-size: 0.85rem; color: var(--text-secondary);">
+                        <div>SIREN : <strong id="meta-siren" style="color: var(--text-primary);">-</strong></div>
+                        <div>SIRET Siège : <strong id="meta-siret" style="color: var(--text-primary);">-</strong></div>
+                        <div>Forme Juridique : <strong id="meta-legal-form" style="color: var(--text-primary);">-</strong></div>
+                        <div>Code NAF/APE : <strong id="meta-naf" style="color: var(--text-primary);">-</strong></div>
+                        <div>Date Création : <strong id="meta-creation-date" style="color: var(--text-primary);">-</strong></div>
+                        <div>Capital Social : <strong id="meta-capital" style="color: var(--text-primary);">-</strong></div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Middle Row: Interactive Map & Financial Ratios -->
+        <!-- Row 2: Map & Financial Balance Canvas Chart -->
         <div class="dashboard-grid">
-            <!-- Card 3: Geolocation -->
             <div class="card">
                 <div class="card-header">
                     <h3>📍 Localisation du Siège Social</h3>
-                    <span id="geo-address-badge" class="text-muted" style="font-size: 0.8rem;">Coordonnées enregistrées INSEE</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary);">Source : BAN / INSEE</span>
                 </div>
                 <div id="map-container"></div>
-                <div id="geo-address-text" class="text-muted" style="margin-top: 0.75rem; font-size: 0.85rem;">
-                    Adresse : Non renseignée
+                <div id="geo-address-text" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.75rem;">
+                    Adresse : Recherche en attente
                 </div>
             </div>
 
-            <!-- Card 4: Canvas Financial Chart -->
             <div class="card">
                 <div class="card-header">
-                    <h3>📈 Structure Financière & Ratios de Liquidité</h3>
-                    <span class="badge badge-blue">Ratios de Bilan</span>
+                    <h3>📈 Bilan Financier Triennal</h3>
+                    <span class="badge-pill badge-b2b">Ratios de Bilan</span>
                 </div>
                 <div style="position: relative; flex: 1; min-height: 250px;">
-                    <canvas id="financial-canvas-chart"></canvas>
+                    <canvas id="canvas-balance-chart"></canvas>
                 </div>
             </div>
         </div>
 
-        <!-- Bottom Row: BODACC Legal History & Recent Audits -->
+        <!-- Row 3: BODACC & DAAF Table -->
         <div class="card">
             <div class="card-header">
-                <h3>📜 Historique des Annonces Légales & Procédures (BODACC)</h3>
-                <button id="btn-export-csv" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">Exporter Données CSV</button>
+                <h3>📜 Annonces Légales, BODACC & Registres DAAF</h3>
+                <button id="btn-export-csv" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">Exporter CSV</button>
             </div>
-            <div class="table-responsive">
-                <table id="bodacc-table">
+            <div class="table-wrap">
+                <table>
                     <thead>
                         <tr>
                             <th>Date Parution</th>
                             <th>Type d'Annonce</th>
-                            <th>Région / Tribunal</th>
-                            <th>Description & Décision du Greffe</th>
+                            <th>Greffe / Tribunal</th>
+                            <th>Description & Décisions Officielles</th>
                         </tr>
                     </thead>
                     <tbody id="bodacc-table-body">
                         <tr>
-                            <td colspan="4" class="text-muted" style="text-align: center; padding: 2rem;">
-                                Aucun audit actif. Lancez une recherche pour interroger le registre officiel du BODACC.
+                            <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 2rem;">
+                                Aucun audit en cours. Lancez une recherche SIREN pour interroger le registre officiel.
                             </td>
                         </tr>
                     </tbody>
@@ -461,7 +359,6 @@
         </div>
     </main>
 
-    <!-- Container pour Notifications Floating Toasts -->
     <div id="toast-container"></div>
 
     <!-- Leaflet Map Engine JS -->
