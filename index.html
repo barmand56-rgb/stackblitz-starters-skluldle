@@ -5,19 +5,69 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Euro Expert Solvabilité - 2026</title>
   
-  <!-- CSS Leaflet -->
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
-  
-  <!-- Style de l'application -->
   <link rel="stylesheet" href="style.css">
   
-  <!-- Libraries Leaflet & html2pdf -->
+  <!-- Leaflet & html2pdf JS -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- STYLES DE SECOURS INTÉGRÉS POUR GARANTIR LE DESIGN CLASSIQUE PRO -->
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: #0f172a; color: #f8fafc; min-height: 100vh; padding: 20px; }
+    
+    /* ÉCRAN DE MOT DE PASSE */
+    #passModalOverlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #0f172a; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+    .pass-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 32px; width: 100%; max-width: 420px; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5); }
+    .pass-title { font-size: 20px; font-weight: bold; color: #38bdf8; margin-bottom: 8px; }
+    .pass-sub { font-size: 13px; color: #94a3b8; margin-bottom: 20px; line-height: 1.4; }
+    .pass-input { width: 100%; padding: 12px 16px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; color: #fff; font-size: 14px; margin-bottom: 16px; outline: none; }
+    .pass-input:focus { border-color: #0284c7; }
+    .pass-btn { width: 100%; padding: 12px; background: #0284c7; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+    .pass-btn:hover { background: #0369a1; }
+    .pass-error { color: #f87171; font-size: 12px; margin-top: 12px; font-weight: bold; }
+
+    /* HEADER & RECHERCHE */
+    header { max-width: 1200px; margin: 0 auto 24px; display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-size: 22px; font-weight: 800; color: #f8fafc; }
+    .logo span { color: #38bdf8; font-size: 14px; background: #1e293b; padding: 2px 8px; border-radius: 4px; border: 1px solid #334155; }
+    
+    main { max-width: 1200px; margin: 0 auto; }
+    .search-container { position: relative; margin-bottom: 24px; }
+    .search-box { display: flex; gap: 12px; background: #1e293b; padding: 8px; border-radius: 10px; border: 1px solid #334155; }
+    .search-input { flex: 1; background: transparent; border: none; padding: 10px 16px; color: #fff; font-size: 15px; outline: none; }
+    .search-btn { background: #0284c7; color: #fff; border: none; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+    .search-btn:hover { background: #0369a1; }
+    
+    #autocompleteResults { position: absolute; top: 100%; left: 0; right: 0; background: #1e293b; border: 1px solid #334155; border-radius: 8px; margin-top: 4px; z-index: 1000; overflow: hidden; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.5); }
+
+    /* GRILLE DASHBOARD CLASSIQUE EN 4 BLOCS */
+    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px; }
+    @media (max-width: 768px) { .dashboard-grid { grid-template-columns: 1fr; } }
+
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; }
+    .card h3 { font-size: 15px; font-weight: 700; color: #38bdf8; margin-bottom: 16px; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+
+    /* SCORE CARD */
+    .score-display { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
+    .score-number { font-size: 48px; font-weight: 900; color: #cbd5e1; line-height: 1; }
+    .score-rating { font-size: 18px; font-weight: bold; color: #f8fafc; }
+    .credit-decision { font-size: 13px; color: #94a3b8; margin-top: 4px; }
+    .pdf-btn { width: 100%; padding: 12px; background: #16a34a; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+    .pdf-btn:hover { background: #15803d; }
+
+    /* AI CARD */
+    .ai-summaries { font-size: 13px; color: #cbd5e1; line-height: 1.6; }
+
+    /* CARTE MAP */
+    #map { height: 280px; width: 100%; border-radius: 8px; background: #0f172a; border: 1px solid #334155; }
+  </style>
 </head>
 <body>
 
-  <!-- ÉCRAN DE VERROUILLAGE INITIAL -->
+  <!-- ÉCRAN DE VERROUILLAGE -->
   <div id="passModalOverlay">
     <div class="pass-card">
       <div class="pass-title">🛡️ Euro Expert Solvabilité</div>
@@ -35,7 +85,7 @@
     </header>
 
     <main>
-      <!-- BARRE DE RECHERCHE SÉCURISÉE AVEC PROTECTION SUBMIT -->
+      <!-- BARRE DE RECHERCHE -->
       <div class="search-container">
         <form class="search-box" id="searchForm">
           <input type="text" id="searchInput" class="search-input" placeholder="Saisissez un Nom ou Numéro SIREN..." autocomplete="off">
@@ -47,10 +97,10 @@
       <!-- BANNIÈRE D'ALERTE -->
       <div id="dashboard-alert-banner"></div>
 
-      <!-- TABLEAU DE BORD ORIGINAL EN GRILLE -->
+      <!-- TABLEAU DE BORD ORIGINAL (4 CARTE EN GRILLE) -->
       <div class="dashboard-grid">
         
-        <!-- MODULE 1 : SCORE ET DÉCISION -->
+        <!-- CARD 1 : SCORE -->
         <div class="card score-card">
           <h3>Score de Solvabilité &amp; Décision</h3>
           <div class="score-display">
@@ -63,7 +113,7 @@
           <button type="button" id="downloadPdfBtn" class="pdf-btn">📄 Télécharger le Rapport PDF</button>
         </div>
 
-        <!-- MODULE 2 : SYNTHÈSE IA -->
+        <!-- CARD 2 : SYNTHÈSE IA -->
         <div class="card ai-card">
           <h3>🤖 Synthèse &amp; Analyse IA</h3>
           <div id="ai-summaries-container" class="ai-summaries">
@@ -71,13 +121,13 @@
           </div>
         </div>
 
-        <!-- MODULE 3 : CARTE LEAFLET -->
+        <!-- CARD 3 : CARTE INTERACTIVE LEAFLET -->
         <div class="card map-card">
           <h3>📍 Localisation du Siège Social</h3>
-          <div id="map" style="height: 280px; width: 100%; border-radius: 8px;"></div>
+          <div id="map"></div>
         </div>
 
-        <!-- MODULE 4 : RÉSEAU ET DIRIGEANTS -->
+        <!-- CARD 4 : RÉSEAU & ENTREPRISES LIÉES -->
         <div class="card network-card">
           <h3>🏢 Réseau &amp; Entreprises Liées</h3>
           <div id="groupCompaniesList">
