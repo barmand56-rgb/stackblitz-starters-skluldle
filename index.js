@@ -635,8 +635,9 @@ function renderPressAndConformite(name, hasHygieneVigilance, hasSupplierDefault)
     `;
 }
 
+
 // ============================================================================
-// GENERATION PDF A4 PAPPERS STYLE - FIXation UNIVER CITY LA POSSESSION
+// BLOC GENERATE PDF ULTRA-SOLIDE (4 PAGES A4 PARFAITEMENT SÉPARÉES)
 // ============================================================================
 function generatePDFReport() {
     if (!currentCompanyData) return;
@@ -648,17 +649,18 @@ function generatePDFReport() {
     const siege = currentCompanyData.siege || {};
     const adresse = `${siege.adresse || ''} ${siege.code_postal || ''} ${siege.libelle_commune || ''}`.trim() || "ADRESSE NON RENSEIGNÉE";
 
-    const scoreValue = document.getElementById("score-value").textContent || "32";
-    const scoreLabel = document.getElementById("score-label").textContent || "SOLVABILITÉ DÉGRADÉE / VIGILANCE DAAF";
-    const creditLimit = document.getElementById("credit-limit").textContent || "0 €";
+    const scoreValue = document.getElementById("score-value") ? document.getElementById("score-value").textContent : "32";
+    const scoreLabel = document.getElementById("score-label") ? document.getElementById("score-label").textContent : "SOLVABILITÉ DÉGRADÉE / VIGILANCE DAAF";
+    const creditLimit = document.getElementById("credit-limit") ? document.getElementById("credit-limit").textContent : "0 €";
 
     const pdfContainer = document.getElementById("pdf-report-template");
+    
     pdfContainer.innerHTML = `
-        <!-- PAGE 1 : SYNTHÈSE PAPPERS & NOTE DE SOLVABILITÉ -->
+        <!-- PAGE 1 : SYNTHÈSE EXÉCUTIVE & FICHE D'IDENTITÉ -->
         <div class="pdf-page-a4">
             <div style="border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-end;">
                 <div>
-                    <h1 style="font-size: 14px; font-weight: 900; color: #0f172a; text-transform: uppercase; margin:0;">RAPPORT D'AUDIT DE SOLVABILITÉ ET RISQUE CLIENT B2B</h1>
+                    <h1 style="font-size: 13px; font-weight: 900; color: #0f172a; text-transform: uppercase; margin:0;">RAPPORT D'AUDIT DE SOLVABILITÉ ET RISQUE CLIENT B2B</h1>
                     <p style="font-size: 8px; color: #0284c7; font-weight: 700; margin:2px 0 0 0;">EURO EXPERT SOLVABILITÉ — SOURCE INPI RNE & DATA.GOUV.FR</p>
                 </div>
                 <div style="text-align: right; font-size: 7.5px; color: #475569; font-family: monospace;">
@@ -779,7 +781,7 @@ function generatePDFReport() {
             </div>
         </div>
 
-        <!-- PAGE 2 : BILAN FINANCIER DÉTAILLÉ TYPE PAPPERS -->
+        <!-- PAGE 2 : BILAN FINANCIER CONSOLIDÉ & RATIOS PAPPERS -->
         <div class="pdf-page-a4">
             <h2 style="font-size: 12px; font-weight: 900; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 4px; margin-bottom: 8px;">PAGE 2 : BILAN FINANCIER CONSOLIDÉ & RATIOS PAPPERS</h2>
             
@@ -829,7 +831,7 @@ function generatePDFReport() {
             </table>
         </div>
 
-        <!-- PAGE 3 : ORGANIGRAMME GROUPE HOLDING ABONDANCE & RESTAURANTS -->
+        <!-- PAGE 3 : ORGANIGRAMME GROUPE HOLDING ABONDANCE & FILIALES -->
         <div class="pdf-page-a4">
             <h2 style="font-size: 12px; font-weight: 900; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 4px; margin-bottom: 8px;">PAGE 3 : ORGANIGRAMME GROUPE HOLDING ABONDANCE & FILIALES</h2>
             
@@ -926,18 +928,30 @@ function generatePDFReport() {
         </div>
     `;
 
+    // Afficher temporairement le conteneur pour la capture
     pdfContainer.classList.remove("hidden");
 
+    // CONFIGURATION ANTI-DÉCALAGE : scrollY: 0 et scrollX: 0
     const opt = {
         margin: 0,
         filename: `Audit_Solvabilite_${siren}_Pappers_EuroExpert.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: { 
+            scale: 2, 
+            useCORS: true, 
+            logging: false,
+            scrollY: 0,
+            scrollX: 0
+        },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
         pagebreak: { mode: ['css', 'legacy'] }
     };
 
+    // Lancer la génération
     html2pdf().set(opt).from(pdfContainer).save().then(() => {
+        pdfContainer.classList.add("hidden");
+    }).catch(err => {
+        console.error("Erreur PDF:", err);
         pdfContainer.classList.add("hidden");
     });
 }
