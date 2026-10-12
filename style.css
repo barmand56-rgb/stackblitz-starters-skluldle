@@ -66,7 +66,7 @@ body {
     box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 8px 10px -6px rgba(0, 0, 0, 0.7);
 }
 
-/* FORMATAGE PDF A4 CONFORME PHOTO 16 - 4 PAGES EXPLICITES ET HIGH-CONTRAST */
+/* FORMATAGE PDF A4 CONFORME - 4 PAGES EXPLICITES ET LISIBLES */
 .pdf-page-a4 {
     width: 210mm !important;
     min-height: 296mm !important;

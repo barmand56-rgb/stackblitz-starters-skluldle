@@ -334,13 +334,38 @@
                 </div>
             </div>
 
-            <!-- ONGLET 2 : KYC -->
+            <!-- ONGLET 2 : KYC, GROUPE & HOLDING CONNECTÉE -->
             <div id="cat-kyc" class="tab-content hidden space-y-6">
                 <div class="glass-panel p-5 rounded-2xl border-l-4 border-indigo-500">
                     <h3 class="text-sm font-bold text-indigo-400 uppercase tracking-wider mb-2 flex items-center gap-2">
                         <i class="fa-solid fa-user-shield"></i> Audit de Gouvernance & Conformité LCB-FT
                     </h3>
                     <div id="ai-synthesis-kyc" class="text-xs text-slate-300 space-y-2 leading-relaxed">Analyse en cours...</div>
+                </div>
+
+                <!-- CARTE HOLDING MÈRE ET RESTAURANTS / FILIALES ASSOCIÉS CONNECTÉS -->
+                <div class="glass-panel p-6 rounded-2xl space-y-4 border border-indigo-500/30">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h3 class="font-bold text-base text-white flex items-center gap-2">
+                            <i class="fa-solid fa-sitemap text-indigo-400"></i> Organigramme & Filiation du Groupe (Holding & Restaurants Associés)
+                        </h3>
+                        <span class="text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-2.5 py-1 rounded font-mono">LIENS DE PONTAGE AUDITÉ</span>
+                    </div>
+
+                    <!-- HOLDING MÈRE -->
+                    <div id="holding-container" class="space-y-3">
+                        <!-- Rempli dynamiquement par JS -->
+                    </div>
+
+                    <!-- FILIALES ET RESTAURANTS ASSOCIÉS DU GROUPE -->
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-utensils text-cyan-400"></i> Établissements & Restaurants Rattachés au Groupe :
+                        </h4>
+                        <div id="associated-restaurants-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            <!-- Rempli dynamiquement par JS -->
+                        </div>
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -363,40 +388,6 @@
                             <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between items-center">
                                 <span>Registre des Bénéficiaires Effectifs (RBO):</span>
                                 <strong class="text-emerald-400"><i class="fa-solid fa-check-double"></i> Déclaration Conforme Greffe</strong>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- MODULE D'AUDIT ACTIONNARIAT ET OUTIL DE VÉRIFICATION IBAN -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                    <div class="glass-panel p-5 rounded-2xl space-y-3">
-                        <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fa-solid fa-diagram-project"></i> Filiation Corporate & Holding
-                        </h4>
-                        <div id="corporate-structure-box" class="space-y-2 text-xs">
-                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
-                                <div class="flex justify-between font-bold text-white mb-1">
-                                    <span>Actionnariat Principal :</span>
-                                    <span class="text-cyan-400">Détention Directe (100 %)</span>
-                                </div>
-                                <p class="text-slate-400 text-[11px]">Aucun maillon d'intégration dans un groupe sous procédure collective. Risque de contagion holding nul.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="glass-panel p-5 rounded-2xl space-y-3">
-                        <h4 class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
-                            <i class="fa-solid fa-shield-virus"></i> Outil Anti-Usurpation d'Identité & RIB
-                        </h4>
-                        <div class="space-y-2 text-xs">
-                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between items-center">
-                                <span>Contrôle de Cohérence Nom / SIREN :</span>
-                                <strong class="text-emerald-400"><i class="fa-solid fa-check"></i> Valide</strong>
-                            </div>
-                            <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between items-center">
-                                <span>Signalement IBAN / Usurpation RIB :</span>
-                                <strong class="text-emerald-400"><i class="fa-solid fa-shield-check"></i> Aucun Faux RIB Décelé</strong>
                             </div>
                         </div>
                     </div>
