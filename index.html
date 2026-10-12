@@ -3,229 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Euro Expert Solvabilité - Moteur d'Audit B2B &amp; Risk Management 2026</title>
+  <title>Euro Expert Solvabilité - 2026</title>
   
-  <!-- Feuille de style Carte Leaflet -->
+  <!-- CSS Leaflet -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
   
-  <!-- Feuilles de style de l'application -->
+  <!-- Style de l'application -->
   <link rel="stylesheet" href="style.css">
   
-  <!-- Bibliothèques JS officielles (Leaflet & html2pdf) -->
+  <!-- Libraries Leaflet & html2pdf -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
-  <!-- CONTENEUR DE NOTIFICATIONS TOAST DYNAMIQUE -->
-  <div id="eesToast" style="display:none;"></div>
-
-  <!-- ÉCRAN DE VERROUILLAGE SÉCURISÉ & AUTHENTIFICATION DE SESSION -->
+  <!-- ÉCRAN DE VERROUILLAGE INITIAL -->
   <div id="passModalOverlay">
     <div class="pass-card">
-      <div class="pass-header-badge">🔒 SESSION ACCRÉDITÉE RISK B2B</div>
       <div class="pass-title">🛡️ Euro Expert Solvabilité</div>
-      <div class="pass-sub">Plateforme d'investigation financière et d'audit de risque client. Saisissez votre clé d'accès quotidienne.</div>
-      
-      <div class="pass-input-wrapper">
-        <input type="password" id="passCodeInput" class="pass-input" placeholder="Clé d'accès ou mot de passe..." autocomplete="current-password" onkeydown="if(event.key==='Enter') verifyPassCode()">
-      </div>
-      
-      <button type="button" id="validatePassBtn" class="pass-btn" onclick="verifyPassCode()">Ouvrir la session sécurisée</button>
-      
-      <div id="passErrorMsg" class="pass-error" style="display: none;">❌ Clé d'accès incorrecte ou expirée</div>
-      
-      <div class="pass-footer-info">
-        <span>Conforme Règlementation LCB-FT &amp; Sapin II</span> &bull; <span>Mise à jour Mars 2026</span>
-      </div>
+      <div class="pass-sub">Accès sécurisé. Veuillez saisir votre mot de passe pour ouvrir la session.</div>
+      <input type="password" id="passCodeInput" class="pass-input" placeholder="Saisir le mot de passe">
+      <button type="button" id="validatePassBtn" class="pass-btn">Se connecter</button>
+      <div id="passErrorMsg" class="pass-error" style="display: none;">❌ Mot de passe incorrect</div>
     </div>
   </div>
 
   <!-- APPLICATION PRINCIPALE -->
-  <div id="appContent" style="display:none;">
-    
-    <!-- EN-TÊTE PROFESSIONNEL AVEC BARRE DE STATUT SYSTÈME -->
-    <header class="app-header">
-      <div class="header-container">
-        <div class="logo">
-          🛡️ Euro Expert Solvabilité <span class="year-badge">2026</span>
-        </div>
-        
-        <div class="system-status-bar">
-          <div class="status-indicator">
-            <span class="status-dot green"></span> API INSEE &amp; RCS : <strong style="color:#4ade80;">En ligne</strong>
-          </div>
-          <div class="status-indicator">
-            <span class="status-dot blue"></span> BODACC &amp; DAAF : <strong style="color:#38bdf8;">Connecté</strong>
-          </div>
-          <div class="security-badge">
-            🔐 Chiffrement AES-256
-          </div>
-        </div>
-      </div>
+  <div id="appContent" style="display: none;">
+    <header>
+      <div class="logo">🛡️ Euro Expert Solvabilité <span>2026</span></div>
     </header>
 
-    <main class="app-main">
-      
-      <!-- BARRE DE RECHERCHE SÉCURISÉE SANS RECHARGEMENT DE PAGE -->
-      <section class="search-section">
-        <div class="search-container">
-          <form class="search-box" id="searchForm" onsubmit="event.preventDefault(); handleSearch(); return false;">
-            <div class="search-icon">🔍</div>
-            <input type="text" id="searchInput" class="search-input" placeholder="Saisissez une raison sociale ou un numéro SIREN (9 chiffres)..." autocomplete="off" spellcheck="false">
-            <button type="button" id="searchBtn" class="search-btn" onclick="handleSearch()">Analyser l'entreprise</button>
-          </form>
+    <main>
+      <!-- BARRE DE RECHERCHE SÉCURISÉE AVEC PROTECTION SUBMIT -->
+      <div class="search-container">
+        <form class="search-box" id="searchForm">
+          <input type="text" id="searchInput" class="search-input" placeholder="Saisissez un Nom ou Numéro SIREN..." autocomplete="off">
+          <button type="button" id="searchBtn" class="search-btn">Analyser</button>
+        </form>
+        <div id="autocompleteResults" style="display: none;"></div>
+      </div>
 
-          <!-- MENU DÉROULANT DES SUGGESTIONS D'AUTOCOMPLÉTION -->
-          <div id="autocompleteResults" class="autocomplete-dropdown" style="display:none;"></div>
-        </div>
-
-        <!-- RACCOURCIS DE RECHERCHE RAPIDE & HISTORIQUE -->
-        <div class="quick-shortcuts">
-          <span class="shortcut-label">Exemples d'audits B2B :</span>
-          <button type="button" class="shortcut-btn" onclick="searchSirenDirect('815297270')">Test Alerte DAAF (815297270)</button>
-          <button type="button" class="shortcut-btn" onclick="searchSirenDirect('552100554')">Peugeot SA (552100554)</button>
-          <button type="button" class="shortcut-btn" onclick="searchSirenDirect('380129866')">Carrefour (380129866)</button>
-        </div>
-      </section>
-
-      <!-- BANNIÈRE D'ALERTE DYNAMIQUE (FERMETURE / DAAF / BODACC) -->
+      <!-- BANNIÈRE D'ALERTE -->
       <div id="dashboard-alert-banner"></div>
 
-      <!-- BANDEAU KPIs MÉTRIQUES FLASH -->
-      <div class="kpi-strip">
-        <div class="kpi-card">
-          <div class="kpi-title">Note Solvabilité</div>
-          <div class="kpi-value" id="kpi-score">-- / 100</div>
-          <div class="kpi-sub">Indice de confiance B2B</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-title">Plafond d'Encours</div>
-          <div class="kpi-value" id="kpi-credit">-- €</div>
-          <div class="kpi-sub">Limite conseillée 30j</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-title">Statut Administratif</div>
-          <div class="kpi-value" id="kpi-status">En attente</div>
-          <div class="kpi-sub">Répertoire SIRENE / RCS</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-title">Contrôle Sanitaire DAAF</div>
-          <div class="kpi-value" id="kpi-sanitary">Non évalué</div>
-          <div class="kpi-sub">Registre Alim'confiance</div>
-        </div>
-      </div>
-
-      <!-- DÉCOUPAGE EN ONGLETS MÉTIER DE L'AUDIT -->
-      <div class="audit-tabs-bar">
-        <button type="button" class="tab-btn active" onclick="switchAuditTab(this, 'tab-summary')">📌 Synthèse &amp; Décision</button>
-        <button type="button" class="tab-btn" onclick="switchAuditTab(this, 'tab-financials')">📊 Bilan &amp; Ratios Triennaux</button>
-        <button type="button" class="tab-btn" onclick="switchAuditTab(this, 'tab-legal')">⚖️ Legal &amp; BODACC</button>
-        <button type="button" class="tab-btn" onclick="switchAuditTab(this, 'tab-network')">🏢 Réseau &amp; Géolocalisation</button>
-      </div>
-
-      <!-- GRILLE DES MODULES DASHBOARD -->
+      <!-- TABLEAU DE BORD ORIGINAL EN GRILLE -->
       <div class="dashboard-grid">
         
-        <!-- MODULE 1 : SCORE & DÉCISION D'OCTROI -->
-        <div class="card score-card tab-content id-tab-summary">
-          <div class="card-header">
-            <h3>Évaluation du Risque Client</h3>
-            <span class="card-badge">Module Décisionnel</span>
-          </div>
+        <!-- MODULE 1 : SCORE ET DÉCISION -->
+        <div class="card score-card">
+          <h3>Score de Solvabilité &amp; Décision</h3>
           <div class="score-display">
             <div class="score-number" id="dashboard-score-val">--</div>
             <div class="score-details">
-              <div id="dashboard-score-rating" class="score-rating">Aucun audit en cours</div>
-              <div id="dashboard-credit-decision" class="credit-decision">Saisissez une entreprise ci-dessus</div>
+              <div id="dashboard-score-rating" class="score-rating">Bilan en attente</div>
+              <div id="dashboard-credit-decision" class="credit-decision">Effectuez une recherche</div>
             </div>
           </div>
-          <div class="action-buttons-group">
-            <button type="button" id="downloadPdfBtn" class="pdf-btn">📄 Imprimer / Télécharger le Rapport PDF Exécutif (4 Pages)</button>
-          </div>
+          <button type="button" id="downloadPdfBtn" class="pdf-btn">📄 Télécharger le Rapport PDF</button>
         </div>
 
-        <!-- MODULE 2 : SYNTHÈSES IA PAR CATÉGORIE -->
-        <div class="card ai-card tab-content id-tab-summary">
-          <div class="card-header">
-            <h3>🤖 Synthèses &amp; Diagnostic de Risk Management</h3>
-            <span class="card-badge ai-badge">Analyse Algorithmique</span>
-          </div>
+        <!-- MODULE 2 : SYNTHÈSE IA -->
+        <div class="card ai-card">
+          <h3>🤖 Synthèse &amp; Analyse IA</h3>
           <div id="ai-summaries-container" class="ai-summaries">
-            <p class="placeholder-text">L'analyse financière, juridique et de gouvernance s'affichera automatiquement ici après la sélection d'une entreprise.</p>
+            <p>Saisissez un numéro SIREN pour générer l'analyse financière, juridique et de gouvernance.</p>
           </div>
         </div>
 
-        <!-- MODULE 3 : CARTE GÉOGRAPHIQUE DU SIÈGE -->
-        <div class="card map-card tab-content id-tab-network">
-          <div class="card-header">
-            <h3>📍 Cartographie &amp; Implantation du Siège</h3>
-            <span class="card-badge">OpenStreetMap</span>
-          </div>
+        <!-- MODULE 3 : CARTE LEAFLET -->
+        <div class="card map-card">
+          <h3>📍 Localisation du Siège Social</h3>
           <div id="map" style="height: 280px; width: 100%; border-radius: 8px;"></div>
         </div>
 
-        <!-- MODULE 4 : RÉSEAU ET DIRIGEANTS LIÉS -->
-        <div class="card network-card tab-content id-tab-network">
-          <div class="card-header">
-            <h3>🏢 Réseau d'Entreprises du Dirigeant</h3>
-            <span class="card-badge">Investigation RCS</span>
-          </div>
+        <!-- MODULE 4 : RÉSEAU ET DIRIGEANTS -->
+        <div class="card network-card">
+          <h3>🏢 Réseau &amp; Entreprises Liées</h3>
           <div id="groupCompaniesList">
-            <div style="color: #94a3b8; font-size: 12px; text-align: center; padding: 20px 0;">Aucune filiale ou entreprise liée analysée.</div>
+            <div style="color: #94a3b8; font-size: 12px;">Aucun dirigeant ou groupe analysé pour le moment.</div>
           </div>
         </div>
 
       </div>
-
     </main>
-
-    <!-- PIED DE PAGE & MENTIONS LÉGALES -->
-    <footer class="app-footer">
-      <div class="footer-container">
-        <div>
-          <strong>Euro Expert Solvabilité 2026</strong> &bull; Système d'Investigation Financière B2B
-        </div>
-        <div>
-          Données issues des API officielles INSEE, Greffes du Tribunal de Commerce, BODACC et DAAF.
-        </div>
-      </div>
-    </footer>
-
   </div>
 
-  <!-- LOGIQUE INLINE DE VERROUILLAGE ET DE NAVIGATION DES ONGLETS -->
-  <script>
-    function verifyPassCode() {
-      const input = document.getElementById('passCodeInput');
-      const modal = document.getElementById('passModalOverlay');
-      const app = document.getElementById('appContent');
-      const error = document.getElementById('passErrorMsg');
-      
-      const val = input ? input.value.trim() : '';
-      
-      if (val === "EXPERT2026" || val === "DEMO2026" || val.length >= 3) {
-        if (modal) modal.style.display = 'none';
-        if (app) app.style.display = 'block';
-        if (error) error.style.display = 'none';
-        
-        // Initialiser la carte après l'affichage du conteneur
-        setTimeout(() => {
-          if (typeof initMap === 'function') initMap();
-        }, 100);
-      } else {
-        if (error) error.style.display = 'block';
-      }
-    }
-
-    function switchAuditTab(btn, tabClass) {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    }
-  </script>
-
-  <!-- MOTEUR PRINCIPAL SCRIPT ENGINE -->
+  <!-- SCRIPT ENGINE -->
   <script src="index.js"></script>
 </body>
 </html>
