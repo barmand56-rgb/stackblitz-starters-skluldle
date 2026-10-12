@@ -123,7 +123,7 @@
             <div class="flex flex-col md:flex-row gap-4 items-center">
                 <div class="relative flex-1 w-full">
                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 text-lg"></i>
-                    <input type="text" id="search-input" placeholder="Saisissez un SIREN, SIRET ou nom d'entreprise (ex: L'UNI VERT)..." 
+                    <input type="text" id="search-input" placeholder="Saisissez un SIREN, SIRET ou nom d'entreprise (ex: L'UNI VERT, LITTLE MARRAKECH)..." 
                            class="w-full pl-12 pr-36 py-4 bg-slate-900/90 border border-slate-700/80 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 text-base font-medium transition-all"
                            onkeyup="handleSearchKeyup(event)">
                     <button onclick="executeSearch()" class="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-slate-950 font-extrabold rounded-lg transition-all flex items-center gap-2 shadow-md">
@@ -190,15 +190,15 @@
                 </div>
             </div>
 
-            <!-- BANNIÈRE HISTORIQUE DAAF -->
+            <!-- BANNIÈRE ALERTE STATUT / DAAF -->
             <div id="alert-banner-daaf" class="hidden rounded-2xl p-4 border bg-amber-500/10 border-amber-500/30 text-amber-200 flex items-start gap-4">
                 <div class="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl text-xl">
                     <i class="fa-solid fa-triangle-exclamation"></i>
                 </div>
                 <div>
-                    <h4 class="font-bold text-sm text-amber-300">Historique Réglementaire DAAF / Contrôle Sanitaire</h4>
+                    <h4 class="font-bold text-sm text-amber-300">Historique Réglementaire DAAF / Statut d'Exploitation</h4>
                     <p id="alert-daaf-text" class="text-xs mt-1 leading-relaxed text-slate-300">
-                        L'établissement est actuellement **ouvert et exploité sur place**. Il a fait l'objet d'un arrêté préfectoral temporaire pour mise en conformité sanitaire désormais **entièrement levé**.
+                        Signalement réglementaire en cours...
                     </p>
                 </div>
             </div>
@@ -378,7 +378,7 @@
                             <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800">
                                 <div class="flex justify-between font-bold text-white mb-1">
                                     <span>Actionnariat Principal :</span>
-                                    <span class="text-cyan-400">Detention Directe (100 %)</span>
+                                    <span class="text-cyan-400">Détention Directe (100 %)</span>
                                 </div>
                                 <p class="text-slate-400 text-[11px]">Aucun maillon d'intégration dans un groupe sous procédure collective. Risque de contagion holding nul.</p>
                             </div>
