@@ -2,35 +2,73 @@
  * EURO EXPERT SOLVABILITÉ 2026 - MOTEUR D'AUDIT B2B CERTIFIÉ & AUTOCOMPLÉTION DYNAMIQUE
  */
 
-const MASTER_MANAGER_CODE = "EURO2026";
-const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+// ============================================================================
+// AUTHENTIFICATION SÉCURISÉE (MÉTHODE 1)
+// ============================================================================
+const SECRET_KEY = "MonSecretSuperPrive2026"; // Doit correspondre à admin-generator.html
+const MANAGER_ACCESS_CODE = "EES-2026";       // Votre code gérant permanent
 
-// Cache en mémoire pour rendre les recherches ultra-rapides
-const apiSearchCache = new Map();
-
-let leafletMapInstance = null;
-let financialChartInstance = null;
-let currentCompanyData = null;
-let searchDebounceTimeout = null;
-
-function getTodayAccessCode() {
-    const now = new Date();
-    const dd = String(now.getDate()).padStart(2, '0');
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    return `EES-${dd}${mm}`;
+async function calculateTodayCode() {
+    const today = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+    const message = `${SECRET_KEY}-${today}`;
+    
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    const numericCode = parseInt(hashHex.substring(0, 8), 16) % 900000 + 100000;
+    return `EES-${numericCode}`;
 }
-
 document.addEventListener("DOMContentLoaded", () => {
-    const todayCode = getTodayAccessCode();
-    const hintElement = document.getElementById("display-today-code-hint");
-    if (hintElement) hintElement.textContent = `Clé du jour: ${todayCode}`;
-
-    checkSessionAccess();
-    setInterval(updateSessionTimerDisplay, 60000);
+    const isUnlocked = sessionStorage.getItem("ees_session_unlocked") === "true";
+    const authModal = document.getElementById("auth-modal");
+    if (authModal) {
+        if (isUnlocked) {
+            authModal.classList.add("hidden");
+        } else {
+            authModal.classList.remove("hidden");
+        }
+    }
 
     initHomeMap();
     initClickOutsideListener();
 });
+
+async function validateAccessCode(event) {
+    if (event) event.preventDefault();
+
+    const inputField = document.getElementById("access-code-input");
+    const errorBanner = document.getElementById("auth-error");
+    const authModal = document.getElementById("auth-modal");
+
+    if (!inputField) return;
+
+    const userInput = inputField.value.trim().toUpperCase();
+    const managerCode = MANAGER_ACCESS_CODE.toUpperCase();
+    const todayCode = (await calculateTodayCode()).toUpperCase();
+
+    if (userInput === managerCode || userInput === todayCode) {
+        if (errorBanner) errorBanner.classList.add("hidden");
+        if (authModal) authModal.classList.add("hidden");
+
+        sessionStorage.setItem("ees_session_unlocked", "true");
+        inputField.value = "";
+    } else {
+        if (errorBanner) {
+            errorBanner.textContent = "Clé d'accès invalide ou expirée.";
+            errorBanner.classList.remove("hidden");
+        }
+        inputField.classList.add("border-red-500");
+        setTimeout(() => inputField.classList.remove("border-red-500"), 2000);
+    }
+}
+
+function lockSession() {
+    sessionStorage.removeItem("ees_session_unlocked");
+    const authModal = document.getElementById("auth-modal");
+    if (authModal) authModal.classList.remove("hidden");
+}
 
 // Masquer les suggestions si l'utilisateur clique ailleurs
 function initClickOutsideListener() {

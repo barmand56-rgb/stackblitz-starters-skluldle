@@ -117,30 +117,36 @@
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
 
     <!-- MODAL ACCÈS -->
-    <div id="auth-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[1000] flex items-center justify-center p-4">
-        <div class="glass-panel max-w-md w-full p-8 rounded-2xl border border-cyan-500/30 neon-glow-box text-center">
-            <div class="w-16 h-16 bg-cyan-500/10 border border-cyan-400/30 rounded-2xl flex items-center justify-center mx-auto mb-4 text-cyan-400 text-2xl">
-                <i class="fa-solid fa-shield-halved"></i>
-            </div>
-            <h2 class="text-xl font-black text-white uppercase tracking-wider mb-1">Accès Sécurisé Réservé</h2>
-            <p class="text-xs text-slate-400 mb-6">Plateforme d'Audit Institutionnel B2B Euro Expert Solvabilité 2026</p>
+<!-- MODAL ACCÈS SÉCURISÉ (STYLISÉ & SOBRE) -->
+<div id="auth-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[1000] flex items-center justify-center p-4">
+    <div class="glass-panel max-w-md w-full p-8 rounded-2xl border border-cyan-500/30 neon-glow-box text-center">
+        <div class="w-16 h-16 bg-cyan-500/10 border border-cyan-400/30 rounded-2xl flex items-center justify-center mx-auto mb-4 text-cyan-400 text-2xl">
+            <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h2 class="text-xl font-black text-white uppercase tracking-wider mb-1">Accès Sécurisé Réservé</h2>
+        <p class="text-xs text-slate-400 mb-6">Plateforme d'Audit Institutionnel B2B Euro Expert Solvabilité 2026</p>
 
-            <form onsubmit="validateAccessCode(event)" class="space-y-4" autocomplete="off">
+        <form onsubmit="validateAccessCode(event)" class="space-y-4" autocomplete="off">
+            <div class="relative">
                 <input type="password" id="access-code-input" placeholder="Saisissez la clé d'accès..." 
-                       class="w-full px-4 py-3 bg-slate-900/90 border border-slate-700 rounded-xl text-center text-white text-lg font-mono focus:outline-none focus:border-cyan-400">
-                <div id="auth-error" class="hidden text-xs font-bold text-red-400 bg-red-500/10 py-2 rounded-lg">
-                    Clé d'accès incorrecte.
-                </div>
-                <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-extrabold rounded-xl">
-                    Déverrouiller <i class="fa-solid fa-key ml-1"></i>
-                </button>
-            </form>
-            <div class="mt-6 pt-4 border-t border-slate-800 text-[11px] text-slate-500 flex justify-between font-mono">
-                <span id="display-today-code-hint">Clé du jour: EES-2026</span>
-                <span class="text-emerald-400"><i class="fa-solid fa-lock mr-1"></i>SSL</span>
+                       class="w-full px-4 py-3 bg-slate-900/90 border border-slate-700 rounded-xl text-center text-white text-lg font-mono focus:outline-none focus:border-cyan-400 transition-all">
             </div>
+            
+            <div id="auth-error" class="hidden text-xs font-bold text-red-400 bg-red-500/10 py-2.5 rounded-lg border border-red-500/20">
+                Clé d'accès invalide ou expirée.
+            </div>
+
+            <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-extrabold rounded-xl transition-all hover:brightness-110">
+                Déverrouiller <i class="fa-solid fa-key ml-1"></i>
+            </button>
+        </form>
+
+        <div class="mt-6 pt-4 border-t border-slate-800 text-[11px] text-slate-500 flex justify-between items-center font-mono">
+            <span class="text-slate-400"><i class="fa-solid fa-shield-cat text-cyan-400 mr-1"></i>Authentification B2B</span>
+            <span class="text-emerald-400"><i class="fa-solid fa-lock mr-1"></i>Chiffrement SSL</span>
         </div>
     </div>
+</div>
 
     <!-- EN-TÊTE -->
     <header class="border-b border-slate-800 bg-slate-900/60 sticky top-0 z-40 backdrop-blur-lg">
