@@ -119,15 +119,24 @@
    /* ============================================================================
       FORMATAGE IMPRIMEUR A4 ULTRA-PROPORE POUR GENERATION PDF
       ============================================================================ */
-   #pdf-report-template {
-       position: absolute;
-       left: 0;
-       top: 0;
-       width: 210mm;
-       z-index: -1000;
-       background-color: #ffffff !important;
-       color: #0f172a !important;
-   }
+  /* CONTENEUR PDF : Visible temporairement au premier plan pendant la capture */
+#pdf-report-template {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 210mm !important;
+    background-color: #ffffff !important;
+    color: #0f172a !important;
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* Quand la génération commence, on le rend temporairement opaque */
+#pdf-report-template.rendering-pdf {
+    opacity: 1 !important;
+    z-index: 99999 !important;
+}
    
    .pdf-page-a4 {
        width: 210mm !important;
