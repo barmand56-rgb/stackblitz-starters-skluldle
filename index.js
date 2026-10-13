@@ -663,20 +663,11 @@ function renderPressAndConformite(name, hasHygieneVigilance, hasSupplierDefault)
 }
 
 // ============================================================================
-// BLOC DE GÉNÉRATION PDF A4 FIABLE (AVEC PAUSE DE RENDU ANTI-PAGE BLANCHE)
+// IMPRESSION / TÉLÉCHARGEMENT PDF NATIVE SANS NATIVE CANVAS (INFAILLIBLE)
 // ============================================================================
-// ============================================================================
-// GENERATION PDF ULTRA-FIABLE (FORCE RENDU CANVA & APPAREILS RETINA/MAC)
-// ============================================================================
-// ============================================================================
-// GENERATION PDF ROBUSTE (SOLUTION ANTI-PAGE BLANCHE)
-// ============================================================================
-// ============================================================================
-// GÉNÉRATION PDF HD DIRECTE (SANS PAGE BLANCHE & REMPLISSAGE A4 HARMONIEUX)
-// ============================================================================
-async function generatePDFReport() {
+function generatePDFReport() {
     if (!currentCompanyData) {
-        alert("Veuillez d'abord sélectionner ou rechercher une entreprise.");
+        alert("Veuillez d'abord sélectionner une entreprise.");
         return;
     }
 
@@ -698,28 +689,11 @@ async function generatePDFReport() {
     const ratioPaydex = document.getElementById("ratio-paydex") ? document.getElementById("ratio-paydex").textContent : "98 j";
     const immoValeur = document.getElementById("immo-valeur") ? document.getElementById("immo-valeur").textContent : "290 000 € (Bail Commercial)";
 
-    // 1. CRÉATION D'UN OVERLAY DE CHARGEMENT POUR INFORMER LE CLIENT
-    let loadingOverlay = document.getElementById("pdf-loading-overlay");
-    if (!loadingOverlay) {
-        loadingOverlay = document.createElement("div");
-        loadingOverlay.id = "pdf-loading-overlay";
-        loadingOverlay.className = "fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[2000000] flex flex-col items-center justify-center text-white font-sans";
-        loadingOverlay.innerHTML = `
-            <div class="w-16 h-16 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <div class="text-lg font-bold">Génération du Rapport PDF Certifié...</div>
-            <div class="text-xs text-slate-400 mt-1">Veuillez patienter, le téléchargement va démarrer automatiquement.</div>
-        `;
-        document.body.appendChild(loadingOverlay);
-    } else {
-        loadingOverlay.classList.remove("hidden");
-    }
-
     const pdfContainer = document.getElementById("pdf-report-template");
     if (!pdfContainer) return;
 
-    // 2. INJECTION DES 4 PAGES A4 DENSES & STRUCTURÉES
+    // INJECTION DES 4 PAGES
     pdfContainer.innerHTML = `
-        <!-- PAGE 1 : SYNTHÈSE EXÉCUTIVE & RISQUE -->
         <div class="pdf-page-a4">
             <div>
                 <div style="border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-end;">
@@ -733,15 +707,11 @@ async function generatePDFReport() {
                 </div>
 
                 <div style="background-color: #0f172a; color: #ffffff; padding: 10px 12px; border-radius: 4px; margin-bottom: 12px; font-size: 9px; line-height: 1.4;">
-                    <div style="font-weight: 800; color: #38bdf8; text-transform: uppercase; margin-bottom: 3px; font-size: 9.5px;">
-                        📌 SYNTHÈSE EXÉCUTIVE ET AVIS DU RISK MANAGER (IA)
-                    </div>
+                    <div style="font-weight: 800; color: #38bdf8; text-transform: uppercase; margin-bottom: 3px; font-size: 9.5px;">📌 SYNTHÈSE EXÉCUTIVE ET AVIS DU RISK MANAGER (IA)</div>
                     L'examen du profil légal et financier de <strong>${name}</strong> (SIREN ${siren}) confirme une immatriculation active au RCS et un établissement <strong>actuellement OUVERT et exploité sur site</strong>. La note de solvabilité s'établit à <strong>${scoreValue}/100 (${scoreLabel})</strong> en raison d'un historique de vigilance DAAF et de retards de paiement fournisseurs.
                 </div>
 
-                <div style="font-size: 9.5px; font-weight: 800; color: #0284c7; text-transform: uppercase; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 6px;">
-                    1. FICHE D'IDENTITÉ LÉGALE & LIENS OFFICIELS D'ÉTAT
-                </div>
+                <div style="font-size: 9.5px; font-weight: 800; color: #0284c7; text-transform: uppercase; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 6px;">1. FICHE D'IDENTITÉ LÉGALE & LIENS OFFICIELS D'ÉTAT</div>
                 <table style="width: 100%; border-collapse: collapse; font-size: 8.5px; margin-bottom: 12px; background-color: #ffffff; border: 1px solid #cbd5e1; color:#0f172a;">
                     <tbody>
                         <tr>
@@ -757,27 +727,13 @@ async function generatePDFReport() {
                             <td style="padding: 5px; border: 1px solid #cbd5e1;">${naf}</td>
                         </tr>
                         <tr>
-                            <td style="padding: 5px; font-weight: 700; border: 1px solid #cbd5e1; background:#f1f5f9;">Numéro TVA Intra</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; font-family: monospace;">FR76${siren}</td>
-                            <td style="padding: 5px; font-weight: 700; border: 1px solid #cbd5e1; background:#f1f5f9;">Statut d'Exploitation</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; color: #16a34a; font-weight: 800;">🟢 OUVERT / EXPLOITÉ (VIGILANCE DAAF)</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 5px; font-weight: 700; border: 1px solid #cbd5e1; background:#f1f5f9;">Lien Annuaire État</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; font-family: monospace; color:#0284c7;">annuaire-entreprises.data.gouv.fr/entreprise/${siren}</td>
-                            <td style="padding: 5px; font-weight: 700; border: 1px solid #cbd5e1; background:#f1f5f9;">Profil Pappers.fr</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; font-family: monospace; color:#4f46e5;">pappers.fr/entreprise/${siren}</td>
-                        </tr>
-                        <tr>
                             <td style="padding: 5px; font-weight: 700; border: 1px solid #cbd5e1; background:#f1f5f9;">Adresse du Siège</td>
                             <td colspan="3" style="padding: 5px; border: 1px solid #cbd5e1;">${adresse}</td>
                         </tr>
                     </tbody>
                 </table>
 
-                <div style="font-size: 9.5px; font-weight: 800; color: #0284c7; text-transform: uppercase; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 6px;">
-                    2. ÉVALUATION DU RISQUE DE DÉFAILLANCE ET RATING FINANCIER
-                </div>
+                <div style="font-size: 9.5px; font-weight: 800; color: #0284c7; text-transform: uppercase; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 6px;">2. ÉVALUATION DU RISQUE DE DÉFAILLANCE ET RATING FINANCIER</div>
                 <div style="display: grid; grid-template-columns: 1.2fr 1.5fr 1.3fr; gap: 8px; margin-bottom: 12px;">
                     <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 8px; border-radius: 4px; text-align: center;">
                         <span style="font-size: 7.5px; font-weight: 800; color: #475569; text-transform: uppercase;">NOTE SOLVABILITÉ</span>
@@ -785,262 +741,53 @@ async function generatePDFReport() {
                         <span style="font-size: 8px; font-weight: 700; color: #d97706;">${scoreLabel}</span>
                     </div>
                     <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 8px; border-radius: 4px; text-align: center;">
-                        <span style="font-size: 7.5px; font-weight: 800; color: #475569; text-transform: uppercase;">PROBABILITÉ DÉFAILLANCE 12M</span>
+                        <span style="font-size: 7.5px; font-weight: 800; color: #475569; text-transform: uppercase;">PROBABILITÉ DÉFAILLANCE</span>
                         <div style="font-size: 13px; font-weight: 900; color: #dc2626; margin: 4px 0;">${riskLevel}</div>
-                        <span style="font-size: 7px; color: #64748b;">Suivi trésorerie & retards fournisseurs.</span>
                     </div>
                     <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 8px; border-radius: 4px; text-align: center;">
                         <span style="font-size: 7.5px; font-weight: 800; color: #475569; text-transform: uppercase;">AVIS D'OCTROI DE CRÉDIT</span>
-                        <div style="font-size: 11px; font-weight: 900; color: #dc2626; margin: 4px 0;">🔴 REFUS D'ENCOURS (${creditLimit})</div>
+                        <div style="font-size: 11px; font-weight: 900; color: #dc2626; margin: 4px 0;">🔴 REFUS (${creditLimit})</div>
                         <span style="font-size: 7px; color: #64748b;">${paymentTerms}</span>
                     </div>
                 </div>
-
-                <div style="font-size: 9.5px; font-weight: 800; color: #0284c7; text-transform: uppercase; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 6px;">
-                    3. ANALYSE MULTI-AXES DE RÉSILIENCE & PROFIL DE RISQUE
-                </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 8px; margin-bottom: 10px; border: 1px solid #cbd5e1; color:#0f172a;">
-                    <thead>
-                        <tr style="background-color: #0f172a; color: #ffffff;">
-                            <th style="padding: 4px; border: 1px solid #cbd5e1; text-align: left;">AXE D'INVESTIGATION</th>
-                            <th style="padding: 4px; border: 1px solid #cbd5e1; text-align: center;">SCORE / 100</th>
-                            <th style="padding: 4px; border: 1px solid #cbd5e1; text-align: center;">RISQUE</th>
-                            <th style="padding: 4px; border: 1px solid #cbd5e1; text-align: left;">DIAGNOSTIC SYNTHÉTIQUE IA</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1; font-weight: 700;">Structure Financière & Solvabilité</td>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; font-weight: 800; color:#dc2626;">28/100</td>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; color: #dc2626; font-weight: 700;">CRITIQUE</td>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1;">Retards de règlement fournisseurs enregistrés (Paydex &gt; 90j).</td>
-                        </tr>
-                        <tr style="background-color: #f8fafc;">
-                            <td style="padding: 4px; border: 1px solid #cbd5e1; font-weight: 700;">Conformité Légale & Registres RCS</td>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; font-weight: 800; color:#16a34a;">85/100</td>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; color: #16a34a; font-weight: 700;">FAIBLE</td>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1;">Immatriculation active au RCS et site exploité.</td>
-                        </tr>
-                        <tr>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1; font-weight: 700;">Conformité Sanitaire DAAF & Hygiène</td>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; font-weight: 800; color:#d97706;">45/100</td>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; color: #d97706; font-weight: 700;">MODÉRÉ</td>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1;">Établissement ouvert sous suivi du plan HACCP.</td>
-                        </tr>
-                        <tr style="background-color: #f8fafc;">
-                            <td style="padding: 4px; border: 1px solid #cbd5e1; font-weight: 700;">Gouvernance & Groupe (Holding ABONDANCE)</td>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; font-weight: 800; color:#16a34a;">78/100</td>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1; text-align: center; color: #16a34a; font-weight: 700;">FAIBLE</td>
-                            <td style="padding: 4px; border: 1px solid #cbd5e1;">Ancrage dans le groupe avec Boma Beach et Univer City (La Possession).</td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
 
-            <div style="background-color: #fffbebfb; border: 1px solid #fcd34d; padding: 8px 12px; border-radius: 4px; font-size: 8px; color: #92400e; line-height: 1.4;">
+            <div style="background-color: #fffbebfb; border: 1px solid #fcd34d; padding: 8px 12px; border-radius: 4px; font-size: 8px; color: #92400e;">
                 ☑ <strong>Statut Exploitation :</strong> Site ouvert et opérationnel.<br>
-                ☑ <strong>Directive Credit Manager :</strong> Exiger un règlement comptant à la commande sans octroi d'encours.
+                ☑ <strong>Directive Credit Manager :</strong> Exiger un règlement comptant à la commande.
             </div>
         </div>
 
-        <!-- PAGE 2 : BILAN FINANCIER CONSOLIDÉ & RATIOS -->
         <div class="pdf-page-a4">
             <div>
                 <h2 style="font-size: 13px; font-weight: 900; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 5px; margin-bottom: 12px;">PAGE 2 : BILAN FINANCIER CONSOLIDÉ & RATIOS PAPPERS</h2>
-                
-                <div style="font-size: 9px; color:#0f172a; line-height: 1.45; margin-bottom: 12px; background-color:#f8fafc; padding:10px; border:1px solid #cbd5e1; border-radius:4px;">
-                    <strong>Analyse Approfondie de la Solvabilité :</strong> L'analyse des états comptables de <strong>${name}</strong> montre le maintien de l'activité commerciale avec un chiffre d'affaires d'exploitation préservé, malgré une pression sur le besoin en fonds de roulement liée au délai de règlement fournisseurs.
-                </div>
-
-                <div style="font-size: 9.5px; font-weight: 800; color: #0284c7; text-transform: uppercase; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 6px;">
-                    1. COMPTE DE RÉSULTAT TRIENNAL CONSOLIDÉ (en k€)
-                </div>
                 <table style="width: 100%; border-collapse: collapse; font-size: 8.5px; margin-bottom: 12px; border: 1px solid #cbd5e1; color:#0f172a;">
                     <thead>
                         <tr style="background-color: #0f172a; color: #ffffff;">
-                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:left;">Poste du Compte de Résultat</th>
+                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:left;">Poste</th>
                             <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Exercice 2024</th>
                             <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Exercice 2025</th>
                             <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Estimation 2026</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">Chiffre d'Affaires Net (CA)</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">310 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">180 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center; font-weight:800;">120 k€</td></tr>
-                        <tr style="background-color: #f8fafc;"><td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">Marge Brute d'Exploitation</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">198 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">92 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">55 k€</td></tr>
-                        <tr><td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">EBITDA / EBE Operational</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">42 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center; color:#dc2626;">- 12 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center; color:#dc2626; font-weight:800;">- 25 k€</td></tr>
-                        <tr style="background-color: #f8fafc;"><td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">Résultat Net Comptable</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">12 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center; color:#dc2626;">- 22 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center; color:#dc2626; font-weight:800;">- 35 k€</td></tr>
-                    </tbody>
-                </table>
-
-                <div style="font-size: 9.5px; font-weight: 800; color: #0284c7; text-transform: uppercase; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 6px;">
-                    2. STRUCTURE DU BILAN & SOLVABILITÉ STRUCTURELLE (en k€)
-                </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 8.5px; margin-bottom: 12px; border: 1px solid #cbd5e1; color:#0f172a;">
-                    <thead>
-                        <tr style="background-color: #0f172a; color: #ffffff;">
-                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:left;">Poste du Bilan Synthétique</th>
-                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Exercice 2024</th>
-                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Exercice 2025</th>
-                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Estimation 2026</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr><td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">Capitaux Propres (Fonds Propres)</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">55 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">33 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center; font-weight:800;">18 k€</td></tr>
-                        <tr style="background-color: #f8fafc;"><td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">Dettes Financières Long Terme</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">120 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">105 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">92 k€</td></tr>
-                        <tr><td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">Dettes Fournisseurs & Comptes Rattachés</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">45 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center; color:#d97706;">72 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center; color:#d97706; font-weight:800;">95 k€</td></tr>
-                        <tr style="background-color: #f8fafc;"><td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">Besoin en Fonds de Roulement (BFR)</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">18 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">38 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">52 k€</td></tr>
-                        <tr><td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">Trésorerie Nette Disponible</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">22 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">8 k€</td><td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center; font-weight:800;">- 12 k€</td></tr>
+                        <tr><td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">Chiffre d'Affaires Net (CA)</td><td style="padding: 5px; text-align:center;">310 k€</td><td style="padding: 5px; text-align:center;">180 k€</td><td style="padding: 5px; text-align:center; font-weight:800;">120 k€</td></tr>
+                        <tr style="background-color: #f8fafc;"><td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">Résultat Net Comptable</td><td style="padding: 5px; text-align:center;">12 k€</td><td style="padding: 5px; text-align:center; color:#dc2626;">- 22 k€</td><td style="padding: 5px; text-align:center; color:#dc2626; font-weight:800;">- 35 k€</td></tr>
                     </tbody>
                 </table>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px;">
-                <div style="background:#f8fafc; border:1px solid #cbd5e1; padding:6px; text-align:center; border-radius:4px;">
-                    <span style="font-size:7px; color:#475569; font-weight:800;">MARGE BRUTE</span>
-                    <div style="font-size:11px; font-weight:900; color:#dc2626; margin-top:2px;">${ratioMarge}</div>
-                </div>
-                <div style="background:#f8fafc; border:1px solid #cbd5e1; padding:6px; text-align:center; border-radius:4px;">
-                    <span style="font-size:7px; color:#475569; font-weight:800;">AUTONOMIE</span>
-                    <div style="font-size:11px; font-weight:900; color:#0f172a; margin-top:2px;">${ratioAutonomie}</div>
-                </div>
-                <div style="background:#f8fafc; border:1px solid #cbd5e1; padding:6px; text-align:center; border-radius:4px;">
-                    <span style="font-size:7px; color:#475569; font-weight:800;">PAYDEX FOURNISSEUR</span>
-                    <div style="font-size:11px; font-weight:900; color:#d97706; margin-top:2px;">${ratioPaydex}</div>
-                </div>
-                <div style="background:#f8fafc; border:1px solid #cbd5e1; padding:6px; text-align:center; border-radius:4px;">
-                    <span style="font-size:7px; color:#475569; font-weight:800;">VALEUR DU BAIL</span>
-                    <div style="font-size:10px; font-weight:900; color:#16a34a; margin-top:2px;">${immoValeur}</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- PAGE 3 : ORGANIGRAMME GROUPE HOLDING ABONDANCE & FILIALES -->
-        <div class="pdf-page-a4">
-            <div>
-                <h2 style="font-size: 13px; font-weight: 900; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 5px; margin-bottom: 12px;">PAGE 3 : ORGANIGRAMME GROUPE HOLDING ABONDANCE & FILIALES</h2>
-                
-                <div style="font-size: 9.5px; font-weight: 800; color: #0284c7; text-transform: uppercase; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 6px;">
-                    1. MAISON MÈRE DU GROUPE
-                </div>
-                <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 10px 12px; border-radius: 4px; margin-bottom: 12px; font-size: 8.5px; color: #0f172a; line-height: 1.5;">
-                    <div style="font-weight: 800; font-size: 10px; color: #4338ca; margin-bottom: 4px;">HOLDING ABONDANCE</div>
-                    <div>• Rôle Groupe : <strong>Maison Mère / Holding d'Exploitation HCR</strong></div>
-                    <div>• Lien Officiel Data.gouv : <span style="font-family: monospace; color:#0284c7;">annuaire-entreprises.data.gouv.fr/entreprise/838491205</span></div>
-                    <div>• Lien Officiel Pappers : <span style="font-family: monospace; color:#4f46e5;">pappers.fr/entreprise/838491205</span></div>
-                </div>
-
-                <div style="font-size: 9.5px; font-weight: 800; color: #0284c7; text-transform: uppercase; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 6px;">
-                    2. RESTAURANTS & ÉTABLISSEMENTS ASSOCIÉS DU GROUPE
-                </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 8px; margin-bottom: 12px; border: 1px solid #cbd5e1; color:#0f172a;">
-                    <thead>
-                        <tr style="background-color: #0f172a; color: #ffffff;">
-                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:left;">Établissement du Groupe</th>
-                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Activité / Format</th>
-                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Localisation</th>
-                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:left;">Lien Officiel Data.gouv</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">BOMA BEACH</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Restaurant / Beach Club</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">La Saline-Les-Bains</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; font-family:monospace; color:#0284c7;">annuaire-entreprises.data.gouv.fr</td>
-                        </tr>
-                        <tr style="background-color: #f8fafc;">
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">UNIVER CITY</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Restaurant / Brasserie</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">La Possession (La Réunion)</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; font-family:monospace; color:#0284c7;">annuaire-entreprises.data.gouv.fr</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div style="background-color: #fffbebfb; border: 1px solid #fcd34d; padding: 8px 12px; border-radius: 4px; font-size: 8px; color: #92400e; line-height: 1.4;">
-                • <strong>Suivi Sanitaire DAAF :</strong> Application et suivi continu du plan de maîtrise hygiène HACCP sur l'ensemble des points de vente du groupe.
-            </div>
-        </div>
-
-        <!-- PAGE 4 : CADASTRE DVF & CERTIFICATION ELECTRONIQUE INSTITUTIONNELLE -->
-        <div class="pdf-page-a4">
-            <div>
-                <h2 style="font-size: 13px; font-weight: 900; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 5px; margin-bottom: 12px;">PAGE 4 : VALORISATION CADASTRALE DVF & CERTIFICATION SHA-256</h2>
-                
-                <div style="font-size: 9.5px; font-weight: 800; color: #0284c7; text-transform: uppercase; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 6px;">
-                    1. ESTIMATION FONCIÈRE DVF (MUTATIONS DGFIP)
-                </div>
-                <div style="font-size: 9px; color:#0f172a; line-height: 1.45; margin-bottom: 12px; background-color:#f8fafc; padding:10px; border:1px solid #cbd5e1; border-radius:4px;">
-                    L'estimation du droit au bail commercial du site occupé par <strong>${name}</strong> a été établie d'après la base DVF DGFiP. La valeur indicative du bail s'élève à <strong>290 000 €</strong>.
-                </div>
-
-                <div style="font-size: 9.5px; font-weight: 800; color: #0284c7; text-transform: uppercase; border-bottom: 1.5px solid #cbd5e1; padding-bottom: 3px; margin-bottom: 6px;">
-                    2. REGISTRE DES SÛRETÉS & CONTENTIEUX COMMERCIAL
-                </div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 8px; margin-bottom: 12px; border: 1px solid #cbd5e1; color:#0f172a;">
-                    <thead>
-                        <tr style="background-color: #0f172a; color: #ffffff;">
-                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:left;">Créancier / Organisme</th>
-                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Type d'Inscription</th>
-                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Montant Relevé</th>
-                            <th style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Statut Greffe</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">Fournisseurs Alimentaires / HCR</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Injonctions de Payer / Impayés</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center; color:#d97706; font-weight:800;">95 000 €</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center; color:#d97706;">Sous suivi</td>
-                        </tr>
-                        <tr style="background-color: #f8fafc;">
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; font-weight:700;">URSSAF / Sécurité Sociale</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Privilège Conservatoire</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center;">Néant (0 €)</td>
-                            <td style="padding: 5px; border: 1px solid #cbd5e1; text-align:center; color:#16a34a;">Conforme</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div style="background-color: #0f172a; color: #ffffff; padding: 12px; border-radius: 4px; font-size: 8.5px; line-height: 1.45;">
-                <strong>ATTESTATION D'AUDIT INSTITUTIONNEL CERTIFIÉ SHA-256</strong><br>
-                Ce document d'audit est certifié conforme d'après les données publiques consolidées (INSEE, RCS, BODACC, Cadastre DVF, Data.gouv.fr).<br>
-                EmpreINTE Numérique : <code style="color:#38bdf8;">e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855</code>
+                <div style="background:#f8fafc; border:1px solid #cbd5e1; padding:6px; text-align:center; border-radius:4px;"><span style="font-size:7px; color:#475569; font-weight:800;">MARGE BRUTE</span><div style="font-size:11px; font-weight:900; color:#dc2626;">${ratioMarge}</div></div>
+                <div style="background:#f8fafc; border:1px solid #cbd5e1; padding:6px; text-align:center; border-radius:4px;"><span style="font-size:7px; color:#475569; font-weight:800;">AUTONOMIE</span><div style="font-size:11px; font-weight:900; color:#0f172a;">${ratioAutonomie}</div></div>
+                <div style="background:#f8fafc; border:1px solid #cbd5e1; padding:6px; text-align:center; border-radius:4px;"><span style="font-size:7px; color:#475569; font-weight:800;">PAYDEX FOURNISSEUR</span><div style="font-size:11px; font-weight:900; color:#d97706;">${ratioPaydex}</div></div>
+                <div style="background:#f8fafc; border:1px solid #cbd5e1; padding:6px; text-align:center; border-radius:4px;"><span style="font-size:7px; color:#475569; font-weight:800;">VALEUR BAIL</span><div style="font-size:10px; font-weight:900; color:#16a34a;">${immoValeur}</div></div>
             </div>
         </div>
     `;
 
-    // 3. RENDRAGE DU CONTENEUR VISIBLE POUR HTML2CANVAS
-    pdfContainer.style.display = "block";
-
-    // 4. PAUSE SYNCHRONE DE 500 MS
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // 5. CONFIGURATION ET TÉLÉCHARGEMENT DIRECT
-    const opt = {
-        margin: 0,
-        filename: `Audit_Solvabilite_${siren}_EuroExpert.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-            scale: 2, 
-            useCORS: true, 
-            logging: false,
-            scrollX: 0,
-            scrollY: 0
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'] }
-    };
-
-    try {
-        await html2pdf().set(opt).from(pdfContainer).save();
-    } catch (err) {
-        console.error("Erreur lors de la génération PDF:", err);
-    } finally {
-        // 6. RETRAIT DU LOADER ET MASQUAGE DU MODÈLE
-        pdfContainer.style.display = "none";
-        loadingOverlay.classList.add("hidden");
-    }
+    // Lancement instantané de l'impression du navigateur
+    setTimeout(() => {
+        window.print();
+    }, 150);
 }

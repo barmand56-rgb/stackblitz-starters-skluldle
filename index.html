@@ -3,159 +3,207 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <meta name="description" content="Euro Expert Solvabilité 2026 - Plateforme d'audit de solvabilité et de risque client B2B certifiée.">
-    <meta name="referrer" content="strict-origin-when-cross-origin">
-    
-    <title>EURO EXPERT SOLVABILITÉ 2026 — Moteur d'Audit B2B & Risque Client</title>
+    <title>EURO EXPERT SOLVABILITÉ 2026 — Moteur d'Audit B2B</title>
 
-<!-- FAVICON DATA-URI (S'affiche immédiatement sans fichier externe) -->
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><path d='M20 70 L40 40 L60 55 L80 25' stroke='%2300f2fe' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+    <!-- FAVICON LOGO NÉON -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><path d='M20 70 L40 40 L60 55 L80 25' stroke='%2300f2fe' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 
-
-    <!-- Tailwind CSS (CDN) -->
+    <!-- CDN Tailwind CSS & FontAwesome -->
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <!-- FontAwesome 6 (CDN Icons) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-    <!-- Leaflet JS & CSS (Cartographie) -->
+    <!-- CDN Leaflet & Chart.js -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-
-    <!-- Chart.js (Graphiques Financiers) -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- html2pdf.js (Génération PDF A4) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- STYLES CSS INTÉGRÉS DIRECTEMENT (ÉLIMINE L'ERREUR 404) -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
-    <!-- Feuille de Style Personnalisée -->
-    <link rel="stylesheet" href="style.css">
+        :root {
+            --bg-main: #060b13;
+            --panel-bg: rgba(14, 23, 38, 0.85);
+            --cyan-accent: #00f2fe;
+            --border-color: rgba(0, 242, 254, 0.2);
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-main);
+            color: #f1f5f9;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+        }
+
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+        }
+
+        .neon-glow-box {
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.15);
+        }
+
+        .tab-btn {
+            background: rgba(15, 23, 42, 0.6);
+            color: #94a3b8;
+            border: 1px solid transparent;
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: rgba(14, 23, 38, 0.95);
+            color: var(--cyan-accent);
+            border-color: rgba(0, 242, 254, 0.4);
+        }
+
+        #map {
+            height: 280px !important;
+            width: 100% !important;
+            border-radius: 0.75rem;
+        }
+
+        /* FORMATAGE D'IMPRESSION A4 STRICT (ANTI-PAGE BLANCHE) */
+        #pdf-report-template {
+            display: none;
+        }
+
+        @media print {
+            header, footer, main, #auth-modal, .search-wrapper, button, #autocomplete-results {
+                display: none !important;
+            }
+
+            #pdf-report-template {
+                display: block !important;
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                background-color: #ffffff !important;
+                color: #0f172a !important;
+            }
+
+            .pdf-page-a4 {
+                width: 210mm !important;
+                height: 290mm !important;
+                padding: 10mm 12mm !important;
+                margin: 0 auto !important;
+                box-sizing: border-box !important;
+                page-break-after: always !important;
+                page-break-inside: avoid !important;
+                background-color: #ffffff !important;
+                color: #0f172a !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+            }
+
+            body {
+                background-color: #ffffff !important;
+                color: #0f172a !important;
+            }
+        }
+    </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-cyan-500 selection:text-slate-950">
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
 
-    <!-- MODAL DE SÉCURITÉ -->
+    <!-- MODAL ACCÈS -->
     <div id="auth-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[1000] flex items-center justify-center p-4">
-        <div class="glass-panel max-w-md w-full p-8 rounded-2xl border border-cyan-500/30 neon-glow-box text-center relative overflow-hidden">
+        <div class="glass-panel max-w-md w-full p-8 rounded-2xl border border-cyan-500/30 neon-glow-box text-center">
             <div class="w-16 h-16 bg-cyan-500/10 border border-cyan-400/30 rounded-2xl flex items-center justify-center mx-auto mb-4 text-cyan-400 text-2xl">
                 <i class="fa-solid fa-shield-halved"></i>
             </div>
-            
             <h2 class="text-xl font-black text-white uppercase tracking-wider mb-1">Accès Sécurisé Réservé</h2>
             <p class="text-xs text-slate-400 mb-6">Plateforme d'Audit Institutionnel B2B Euro Expert Solvabilité 2026</p>
 
             <form onsubmit="validateAccessCode(event)" class="space-y-4" autocomplete="off">
-                <div class="relative">
-                    <input type="password" id="access-code-input" placeholder="Saisissez la clé d'accès..." 
-                           class="w-full px-4 py-3 bg-slate-900/90 border border-slate-700 rounded-xl text-center text-white text-lg font-mono tracking-widest focus:outline-none focus:border-cyan-400 transition-all">
+                <input type="password" id="access-code-input" placeholder="Saisissez la clé d'accès..." 
+                       class="w-full px-4 py-3 bg-slate-900/90 border border-slate-700 rounded-xl text-center text-white text-lg font-mono focus:outline-none focus:border-cyan-400">
+                <div id="auth-error" class="hidden text-xs font-bold text-red-400 bg-red-500/10 py-2 rounded-lg">
+                    Clé d'accès incorrecte.
                 </div>
-
-                <div id="auth-error" class="hidden text-xs font-bold text-red-400 bg-red-500/10 border border-red-500/20 py-2 rounded-lg">
-                    <i class="fa-solid fa-circle-xmark mr-1"></i> Clé d'accès incorrecte ou expirée.
-                </div>
-
-                <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-extrabold rounded-xl transition-all shadow-lg text-sm">
-                    Déverrouiller la Session <i class="fa-solid fa-key ml-1"></i>
+                <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-extrabold rounded-xl">
+                    Déverrouiller <i class="fa-solid fa-key ml-1"></i>
                 </button>
             </form>
-
-            <div class="mt-6 pt-4 border-t border-slate-800 text-[11px] text-slate-500 flex justify-between items-center font-mono">
+            <div class="mt-6 pt-4 border-t border-slate-800 text-[11px] text-slate-500 flex justify-between font-mono">
                 <span id="display-today-code-hint">Clé du jour: EES-2026</span>
-                <span class="text-emerald-400"><i class="fa-solid fa-lock mr-1"></i>Cryptage SSL</span>
+                <span class="text-emerald-400"><i class="fa-solid fa-lock mr-1"></i>SSL</span>
             </div>
         </div>
     </div>
 
-    <!-- EN-TÊTE PRINCIPAL -->
-    <header class="border-b border-slate-800/80 bg-slate-900/60 sticky top-0 z-40 backdrop-blur-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex justify-between items-center">
+    <!-- EN-TÊTE -->
+    <header class="border-b border-slate-800 bg-slate-900/60 sticky top-0 z-40 backdrop-blur-lg">
+        <div class="max-w-7xl mx-auto px-4 py-3.5 flex justify-between items-center">
             <div class="flex items-center gap-3 cursor-pointer" onclick="resetToHome()">
-                <div class="w-10 h-10 bg-cyan-500/10 border border-cyan-400/40 rounded-xl flex items-center justify-center text-cyan-400 text-lg shadow-inner">
+                <div class="w-10 h-10 bg-cyan-500/10 border border-cyan-400/40 rounded-xl flex items-center justify-center text-cyan-400 text-lg">
                     <i class="fa-solid fa-chart-line"></i>
                 </div>
                 <div>
-                    <span class="text-base font-black text-white tracking-wide block leading-none">EURO EXPERT <span class="text-cyan-400">SOLVABILITÉ</span></span>
-                    <span class="text-[10px] text-slate-400 font-mono tracking-wider">MOTEUR D'AUDIT B2B & ANALYSE DE RISQUE 2026</span>
+                    <span class="text-base font-black text-white">EURO EXPERT <span class="text-cyan-400">SOLVABILITÉ</span></span>
+                    <span class="text-[10px] text-slate-400 font-mono block">MOTEUR D'AUDIT B2B & ANALYSE DE RISQUE 2026</span>
                 </div>
             </div>
-
-            <div class="flex items-center gap-4">
-                <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700/60 text-xs font-mono text-slate-300">
-                    <i class="fa-solid fa-clock text-cyan-400"></i>
-                    <span>Session: <strong id="session-time-remaining" class="text-white">24h 00m</strong></span>
-                </div>
-
-                <button onclick="lockSession()" title="Verrouiller la session" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5">
-                    <i class="fa-solid fa-lock"></i>
-                    <span class="hidden md:inline">Verrouiller</span>
-                </button>
-            </div>
+            <button onclick="lockSession()" class="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold">
+                <i class="fa-solid fa-lock"></i> Verrouiller
+            </button>
         </div>
     </header>
 
     <!-- CONTENU PRINCIPAL -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-
-        <!-- BARRE DE RECHERCHE PRINCIPALE AVEC AUTOCOMPLÉTION ANCRÉE -->
+    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+        <!-- BARRE DE RECHERCHE ET AUTOCOMPLÉTION -->
         <section class="glass-panel p-6 rounded-2xl relative border border-cyan-500/30 neon-glow-box">
-            <div class="flex flex-col md:flex-row gap-4 items-center">
-                <!-- CONTENEUR RELATIF POUR ANCRER DERRIÈRE LE CHAMP DE SAISIE -->
-                <div class="relative flex-1 w-full">
-                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 text-lg"></i>
-                    <input type="text" id="search-input" placeholder="Saisissez un SIREN, SIRET ou nom d'entreprise (ex: L'UNI VERT, ABONDANCE)..." 
-                           class="w-full pl-12 pr-36 py-4 bg-slate-900/90 border border-slate-700/80 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 text-base font-medium transition-all"
-                           oninput="handleSearchInput(event)" onkeyup="handleSearchKeyup(event)" autocomplete="off">
-                    <button onclick="executeSearch()" class="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-slate-950 font-extrabold rounded-lg transition-all flex items-center gap-2 shadow-md">
-                        <span>Lancer l'Audit</span>
-                        <i class="fa-solid fa-arrow-right"></i>
-                    </button>
-
-                    <!-- Liste d'Autocomplétion Dynamique positionnée exactement sous l'input -->
-                    <div id="autocomplete-results" class="hidden absolute left-0 right-0 top-[105%] bg-slate-900 border border-cyan-500/50 rounded-xl shadow-2xl z-[100] max-h-80 overflow-y-auto divide-y divide-slate-800"></div>
-                </div>
+            <div class="relative w-full">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 text-lg"></i>
+                <input type="text" id="search-input" placeholder="Saisissez un SIREN, SIRET ou nom d'entreprise (ex: L'UNI VERT, ABONDANCE)..." 
+                       class="w-full pl-12 pr-36 py-4 bg-slate-900/90 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-cyan-400"
+                       oninput="handleSearchInput(event)" onkeyup="handleSearchKeyup(event)" autocomplete="off">
+                <button onclick="executeSearch()" class="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 bg-gradient-to-r from-cyan-400 to-emerald-400 text-slate-950 font-extrabold rounded-lg">
+                    Lancer l'Audit <i class="fa-solid fa-arrow-right ml-1"></i>
+                </button>
+                <div id="autocomplete-results" class="hidden absolute left-0 right-0 top-[105%] bg-slate-900 border border-cyan-500/50 rounded-xl shadow-2xl z-[100] max-h-80 overflow-y-auto divide-y divide-slate-800"></div>
             </div>
 
-            <!-- BANDEAU DE REMPLISSAGE RAPIDE (1-CLIC) -->
             <div class="flex flex-wrap items-center gap-2 mt-3 text-xs text-slate-400">
                 <span class="font-semibold text-slate-500"><i class="fa-solid fa-bolt text-amber-400 mr-1"></i>Remplissage Rapide :</span>
-                <button onclick="triggerSearchBySiren('815297270')" class="px-2.5 py-1 bg-slate-800/80 hover:bg-cyan-500/20 text-cyan-300 border border-slate-700 hover:border-cyan-400/40 rounded-lg transition-all">L'UNI VERT</button>
-                <button onclick="triggerSearchBySiren('838491205')" class="px-2.5 py-1 bg-slate-800/80 hover:bg-indigo-500/20 text-indigo-300 border border-slate-700 hover:border-indigo-400/40 rounded-lg transition-all">HOLDING ABONDANCE</button>
-                <button onclick="triggerSearchBySiren('BOMA BEACH')" class="px-2.5 py-1 bg-slate-800/80 hover:bg-cyan-500/20 text-cyan-300 border border-slate-700 hover:border-cyan-400/40 rounded-lg transition-all">BOMA BEACH</button>
-                <button onclick="triggerSearchBySiren('UNIVER CITY LA POSSESSION')" class="px-2.5 py-1 bg-slate-800/80 hover:bg-emerald-500/20 text-emerald-300 border border-slate-700 hover:border-emerald-400/40 rounded-lg transition-all">UNIVER CITY</button>
+                <button onclick="triggerSearchBySiren('815297270')" class="px-2.5 py-1 bg-slate-800 hover:bg-cyan-500/20 text-cyan-300 border border-slate-700 rounded-lg">L'UNI VERT</button>
+                <button onclick="triggerSearchBySiren('838491205')" class="px-2.5 py-1 bg-slate-800 hover:bg-indigo-500/20 text-indigo-300 border border-slate-700 rounded-lg">HOLDING ABONDANCE</button>
+                <button onclick="triggerSearchBySiren('BOMA BEACH')" class="px-2.5 py-1 bg-slate-800 hover:bg-cyan-500/20 text-cyan-300 border border-slate-700 rounded-lg">BOMA BEACH</button>
+                <button onclick="triggerSearchBySiren('UNIVER CITY LA POSSESSION')" class="px-2.5 py-1 bg-slate-800 hover:bg-emerald-500/20 text-emerald-300 border border-slate-700 rounded-lg">UNIVER CITY</button>
             </div>
         </section>
 
-        <!-- TABLEAU DE BORD D'AUDIT -->
+        <!-- DASHBOARD -->
         <div id="dashboard-content" class="hidden space-y-6">
-
-            <!-- EN-TÊTE DE L'ENTREPRISE ÉVALUÉE -->
             <div class="glass-panel p-6 rounded-2xl border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <div class="flex flex-wrap items-center gap-3">
                         <h1 id="company-name" class="text-2xl font-black text-white">Raison Sociale</h1>
                         <span id="badge-status-insee" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Actif (INSEE)</span>
-                        <span id="badge-status-site" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"><i class="fa-solid fa-store mr-1"></i> Statut sur place : OUVERT / EXPLOITÉ</span>
-                        <span id="badge-daaf-status" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5"><i class="fa-solid fa-circle-check"></i> CONFORMITÉ SANITAIRE</span>
+                        <span id="badge-status-site" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"><i class="fa-solid fa-store mr-1"></i> OUVERT / EXPLOITÉ</span>
+                        <span id="badge-daaf-status" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"><i class="fa-solid fa-circle-check"></i> CONFORMITÉ SANITAIRE</span>
                     </div>
-
                     <div class="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-400 mt-2">
                         <span>SIREN: <strong id="company-siren" class="text-slate-200">---</strong></span>
                         <span>NAF/APE: <strong id="company-naf" class="text-slate-200">---</strong></span>
                         <span>Création: <strong id="company-date" class="text-slate-200">---</strong></span>
                     </div>
-
                     <div id="company-official-links" class="flex flex-wrap items-center gap-2 mt-3"></div>
                 </div>
 
-                <div class="flex items-center gap-3 w-full md:w-auto justify-end">
-                    <button onclick="generatePDFReport()" class="px-5 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-extrabold rounded-xl transition-all shadow-lg text-xs flex items-center gap-2 border border-indigo-400/30">
-                        <i class="fa-solid fa-file-pdf text-sm"></i>
-                        <span>Télécharger l'Audit PDF</span>
-                    </button>
-                </div>
+                <button onclick="generatePDFReport()" class="px-5 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-extrabold rounded-xl transition-all shadow-lg text-xs flex items-center gap-2 border border-indigo-400/30">
+                    <i class="fa-solid fa-file-pdf text-sm"></i>
+                    <span>Télécharger / Imprimer l'Audit PDF</span>
+                </button>
             </div>
 
-            <!-- BANNIÈRE D'ALERTE DAAF -->
+            <!-- ALERTE DAAF -->
             <div id="alert-banner-daaf" class="hidden p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 text-xs flex items-start gap-3">
                 <i class="fa-solid fa-triangle-exclamation text-amber-400 text-lg mt-0.5"></i>
                 <div id="alert-daaf-text">
@@ -163,10 +211,10 @@
                 </div>
             </div>
 
-            <!-- INDICATEURS CLÉS -->
+            <!-- SCORE & INDICATEURS -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="glass-panel p-5 rounded-2xl border border-slate-800 text-center flex flex-col justify-between items-center">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Score de Solvabilité</span>
+                    <span class="text-xs font-bold text-slate-400 uppercase">Score de Solvabilité</span>
                     <div class="relative w-36 h-36 my-2 flex items-center justify-center">
                         <canvas id="scoreGaugeCanvas" width="150" height="150"></canvas>
                         <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
@@ -179,9 +227,9 @@
 
                 <div class="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
                     <div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Limite d'Encours Conseillée</span>
+                        <span class="text-xs font-bold text-slate-400 uppercase block mb-1">Limite d'Encours Conseillée</span>
                         <div id="credit-limit" class="text-2xl font-black text-cyan-400">0 €</div>
-                        <p class="text-[11px] text-slate-400 mt-1">Plafond d'octroi de crédit commercial calculé par IA.</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Plafond d'octroi de crédit commercial par IA.</p>
                     </div>
                     <div class="pt-3 border-t border-slate-800">
                         <span class="text-[10px] text-slate-500 uppercase block font-mono">Conditions de Paiement</span>
@@ -191,9 +239,9 @@
 
                 <div class="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
                     <div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Risque de Défaillance</span>
+                        <span class="text-xs font-bold text-slate-400 uppercase block mb-1">Risque de Défaillance</span>
                         <div id="risk-level" class="text-2xl font-black text-red-400">Élevé (68.5 %)</div>
-                        <p class="text-[11px] text-slate-400 mt-1">Probabilité de cessation de paiement à 12 mois.</p>
+                        <p class="text-[11px] text-slate-400 mt-1">Probabilité de cessation à 12 mois.</p>
                     </div>
                     <div class="pt-3 border-t border-slate-800">
                         <span class="text-[10px] text-slate-500 uppercase block font-mono">Rating Commercial</span>
@@ -203,7 +251,7 @@
 
                 <div class="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
                     <div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Gouvernance & Dirigeants</span>
+                        <span class="text-xs font-bold text-slate-400 uppercase block mb-1">Gouvernance & Dirigeants</span>
                         <div id="leaders-container" class="space-y-2 mt-2"></div>
                     </div>
                 </div>
@@ -211,156 +259,100 @@
 
             <!-- ONGLETS -->
             <div class="flex border-b border-slate-800 space-x-2 overflow-x-auto">
-                <button id="tab-btn-cat-finances" onclick="switchTab('cat-finances')" class="tab-btn px-5 py-3 rounded-t-xl text-xs font-bold flex items-center gap-2 active">
-                    <i class="fa-solid fa-chart-pie"></i> Finances & Bilan
+                <button id="tab-btn-cat-finances" onclick="switchTab('cat-finances')" class="tab-btn px-5 py-3 rounded-t-xl text-xs font-bold active">
+                    <i class="fa-solid fa-chart-pie mr-1"></i> Finances & Bilan
                 </button>
-                <button id="tab-btn-cat-kyc" onclick="switchTab('cat-kyc')" class="tab-btn px-5 py-3 rounded-t-xl text-xs font-bold flex items-center gap-2">
-                    <i class="fa-solid fa-sitemap"></i> Groupe & Organigramme
+                <button id="tab-btn-cat-kyc" onclick="switchTab('cat-kyc')" class="tab-btn px-5 py-3 rounded-t-xl text-xs font-bold">
+                    <i class="fa-solid fa-sitemap mr-1"></i> Groupe & Organigramme
                 </button>
-                <button id="tab-btn-cat-conformite" onclick="switchTab('cat-conformite')" class="tab-btn px-5 py-3 rounded-t-xl text-xs font-bold flex items-center gap-2">
-                    <i class="fa-solid fa-shield-cat"></i> Conformité & DAAF
+                <button id="tab-btn-cat-conformite" onclick="switchTab('cat-conformite')" class="tab-btn px-5 py-3 rounded-t-xl text-xs font-bold">
+                    <i class="fa-solid fa-shield-cat mr-1"></i> Conformité & DAAF
                 </button>
-                <button id="tab-btn-cat-legal" onclick="switchTab('cat-legal')" class="tab-btn px-5 py-3 rounded-t-xl text-xs font-bold flex items-center gap-2">
-                    <i class="fa-solid fa-house-flag"></i> Cadastre DVF & Immobilier
+                <button id="tab-btn-cat-legal" onclick="switchTab('cat-legal')" class="tab-btn px-5 py-3 rounded-t-xl text-xs font-bold">
+                    <i class="fa-solid fa-house-flag mr-1"></i> Cadastre DVF & Immobilier
                 </button>
             </div>
 
-            <!-- ONGLET 1 : FINANCES -->
+            <!-- CONTENU ONGLETS -->
             <div id="cat-finances" class="tab-content space-y-6">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-800">
-                        <h3 class="text-sm font-bold text-white mb-4 flex items-center gap-2">
-                            <i class="fa-solid fa-chart-column text-cyan-400"></i> Historique Financier Triennal (k€)
-                        </h3>
-                        <div class="h-64">
-                            <canvas id="financialChart"></canvas>
-                        </div>
+                        <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-chart-column text-cyan-400 mr-2"></i>Historique Financier Triennal (k€)</h3>
+                        <div class="h-64"><canvas id="financialChart"></canvas></div>
                     </div>
-
-                    <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                            <i class="fa-solid fa-calculator text-emerald-400"></i> Ratios Clés & Paydex
-                        </h3>
-                        <div class="space-y-3 text-xs">
-                            <div class="flex justify-between p-2.5 bg-slate-900/80 rounded-lg border border-slate-800">
-                                <span class="text-slate-400">Marge Brute</span>
-                                <strong id="ratio-marge" class="text-slate-200">-- %</strong>
-                            </div>
-                            <div class="flex justify-between p-2.5 bg-slate-900/80 rounded-lg border border-slate-800">
-                                <span class="text-slate-400">Autonomie Financière</span>
-                                <strong id="ratio-autonomie" class="text-slate-200">-- %</strong>
-                            </div>
-                            <div class="flex justify-between p-2.5 bg-slate-900/80 rounded-lg border border-slate-800">
-                                <span class="text-slate-400">Retard de Paiement (Paydex)</span>
-                                <strong id="ratio-paydex" class="text-amber-400 font-mono">-- j</strong>
-                            </div>
-                            <div class="flex justify-between p-2.5 bg-slate-900/80 rounded-lg border border-slate-800">
-                                <span class="text-slate-400">Taux de Défaillance</span>
-                                <strong id="ratio-defaillance" class="text-red-400 font-mono">-- %</strong>
-                            </div>
-                        </div>
+                    <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-3">
+                        <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-calculator text-emerald-400 mr-2"></i>Ratios Clés & Paydex</h3>
+                        <div class="flex justify-between p-2.5 bg-slate-900 rounded-lg border border-slate-800 text-xs"><span class="text-slate-400">Marge Brute</span><strong id="ratio-marge" class="text-slate-200">-- %</strong></div>
+                        <div class="flex justify-between p-2.5 bg-slate-900 rounded-lg border border-slate-800 text-xs"><span class="text-slate-400">Autonomie Financière</span><strong id="ratio-autonomie" class="text-slate-200">-- %</strong></div>
+                        <div class="flex justify-between p-2.5 bg-slate-900 rounded-lg border border-slate-800 text-xs"><span class="text-slate-400">Retard de Paiement (Paydex)</span><strong id="ratio-paydex" class="text-amber-400 font-mono">-- j</strong></div>
+                        <div class="flex justify-between p-2.5 bg-slate-900 rounded-lg border border-slate-800 text-xs"><span class="text-slate-400">Taux de Défaillance</span><strong id="ratio-defaillance" class="text-red-400 font-mono">-- %</strong></div>
                     </div>
                 </div>
-
                 <div class="glass-panel p-6 rounded-2xl border border-slate-800">
-                    <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-brain text-indigo-400"></i> Synthèse Financière IA
-                    </h3>
+                    <h3 class="text-sm font-bold text-white mb-2"><i class="fa-solid fa-brain text-indigo-400 mr-2"></i>Synthèse Financière IA</h3>
                     <div id="ai-synthesis-finances" class="text-xs text-slate-300 leading-relaxed"></div>
                 </div>
             </div>
 
-            <!-- ONGLET 2 : GROUPE -->
             <div id="cat-kyc" class="tab-content hidden space-y-6">
                 <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                        <i class="fa-solid fa-diagram-project text-indigo-400"></i> Maison Mère & Holding
-                    </h3>
+                    <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-diagram-project text-indigo-400 mr-2"></i>Maison Mère & Holding</h3>
                     <div id="holding-container"></div>
-
-                    <h3 class="text-sm font-bold text-white pt-4 flex items-center gap-2 border-t border-slate-800">
-                        <i class="fa-solid fa-utensils text-cyan-400"></i> Restaurants & Établissements Associés du Groupe
-                    </h3>
+                    <h3 class="text-sm font-bold text-white pt-4 border-t border-slate-800"><i class="fa-solid fa-utensils text-cyan-400 mr-2"></i>Restaurants & Établissements Associés du Groupe</h3>
                     <div id="associated-restaurants-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 </div>
-
                 <div class="glass-panel p-6 rounded-2xl border border-slate-800">
-                    <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-shield-halved text-cyan-400"></i> Analyse LCB-FT & Filiation
-                    </h3>
+                    <h3 class="text-sm font-bold text-white mb-2"><i class="fa-solid fa-shield-halved text-cyan-400 mr-2"></i>Analyse LCB-FT & Filiation</h3>
                     <div id="ai-synthesis-kyc" class="text-xs text-slate-300 leading-relaxed"></div>
                 </div>
             </div>
 
-            <!-- ONGLET 3 : CONFORMITÉ -->
             <div id="cat-conformite" class="tab-content hidden space-y-6">
                 <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                        <i class="fa-solid fa-clipboard-check text-amber-400"></i> Relevé Sanitaire & Conformité DAAF
-                    </h3>
+                    <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-clipboard-check text-amber-400 mr-2"></i>Relevé Sanitaire & Conformité DAAF</h3>
                     <div id="press-sanitary-container"></div>
                 </div>
-
                 <div class="glass-panel p-6 rounded-2xl border border-slate-800">
-                    <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
-                        <i class="fa-solid fa-microscope text-amber-400"></i> Évaluation Hygiène & HACCP
-                    </h3>
+                    <h3 class="text-sm font-bold text-white mb-2"><i class="fa-solid fa-microscope text-amber-400 mr-2"></i>Évaluation Hygiène & HACCP</h3>
                     <div id="ai-synthesis-conformite" class="text-xs text-slate-300 leading-relaxed"></div>
                 </div>
             </div>
 
-            <!-- ONGLET 4 : CADASTRE -->
             <div id="cat-legal" class="tab-content hidden space-y-6">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                            <i class="fa-solid fa-building text-cyan-400"></i> Valeur du Bail Commercial
-                        </h3>
-                        <div class="p-4 bg-slate-900/80 rounded-xl border border-slate-800 text-center">
+                        <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-building text-cyan-400 mr-2"></i>Valeur du Bail Commercial</h3>
+                        <div class="p-4 bg-slate-900 rounded-xl border border-slate-800 text-center">
                             <span class="text-xs text-slate-400 block mb-1">Estimation Cadastrale DVF</span>
                             <div id="immo-valeur" class="text-xl font-black text-emerald-400">290 000 €</div>
                         </div>
                     </div>
-
                     <div class="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-800">
-                        <h3 class="text-sm font-bold text-white mb-2 flex items-center gap-2">
-                            <i class="fa-solid fa-scale-balanced text-indigo-400"></i> Analyse Juridique & Cadastrale
-                        </h3>
+                        <h3 class="text-sm font-bold text-white mb-2"><i class="fa-solid fa-scale-balanced text-indigo-400 mr-2"></i>Analyse Juridique & Cadastrale</h3>
                         <div id="ai-synthesis-legal" class="text-xs text-slate-300 leading-relaxed"></div>
                     </div>
                 </div>
             </div>
-
         </div>
 
-        <!-- CARTE GÉOGRAPHIQUE -->
+        <!-- CARTE -->
         <section class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                <h3 id="map-section-title" class="text-sm font-bold text-white flex items-center gap-2">
-                    <i class="fa-solid fa-location-dot text-cyan-400"></i> Couverture Cartographique B2B Europe
-                </h3>
+                <h3 id="map-section-title" class="text-sm font-bold text-white"><i class="fa-solid fa-location-dot text-cyan-400 mr-2"></i>Couverture Cartographique B2B Europe</h3>
                 <span id="map-postal-code" class="text-xs font-mono px-2.5 py-1 rounded bg-slate-800 text-cyan-300 border border-slate-700">FRANCE / EUROPE</span>
             </div>
-
-            <p id="map-address-text" class="text-xs text-slate-400">Sélectionnez une entreprise ou utilisez la barre de recherche ci-dessus pour géolocaliser le siège social.</p>
-            
-            <div id="map" class="w-full rounded-xl border border-slate-800"></div>
+            <p id="map-address-text" class="text-xs text-slate-400">Sélectionnez une entreprise pour géolocaliser le siège social.</p>
+            <div id="map"></div>
         </section>
-
     </main>
 
-    <!-- CONTENEUR MASQUÉ POUR LA GÉNÉRATION PDF -->
-    <div id="pdf-report-template" style="display: none;"></div>
+    <!-- CONTENEUR POUR L'IMPRESSION PDF NATIVE -->
+    <div id="pdf-report-template"></div>
 
-    <!-- PIED DE PAGE -->
-    <footer class="border-t border-slate-800/80 bg-slate-950 py-6 mt-12">
-        <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 font-mono space-y-2">
-            <p>© 2026 EURO EXPERT SOLVABILITÉ — Tous droits réservés. Plateforme B2B Certifiée.</p>
-            <p class="text-[11px] text-slate-600">Données issues des registres officiels d'État (INSEE, INPI RNE, BODACC, Cadastre DGFiP, Data.gouv.fr, Pappers).</p>
-        </div>
+    <footer class="border-t border-slate-800 bg-slate-950 py-6 mt-12 text-center text-xs text-slate-500 font-mono">
+        <p>© 2026 EURO EXPERT SOLVABILITÉ — Tous droits réservés. Plateforme B2B Certifiée.</p>
     </footer>
 
-    <!-- Script Application JS -->
     <script src="index.js" defer></script>
 </body>
 </html>
