@@ -5,6 +5,7 @@
 // ============================================================================
 // AUTHENTIFICATION SÉCURISÉE (MÉTHODE 1)
 // ============================================================================
+const MASTER_MANAGER_CODE = "EES-2026";
 const SECRET_KEY = "MonSecretSuperPrive2026"; // Doit correspondre à admin-generator.html
 const MANAGER_ACCESS_CODE = "EES-2026";       // Votre code gérant permanent
 
