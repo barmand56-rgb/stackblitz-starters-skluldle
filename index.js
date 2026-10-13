@@ -1,11 +1,11 @@
 /**
- * EURO EXPERT SOLVABILITÉ 2026 - MOTEUR D'AUDIT B2B CERTIFIÉ & LIENS OFFICIELS DATA.GOUV / PAPPERS
+ * EURO EXPERT SOLVABILITÉ 2026 - MOTEUR D'AUDIT B2B CERTIFIÉ & AUTOCOMPLÉTION DYNAMIQUE
  */
 
 const MASTER_MANAGER_CODE = "EURO2026";
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
-// Cache en mémoire pour rendre les recherches instantanées
+// Cache en mémoire pour accélérer l'affichage
 const apiSearchCache = new Map();
 
 let leafletMapInstance = null;
@@ -28,9 +28,106 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(updateSessionTimerDisplay, 60000);
 
     initHomeMap();
+    initAutocompleteEngine(); // Initialisation du moteur de remplissage automatique
 });
 
-// --- RECHERCHE AVEC CACHE FLUIDIFIÉ ---
+// --- MOTEUR D'AUTOCOMPLÉTION & REMPLISSAGE AUTOMATIQUE ---
+let searchDebounceTimeout = null;
+
+function initAutocompleteEngine() {
+    const searchInput = document.getElementById("search-input");
+    const resultsContainer = document.getElementById("autocomplete-results");
+    if (!searchInput || !resultsContainer) return;
+
+    // Événement en temps réel sur la saisie (frappe, copier-coller, suppression)
+    searchInput.addEventListener("input", (e) => {
+        const query = e.target.value.trim();
+        clearTimeout(searchDebounceTimeout);
+
+        if (query.length < 2) {
+            resultsContainer.classList.add("hidden");
+            return;
+        }
+
+        searchDebounceTimeout = setTimeout(() => {
+            fetchAutocompleteSuggestions(query);
+        }, 200);
+    });
+
+    // Masquer l'autocomplétion lors d'un clic à l'extérieur
+    document.addEventListener("click", (e) => {
+        if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
+            resultsContainer.classList.add("hidden");
+        }
+    });
+
+    // Ré-afficher si le champ est refocalisé
+    searchInput.addEventListener("focus", () => {
+        if (searchInput.value.trim().length >= 2 && resultsContainer.children.length > 0) {
+            resultsContainer.classList.remove("hidden");
+        }
+    });
+}
+
+async function fetchAutocompleteSuggestions(query) {
+    const resultsContainer = document.getElementById("autocomplete-results");
+    if (!resultsContainer) return;
+
+    const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=6`;
+    const data = await fetchGouvAPI(url);
+
+    if (data && data.results && data.results.length > 0) {
+        renderAutocompleteResults(data.results);
+    } else {
+        resultsContainer.classList.add("hidden");
+    }
+}
+
+function renderAutocompleteResults(results) {
+    const resultsContainer = document.getElementById("autocomplete-results");
+    if (!resultsContainer) return;
+
+    resultsContainer.innerHTML = "";
+
+    results.forEach(company => {
+        const item = document.createElement("div");
+        item.className = "p-3 hover:bg-slate-800 cursor-pointer transition-all flex justify-between items-center border-b border-slate-800/80 group";
+        
+        const siren = company.siren || "Inconnu";
+        const name = company.nom_complet || company.nom_raison_sociale || "Entreprise";
+        const postal = company.siege ? (company.siege.code_postal || "") : "";
+        const ville = company.siege ? (company.siege.libelle_commune || "") : "";
+        const naf = company.activite_principale || "";
+
+        item.innerHTML = `
+            <div class="flex flex-col">
+                <div class="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors">${name}</div>
+                <div class="text-xs text-cyan-400 font-mono flex items-center gap-2 mt-0.5">
+                    <span>SIREN: <strong>${siren}</strong></span>
+                    ${postal ? `<span class="text-slate-400">• ${postal}${ville}</span>` : ''}
+                    ${naf ? `<span class="text-slate-500">• NAF: ${naf}</span>` : ''}
+                </div>
+            </div>
+            <div class="flex items-center gap-1 text-xs text-cyan-400 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
+                <span>Auditer</span>
+                <i class="fa-solid fa-arrow-right text-[10px]"></i>
+            </div>
+        `;
+
+        // Clic sur une suggestion -> Remplissage automatique instantané
+        item.onclick = () => {
+            const searchInput = document.getElementById("search-input");
+            if (searchInput) searchInput.value = name;
+            resultsContainer.classList.add("hidden");
+            selectCompany(company); // Pré-remplit automatiquement tout le dashboard
+        };
+
+        resultsContainer.appendChild(item);
+    });
+
+    resultsContainer.classList.remove("hidden");
+}
+
 async function fetchGouvAPI(url) {
     if (apiSearchCache.has(url)) {
         return apiSearchCache.get(url);
@@ -46,13 +143,18 @@ async function fetchGouvAPI(url) {
     }
 }
 
-// --- RECHERCHE DIRECTE D'UNE ENTITÉ DU GROUPE PAR SIREN OU NOM ---
+function handleSearchKeyup(event) {
+    if (event.key === "Enter") {
+        executeSearch();
+    }
+}
+
 function triggerSearchBySiren(queryTarget) {
-    document.getElementById("search-input").value = queryTarget;
+    const searchInput = document.getElementById("search-input");
+    if (searchInput) searchInput.value = queryTarget;
     executeSearch();
 }
 
-// --- RENVOI À L'ACCUEIL & RECENTRALISATION CARTE EUROPE ---
 function resetToHome() {
     currentCompanyData = null;
     document.getElementById("search-input").value = "";
@@ -154,68 +256,6 @@ function switchTab(tabId) {
     document.getElementById(`tab-btn-${tabId}`).classList.add("active");
 }
 
-// --- RECHERCHE ET AUTOCOMPLÉTION OPTIMISÉE ---
-let searchTimeout = null;
-
-function handleSearchKeyup(event) {
-    if (event.key === "Enter") {
-        executeSearch();
-        return;
-    }
-
-    clearTimeout(searchTimeout);
-    const query = event.target.value.trim();
-    const resultsContainer = document.getElementById("autocomplete-results");
-
-    if (query.length < 3) {
-        resultsContainer.classList.add("hidden");
-        return;
-    }
-
-    searchTimeout = setTimeout(async () => {
-        const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=5`;
-        const data = await fetchGouvAPI(url);
-        if (data && data.results && data.results.length > 0) {
-            renderAutocompleteResults(data.results);
-        } else {
-            resultsContainer.classList.add("hidden");
-        }
-    }, 250);
-}
-
-function renderAutocompleteResults(results) {
-    const resultsContainer = document.getElementById("autocomplete-results");
-    resultsContainer.innerHTML = "";
-
-    results.forEach(company => {
-        const item = document.createElement("div");
-        item.className = "p-3 hover:bg-slate-800 cursor-pointer transition-all flex justify-between items-center border-b border-slate-800/80";
-        
-        const siren = company.siren || "Inconnu";
-        const name = company.nom_complet || company.nom_raison_sociale || "Entreprise";
-        const postal = company.siege ? (company.siege.code_postal || "") : "";
-        const ville = company.siege ? (company.siege.libelle_commune || "") : "";
-
-        item.innerHTML = `
-            <div>
-                <div class="text-sm font-bold text-white">${name}</div>
-                <div class="text-xs text-cyan-400 font-mono">SIREN: ${siren} | ${postal} ${ville}</div>
-            </div>
-            <i class="fa-solid fa-chevron-right text-slate-500 text-xs"></i>
-        `;
-
-        item.onclick = () => {
-            document.getElementById("search-input").value = name;
-            resultsContainer.classList.add("hidden");
-            selectCompany(company);
-        };
-
-        resultsContainer.appendChild(item);
-    });
-
-    resultsContainer.classList.remove("hidden");
-}
-
 async function executeSearch() {
     const query = document.getElementById("search-input").value.trim();
     document.getElementById("autocomplete-results").classList.add("hidden");
@@ -230,7 +270,6 @@ async function executeSearch() {
     }
 }
 
-// --- SELECTION ENTREPRISE & EVALUATION DU GROUPE & SOLVABILITÉ ---
 function selectCompany(company) {
     currentCompanyData = company;
     document.getElementById("dashboard-content").classList.remove("hidden");
@@ -335,7 +374,6 @@ function updateCompanyMapLocation(lat, lon, title, address) {
     }
 }
 
-// --- ORGANIGRAMME GROUPE : RATTACHEMENT SPÉCIFIQUE (HOLDING ABONDANCE / BOMA BEACH / UNIVER CITY LA POSSESSION) ---
 async function renderGroupAndHoldingStructure(name, siren, dirigeants) {
     const holdingContainer = document.getElementById("holding-container");
     const associatedContainer = document.getElementById("associated-restaurants-container");
@@ -346,7 +384,6 @@ async function renderGroupAndHoldingStructure(name, siren, dirigeants) {
     associatedContainer.innerHTML = `<div class="p-3 text-xs text-slate-400 font-mono col-span-full flex items-center gap-2"><i class="fa-solid fa-spinner animate-spin text-cyan-400"></i> Chargement des restaurants et filiales du groupe...</div>`;
 
     if (isUniVert) {
-        // HOLDING ABONDANCE
         let holdingSiren = "838491205";
         let holdingName = "HOLDING ABONDANCE";
 
@@ -387,7 +424,6 @@ async function renderGroupAndHoldingStructure(name, siren, dirigeants) {
             </div>
         `;
 
-        // MODIFICATION : BOMA BEACH & UNIVER CITY (RESTAURANT A LA POSSESSION)
         const targetEntities = [
             { searchName: "BOMA BEACH", fallbackName: "BOMA BEACH (RESTAURANT BEACH CLUB)", defaultSiren: "891234567", type: "Restaurant / Beach Club", location: "La Saline-Les-Bains" },
             { searchName: "UNIVER CITY LA POSSESSION", fallbackName: "UNIVER CITY (RESTAURANT LA POSSESSION)", defaultSiren: "898765432", type: "Restaurant / Brasserie", location: "La Possession, La Réunion" }
@@ -435,7 +471,6 @@ async function renderGroupAndHoldingStructure(name, siren, dirigeants) {
         return;
     }
 
-    // Traitement générique
     const cleanBaseName = name.toUpperCase().replace(/SARL|EURL|SAS|SASU|SA/g, '').trim();
     const urlGen = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanBaseName)}&per_page=5`;
     const dataGen = await fetchGouvAPI(urlGen);
@@ -479,7 +514,6 @@ async function renderGroupAndHoldingStructure(name, siren, dirigeants) {
     }
 }
 
-// --- ALGORITHME DE SCORE INSTITUTIONNEL SUR 100 POINTS ---
 function calculateInstitutionalScore(company, isClosed, hasHygieneVigilance, hasSupplierDefault) {
     if (isClosed) {
         applyScoreResult(12, "GRADE D", "RISQUE CRITIQUE / CESSATION", "0 €", "Paiement Immédiat", "Critique (> 85%)");
@@ -614,7 +648,7 @@ function renderFinancialChart(hasHygieneVigilance, hasSupplierDefault) {
         options: { 
             responsive: true, 
             maintainAspectRatio: false,
-            animation: { duration: 300 } // Rendu plus rapide
+            animation: { duration: 300 }
         }
     });
 
@@ -635,9 +669,8 @@ function renderPressAndConformite(name, hasHygieneVigilance, hasSupplierDefault)
     `;
 }
 
-
 // ============================================================================
-// BLOC GENERATE PDF ULTRA-SOLIDE (4 PAGES A4 PARFAITEMENT SÉPARÉES)
+// GENERATION PDF A4 ULTRA-SOLIDE (4 PAGES DENSES SANS DÉCALAGE NI TROUS)
 // ============================================================================
 function generatePDFReport() {
     if (!currentCompanyData) return;
@@ -928,10 +961,9 @@ function generatePDFReport() {
         </div>
     `;
 
-    // Afficher temporairement le conteneur pour la capture
     pdfContainer.classList.remove("hidden");
 
-    // CONFIGURATION ANTI-DÉCALAGE : scrollY: 0 et scrollX: 0
+    // CONFIGURATION ANTI-DÉCALAGE
     const opt = {
         margin: 0,
         filename: `Audit_Solvabilite_${siren}_Pappers_EuroExpert.pdf`,
@@ -947,7 +979,6 @@ function generatePDFReport() {
         pagebreak: { mode: ['css', 'legacy'] }
     };
 
-    // Lancer la génération
     html2pdf().set(opt).from(pdfContainer).save().then(() => {
         pdfContainer.classList.add("hidden");
     }).catch(err => {
