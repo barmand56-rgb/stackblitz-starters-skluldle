@@ -122,10 +122,9 @@
   /* CONTENEUR PDF : Visible temporairement au premier plan pendant la capture */
 /* CONTENEUR PDF ANTI-PAGE BLANCHE */
 #pdf-report-template {
-    display: none;
-    position: fixed;
+    position: absolute;
+    left: -9999px;
     top: 0;
-    left: 0;
     width: 210mm;
     background-color: #ffffff !important;
     color: #0f172a !important;
@@ -133,7 +132,7 @@
 
 .pdf-page-a4 {
     width: 210mm !important;
-    min-height: 296mm !important;
+    min-height: 297mm !important;
     padding: 12mm 15mm !important;
     box-sizing: border-box !important;
     background-color: #ffffff !important;
