@@ -671,7 +671,10 @@ function renderPressAndConformite(name, hasHygieneVigilance, hasSupplierDefault)
 // ============================================================================
 // GENERATION PDF ROBUSTE (SOLUTION ANTI-PAGE BLANCHE)
 // ============================================================================
-async function generatePDFReport() {
+// ============================================================================
+// IMPRESSION / GÉNÉRATION PDF NATIVE PAR LE NAVIGATEUR
+// ============================================================================
+function generatePDFReport() {
     if (!currentCompanyData) {
         alert("Veuillez d'abord sélectionner une entreprise.");
         return;
@@ -688,14 +691,10 @@ async function generatePDFReport() {
     const scoreLabel = document.getElementById("score-label") ? document.getElementById("score-label").textContent : "SOLVABILITÉ DÉGRADÉE / VIGILANCE DAAF";
     const creditLimit = document.getElementById("credit-limit") ? document.getElementById("credit-limit").textContent : "0 €";
 
-    let pdfContainer = document.getElementById("pdf-report-template");
-    if (!pdfContainer) {
-        pdfContainer = document.createElement("div");
-        pdfContainer.id = "pdf-report-template";
-        document.body.appendChild(pdfContainer);
-    }
+    const pdfContainer = document.getElementById("pdf-report-template");
+    if (!pdfContainer) return;
 
-    // 1. Injection du contenu HTML
+    // 1. Injection du contenu A4
     pdfContainer.innerHTML = `
         <div class="pdf-page-a4">
             <div style="border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-end;">
@@ -778,41 +777,8 @@ async function generatePDFReport() {
         </div>
     `;
 
-    // 2. Positionner temporairement le rapport à l'écran pour permettre à html2canvas de calculer le DOM
-    pdfContainer.style.position = "fixed";
-    pdfContainer.style.left = "0px";
-    pdfContainer.style.top = "0px";
-    pdfContainer.style.width = "210mm";
-    pdfContainer.style.zIndex = "99999";
-    pdfContainer.style.background = "#ffffff";
-    pdfContainer.style.opacity = "1";
-
-    // 3. Mettre en pause pendant 350 ms pour laisser au navigateur le temps de calculer les styles et polices
-    await new Promise(resolve => setTimeout(resolve, 350));
-
-    const opt = {
-        margin: 0,
-        filename: `Audit_Solvabilite_${siren}_EuroExpert.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-            scale: 2, 
-            useCORS: true, 
-            logging: false,
-            scrollX: 0,
-            scrollY: 0,
-            windowWidth: 800
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    try {
-        await html2pdf().set(opt).from(pdfContainer).save();
-    } catch (err) {
-        console.error("Erreur génération PDF:", err);
-    } finally {
-        // 4. Masquer le modèle à nouveau
-        pdfContainer.style.position = "absolute";
-        pdfContainer.style.left = "-9999px";
-        pdfContainer.style.zIndex = "-9999";
-    }
+    // 2. Déclenchement instantané de l'impression du navigateur
+    setTimeout(() => {
+        window.print();
+    }, 100);
 }
