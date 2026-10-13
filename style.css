@@ -146,16 +146,59 @@
 /* ============================================================================
    IMPRESSION NATIVE UNIVERSELLE (CTRL+P / IMPRIMER EN PDF)
    ============================================================================ */
-   @media print {
-    /* 1. Masquer toute l'interface Web (Header, Barre de recherche, Carte, Boutons, Footer) */
+  /* ============================================================================
+   FORMATAGE IMPRESSION & EXPORT PDF NATIVELY VECTORIEL (4 PAGES COMPLÈTES)
+   ============================================================================ */
+#pdf-report-template {
+    display: none;
+}
+
+@media print {
+    /* Masquer l'interface web (Navigation, Boutons, Carte, Modal) */
     header, 
     footer, 
     main, 
     #auth-modal, 
     .search-wrapper, 
-    button {
+    button,
+    #autocomplete-results {
         display: none !important;
     }
+
+    /* Rendre visible uniquement le modèle de rapport */
+    #pdf-report-template {
+        display: block !important;
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+    }
+
+    /* Mise en page A4 ultra-stricte pour chaque page */
+    .pdf-page-a4 {
+        width: 210mm !important;
+        height: 290mm !important;
+        padding: 10mm 12mm !important;
+        margin: 0 auto !important;
+        box-sizing: border-box !important;
+        page-break-after: always !important;
+        page-break-inside: avoid !important;
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+    }
+
+    .pdf-page-a4:last-child {
+        page-break-after: auto !important;
+    }
+
+    body {
+        background-color: #ffffff !important;
+        color: #0f172a !important;
+    }
+
 
     /* 2. Afficher uniquement le conteneur du rapport PDF */
     #pdf-report-template {
