@@ -666,7 +666,7 @@ function renderPressAndConformite(name, hasHygieneVigilance, hasSupplierDefault)
 // BLOC DE GÉNÉRATION PDF A4 FIABLE (AVEC PAUSE DE RENDU ANTI-PAGE BLANCHE)
 // ============================================================================
 // ============================================================================
-// GENERATION PDF ROBUSTE (SANS PAGE BLANCHE)
+// GENERATION PDF ULTRA-FIABLE (FORCE RENDU CANVA & APPAREILS RETINA/MAC)
 // ============================================================================
 async function generatePDFReport() {
     if (!currentCompanyData) {
@@ -685,12 +685,15 @@ async function generatePDFReport() {
     const scoreLabel = document.getElementById("score-label") ? document.getElementById("score-label").textContent : "SOLVABILITÉ DÉGRADÉE / VIGILANCE DAAF";
     const creditLimit = document.getElementById("credit-limit") ? document.getElementById("credit-limit").textContent : "0 €";
 
-    const pdfContainer = document.getElementById("pdf-report-template");
-    if (!pdfContainer) return;
-    
-    // 1. Injection du HTML du rapport
+    let pdfContainer = document.getElementById("pdf-report-template");
+    if (!pdfContainer) {
+        pdfContainer = document.createElement("div");
+        pdfContainer.id = "pdf-report-template";
+        document.body.appendChild(pdfContainer);
+    }
+
+    // 1. Injection du contenu HTML des pages d'audit
     pdfContainer.innerHTML = `
-        <!-- PAGE 1 : SYNTHÈSE EXÉCUTIVE -->
         <div class="pdf-page-a4">
             <div style="border-bottom: 2px solid #0f172a; padding-bottom: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-end;">
                 <div>
@@ -753,7 +756,6 @@ async function generatePDFReport() {
             </div>
         </div>
 
-        <!-- PAGE 2 : BILAN FINANCIER -->
         <div class="pdf-page-a4">
             <h2 style="font-size: 12px; font-weight: 900; color: #0f172a; border-bottom: 2px solid #0f172a; padding-bottom: 4px; margin-bottom: 8px;">PAGE 2 : BILAN FINANCIER CONSOLIDÉ</h2>
             <table style="width: 100%; border-collapse: collapse; font-size: 8px; margin-bottom: 8px; border: 1px solid #cbd5e1;">
@@ -773,23 +775,31 @@ async function generatePDFReport() {
         </div>
     `;
 
-    // 2. Affichage temporaire au premier plan pour la capture
-    pdfContainer.classList.add("rendering-pdf");
+    // 2. Affichage explicite au premier plan pour la capture du navigateur
+    pdfContainer.style.display = "block";
+    pdfContainer.style.position = "fixed";
+    pdfContainer.style.top = "0";
+    pdfContainer.style.left = "0";
+    pdfContainer.style.width = "210mm";
+    pdfContainer.style.zIndex = "999999";
+    pdfContainer.style.backgroundColor = "#ffffff";
+    pdfContainer.style.visibility = "visible";
 
-    // 3. Pause asynchrone de 400ms pour garantir le calcul du rendu
-    await new Promise(resolve => setTimeout(resolve, 400));
+    // 3. Pause d'attente de 500 ms pour forcer le rendu graphique par le navigateur
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-    // 4. Lancement de la génération du PDF
+    // 4. Exécution de html2pdf
     const opt = {
         margin: 0,
-        filename: `Audit_Solvabilite_${siren}_Pappers_EuroExpert.pdf`,
+        filename: `Audit_Solvabilite_${siren}_EuroExpert.pdf`,
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { 
             scale: 2, 
             useCORS: true, 
             logging: false,
-            scrollX: 0,
-            scrollY: 0
+            windowWidth: 1200,
+            x: 0,
+            y: 0
         },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
@@ -797,10 +807,12 @@ async function generatePDFReport() {
     try {
         await html2pdf().set(opt).from(pdfContainer).save();
     } catch (err) {
-        console.error("Erreur lors de la génération PDF:", err);
-        alert("Une erreur s'est produite lors de la génération du document.");
+        console.error("Erreur génération PDF:", err);
+        window.print(); // Secours impression navigateur
     } finally {
-        // 5. Masquage propre après téléchargement
-        pdfContainer.classList.remove("rendering-pdf");
+        // 5. Masquage après téléchargement
+        pdfContainer.style.display = "none";
+        pdfContainer.style.visibility = "hidden";
+        pdfContainer.style.zIndex = "-1000";
     }
 }
