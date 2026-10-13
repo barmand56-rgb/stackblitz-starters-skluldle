@@ -5,12 +5,13 @@
 const MASTER_MANAGER_CODE = "EURO2026";
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
-// Cache en mémoire pour accélérer l'affichage
+// Cache en mémoire pour rendre les recherches ultra-rapides
 const apiSearchCache = new Map();
 
 let leafletMapInstance = null;
 let financialChartInstance = null;
 let currentCompanyData = null;
+let searchDebounceTimeout = null;
 
 function getTodayAccessCode() {
     const now = new Date();
@@ -28,45 +29,35 @@ document.addEventListener("DOMContentLoaded", () => {
     setInterval(updateSessionTimerDisplay, 60000);
 
     initHomeMap();
-    initAutocompleteEngine(); // Initialisation du moteur de remplissage automatique
+    initClickOutsideListener();
 });
 
-// --- MOTEUR D'AUTOCOMPLÉTION & REMPLISSAGE AUTOMATIQUE ---
-let searchDebounceTimeout = null;
-
-function initAutocompleteEngine() {
-    const searchInput = document.getElementById("search-input");
-    const resultsContainer = document.getElementById("autocomplete-results");
-    if (!searchInput || !resultsContainer) return;
-
-    // Événement en temps réel sur la saisie (frappe, copier-coller, suppression)
-    searchInput.addEventListener("input", (e) => {
-        const query = e.target.value.trim();
-        clearTimeout(searchDebounceTimeout);
-
-        if (query.length < 2) {
-            resultsContainer.classList.add("hidden");
-            return;
-        }
-
-        searchDebounceTimeout = setTimeout(() => {
-            fetchAutocompleteSuggestions(query);
-        }, 200);
-    });
-
-    // Masquer l'autocomplétion lors d'un clic à l'extérieur
+// Masquer les suggestions si l'utilisateur clique ailleurs
+function initClickOutsideListener() {
     document.addEventListener("click", (e) => {
-        if (!searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
+        const searchInput = document.getElementById("search-input");
+        const resultsContainer = document.getElementById("autocomplete-results");
+        if (searchInput && resultsContainer && !searchInput.contains(e.target) && !resultsContainer.contains(e.target)) {
             resultsContainer.classList.add("hidden");
         }
     });
+}
 
-    // Ré-afficher si le champ est refocalisé
-    searchInput.addEventListener("focus", () => {
-        if (searchInput.value.trim().length >= 2 && resultsContainer.children.length > 0) {
-            resultsContainer.classList.remove("hidden");
-        }
-    });
+// --- MOTEUR D'AUTOCOMPLÉTION EN TEMPS RÉEL SUR CHAQUE FRAPPE ---
+function handleSearchInput(event) {
+    const query = event.target.value.trim();
+    const resultsContainer = document.getElementById("autocomplete-results");
+
+    clearTimeout(searchDebounceTimeout);
+
+    if (query.length < 2) {
+        if (resultsContainer) resultsContainer.classList.add("hidden");
+        return;
+    }
+
+    searchDebounceTimeout = setTimeout(() => {
+        fetchAutocompleteSuggestions(query);
+    }, 200);
 }
 
 async function fetchAutocompleteSuggestions(query) {
@@ -100,7 +91,7 @@ function renderAutocompleteResults(results) {
         const naf = company.activite_principale || "";
 
         item.innerHTML = `
-            <div class="flex flex-col">
+            <div class="flex flex-col text-left">
                 <div class="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors">${name}</div>
                 <div class="text-xs text-cyan-400 font-mono flex items-center gap-2 mt-0.5">
                     <span>SIREN: <strong>${siren}</strong></span>
@@ -114,12 +105,13 @@ function renderAutocompleteResults(results) {
             </div>
         `;
 
-        // Clic sur une suggestion -> Remplissage automatique instantané
-        item.onclick = () => {
+        // CLIC SUR UNE SUGGESTION : REMPLISSAGE AUTOMATIQUE DU DASHBOARD
+        item.onclick = (e) => {
+            e.stopPropagation();
             const searchInput = document.getElementById("search-input");
             if (searchInput) searchInput.value = name;
             resultsContainer.classList.add("hidden");
-            selectCompany(company); // Pré-remplit automatiquement tout le dashboard
+            selectCompany(company); // Remplissage instantané
         };
 
         resultsContainer.appendChild(item);
@@ -270,6 +262,7 @@ async function executeSearch() {
     }
 }
 
+// --- FONCTION PRINCIPALE DE REMPLISSAGE AUTOMATIQUE DU DASHBOARD ---
 function selectCompany(company) {
     currentCompanyData = company;
     document.getElementById("dashboard-content").classList.remove("hidden");
@@ -670,7 +663,7 @@ function renderPressAndConformite(name, hasHygieneVigilance, hasSupplierDefault)
 }
 
 // ============================================================================
-// GENERATION PDF A4 ULTRA-SOLIDE (4 PAGES DENSES SANS DÉCALAGE NI TROUS)
+// BLOC DE GÉNÉRATION PDF A4 FIABLE (AVEC PAUSE DE RENDU ANTI-PAGE BLANCHE)
 // ============================================================================
 function generatePDFReport() {
     if (!currentCompanyData) return;
@@ -961,28 +954,31 @@ function generatePDFReport() {
         </div>
     `;
 
-    pdfContainer.classList.remove("hidden");
+    // Affichage temporaire du conteneur en arrière-plan
+    pdfContainer.style.display = "block";
 
-    // CONFIGURATION ANTI-DÉCALAGE
-    const opt = {
-        margin: 0,
-        filename: `Audit_Solvabilite_${siren}_Pappers_EuroExpert.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-            scale: 2, 
-            useCORS: true, 
-            logging: false,
-            scrollY: 0,
-            scrollX: 0
-        },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['css', 'legacy'] }
-    };
+    // PAUSE D'ATTENTE (300 MS) POUR PERMETTRE AU NAVIGATEUR DE DESSINER TOUT LE HTML
+    setTimeout(() => {
+        const opt = {
+            margin: 0,
+            filename: `Audit_Solvabilite_${siren}_Pappers_EuroExpert.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+                scale: 2, 
+                useCORS: true, 
+                logging: false,
+                scrollX: 0,
+                scrollY: 0
+            },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] }
+        };
 
-    html2pdf().set(opt).from(pdfContainer).save().then(() => {
-        pdfContainer.classList.add("hidden");
-    }).catch(err => {
-        console.error("Erreur PDF:", err);
-        pdfContainer.classList.add("hidden");
-    });
+        html2pdf().set(opt).from(pdfContainer).save().then(() => {
+            pdfContainer.style.display = "none";
+        }).catch(err => {
+            console.error("Erreur génération PDF:", err);
+            pdfContainer.style.display = "none";
+        });
+    }, 300);
 }

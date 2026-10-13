@@ -30,9 +30,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-cyan-500 selection:text-slate-950">
 
-    <!-- ============================================================================ -->
-    <!-- 1. MODAL DE SÉCURITÉ ET D'AUTHENTIFICATION D'ACCÈS                          -->
-    <!-- ============================================================================ -->
+    <!-- MODAL DE SÉCURITÉ -->
     <div id="auth-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[1000] flex items-center justify-center p-4">
         <div class="glass-panel max-w-md w-full p-8 rounded-2xl border border-cyan-500/30 neon-glow-box text-center relative overflow-hidden">
             <div class="w-16 h-16 bg-cyan-500/10 border border-cyan-400/30 rounded-2xl flex items-center justify-center mx-auto mb-4 text-cyan-400 text-2xl">
@@ -64,9 +62,7 @@
         </div>
     </div>
 
-    <!-- ============================================================================ -->
-    <!-- 2. EN-TÊTE PRINCIPAL & BARRE DE NAVIGATION                                 -->
-    <!-- ============================================================================ -->
+    <!-- EN-TÊTE PRINCIPAL -->
     <header class="border-b border-slate-800/80 bg-slate-900/60 sticky top-0 z-40 backdrop-blur-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex justify-between items-center">
             <div class="flex items-center gap-3 cursor-pointer" onclick="resetToHome()">
@@ -93,23 +89,25 @@
         </div>
     </header>
 
-    <!-- ============================================================================ -->
-    <!-- 3. CONTENU PRINCIPAL                                                        -->
-    <!-- ============================================================================ -->
+    <!-- CONTENU PRINCIPAL -->
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-        <!-- MODULE DE RECHERCHE AVEC AUTOCOMPLÉTION & REMPLISSAGE RAPIDE -->
-        <section class="glass-panel p-6 rounded-2xl relative border border-cyan-500/30 neon-glow-box search-wrapper">
+        <!-- BARRE DE RECHERCHE PRINCIPALE AVEC AUTOCOMPLÉTION ANCRÉE -->
+        <section class="glass-panel p-6 rounded-2xl relative border border-cyan-500/30 neon-glow-box">
             <div class="flex flex-col md:flex-row gap-4 items-center">
+                <!-- CONTENEUR RELATIF POUR ANCRER DERRIÈRE LE CHAMP DE SAISIE -->
                 <div class="relative flex-1 w-full">
                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 text-lg"></i>
                     <input type="text" id="search-input" placeholder="Saisissez un SIREN, SIRET ou nom d'entreprise (ex: L'UNI VERT, ABONDANCE)..." 
                            class="w-full pl-12 pr-36 py-4 bg-slate-900/90 border border-slate-700/80 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 text-base font-medium transition-all"
-                           onkeyup="handleSearchKeyup(event)" autocomplete="off">
+                           oninput="handleSearchInput(event)" onkeyup="handleSearchKeyup(event)" autocomplete="off">
                     <button onclick="executeSearch()" class="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-slate-950 font-extrabold rounded-lg transition-all flex items-center gap-2 shadow-md">
                         <span>Lancer l'Audit</span>
                         <i class="fa-solid fa-arrow-right"></i>
                     </button>
+
+                    <!-- Liste d'Autocomplétion Dynamique positionnée exactement sous l'input -->
+                    <div id="autocomplete-results" class="hidden absolute left-0 right-0 top-[105%] bg-slate-900 border border-cyan-500/50 rounded-xl shadow-2xl z-[100] max-h-80 overflow-y-auto divide-y divide-slate-800"></div>
                 </div>
             </div>
 
@@ -121,12 +119,9 @@
                 <button onclick="triggerSearchBySiren('BOMA BEACH')" class="px-2.5 py-1 bg-slate-800/80 hover:bg-cyan-500/20 text-cyan-300 border border-slate-700 hover:border-cyan-400/40 rounded-lg transition-all">BOMA BEACH</button>
                 <button onclick="triggerSearchBySiren('UNIVER CITY LA POSSESSION')" class="px-2.5 py-1 bg-slate-800/80 hover:bg-emerald-500/20 text-emerald-300 border border-slate-700 hover:border-emerald-400/40 rounded-lg transition-all">UNIVER CITY</button>
             </div>
-
-            <!-- Liste d'Autocomplétion Dynamique -->
-            <div id="autocomplete-results" class="hidden absolute left-0 right-0 top-[100%] mt-2 bg-slate-900 border border-cyan-500/40 rounded-xl shadow-2xl z-[100] max-h-80 overflow-y-auto divide-y divide-slate-800"></div>
         </section>
 
-        <!-- TABLEAU DE BORD D'AUDIT (Masqué au démarrage, affiché lors d'une recherche) -->
+        <!-- TABLEAU DE BORD D'AUDIT -->
         <div id="dashboard-content" class="hidden space-y-6">
 
             <!-- EN-TÊTE DE L'ENTREPRISE ÉVALUÉE -->
@@ -145,7 +140,6 @@
                         <span>Création: <strong id="company-date" class="text-slate-200">---</strong></span>
                     </div>
 
-                    <!-- Liens Officiels Data.gouv & Pappers -->
                     <div id="company-official-links" class="flex flex-wrap items-center gap-2 mt-3"></div>
                 </div>
 
@@ -157,7 +151,7 @@
                 </div>
             </div>
 
-            <!-- BANNIÈRE D'ALERTE DAAF & SANITAIRE (Affichée selon le niveau de risque) -->
+            <!-- BANNIÈRE D'ALERTE DAAF -->
             <div id="alert-banner-daaf" class="hidden p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 text-xs flex items-start gap-3">
                 <i class="fa-solid fa-triangle-exclamation text-amber-400 text-lg mt-0.5"></i>
                 <div id="alert-daaf-text">
@@ -165,7 +159,7 @@
                 </div>
             </div>
 
-            <!-- SECTION BLOCS DE GAUGES & SCORE INSTITUTIONNEL -->
+            <!-- INDICATEURS CLÉS -->
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div class="glass-panel p-5 rounded-2xl border border-slate-800 text-center flex flex-col justify-between items-center">
                     <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Score de Solvabilité</span>
@@ -211,7 +205,7 @@
                 </div>
             </div>
 
-            <!-- NAVIGATION PAR ONGLETS -->
+            <!-- ONGLETS -->
             <div class="flex border-b border-slate-800 space-x-2 overflow-x-auto">
                 <button id="tab-btn-cat-finances" onclick="switchTab('cat-finances')" class="tab-btn px-5 py-3 rounded-t-xl text-xs font-bold flex items-center gap-2 active">
                     <i class="fa-solid fa-chart-pie"></i> Finances & Bilan
@@ -227,7 +221,7 @@
                 </button>
             </div>
 
-            <!-- ONGLET 1 : FINANCES & BILAN -->
+            <!-- ONGLET 1 : FINANCES -->
             <div id="cat-finances" class="tab-content space-y-6">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-800">
@@ -272,7 +266,7 @@
                 </div>
             </div>
 
-            <!-- ONGLET 2 : GROUPE & ORGANIGRAMME -->
+            <!-- ONGLET 2 : GROUPE -->
             <div id="cat-kyc" class="tab-content hidden space-y-6">
                 <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
                     <h3 class="text-sm font-bold text-white flex items-center gap-2">
@@ -294,7 +288,7 @@
                 </div>
             </div>
 
-            <!-- ONGLET 3 : CONFORMITÉ & DAAF -->
+            <!-- ONGLET 3 : CONFORMITÉ -->
             <div id="cat-conformite" class="tab-content hidden space-y-6">
                 <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
                     <h3 class="text-sm font-bold text-white flex items-center gap-2">
@@ -311,7 +305,7 @@
                 </div>
             </div>
 
-            <!-- ONGLET 4 : CADASTRE DVF & IMMOBILIER -->
+            <!-- ONGLET 4 : CADASTRE -->
             <div id="cat-legal" class="tab-content hidden space-y-6">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
@@ -335,7 +329,7 @@
 
         </div>
 
-        <!-- SECTION CARTE GEOGRAPHIQUE (Toujours disponible) -->
+        <!-- CARTE GÉOGRAPHIQUE -->
         <section class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                 <h3 id="map-section-title" class="text-sm font-bold text-white flex items-center gap-2">
@@ -351,14 +345,10 @@
 
     </main>
 
-    <!-- ============================================================================ -->
-    <!-- 4. CONTENEUR MASQUÉ POUR GÉNÉRATION DU RAPPORT PDF                          -->
-    <!-- ============================================================================ -->
-    <div id="pdf-report-template" class="hidden"></div>
+    <!-- CONTENEUR MASQUÉ POUR LA GÉNÉRATION PDF -->
+    <div id="pdf-report-template" style="display: none;"></div>
 
-    <!-- ============================================================================ -->
-    <!-- 5. PIED DE PAGE INSTITUTIONNEL                                              -->
-    <!-- ============================================================================ -->
+    <!-- PIED DE PAGE -->
     <footer class="border-t border-slate-800/80 bg-slate-950 py-6 mt-12">
         <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500 font-mono space-y-2">
             <p>© 2026 EURO EXPERT SOLVABILITÉ — Tous droits réservés. Plateforme B2B Certifiée.</p>
