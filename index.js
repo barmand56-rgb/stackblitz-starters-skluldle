@@ -116,7 +116,6 @@ function handleSearchInput(event) {
         fetchAutocompleteSuggestions(query);
     }, 200);
 }
-
 // 🟢 Bloque les recherches de moins de 3 lettres (évite l'erreur 400 Bad Request)
 if (!query || query.trim().length < 3) {
     const resultsContainer = document.getElementById("autocomplete-results");
