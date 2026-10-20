@@ -179,21 +179,23 @@ function renderAutocompleteResults(results) {
 
 async function fetchGouvAPI(url) {
     if (apiSearchCache.has(url)) {
-        return apiSearchCache.get(url);
+      return apiSearchCache.get(url);
     }
     try {
-        const res = await fetch(url);
-        const data = await res.json();
-        apiSearchCache.set(url, data);
-        return data;
+      const res = await fetch(url);
+      if (!res.ok) return null; // 🟢 FIX : Évite l'erreur 400 Bad Request
+      const data = await res.json();
+      apiSearchCache.set(url, data);
+      return data;
     } catch (e) {
-        console.error("Erreur API:", e);
-        return null;
+      console.error("Erreur API:", e);
+      return null;
     }
+  }
     if (!query || query.trim().length < 3) {
         return;
       }
-}
+
 
 function handleSearchKeyup(event) {
     if (event.key === "Enter") {
@@ -685,11 +687,11 @@ function renderDirigeants(dirigeants) {
 
 function renderFinancialChart(hasHygieneVigilance, hasSupplierDefault) {
     const ctx = document.getElementById('financialChart').getContext('2d');
-    if (financialChartInstance) financialChartInstance.destroy();
+    if (window.financialChartInstance) window.financialChartInstance.destroy();
 
     const isDegraded = hasHygieneVigilance || hasSupplierDefault;
 
-    financialChartInstance = new Chart(ctx, {
+    window.financialChartInstance = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: ['2024', '2025', '2026 (Est.)'],
