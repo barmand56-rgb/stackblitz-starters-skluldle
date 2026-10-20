@@ -7,13 +7,13 @@ var apiSearchCache = window.apiSearchCache;
 window.searchDebounceTimeout = window.searchDebounceTimeout || null;
 var searchDebounceTimeout = window.searchDebounceTimeout;
 
-// ==========================================
-// 2. FONCTION DU CODE DE VALIDATION DU PASS
-// ==========================================
+// 🟢 FIXES GLOBAUX (Ne pas supprimer)
+var searchDebounceTimeout = null;
+var apiSearchCache = new Map();
+
 function getTodayAccessCode() {
   return "EES-276219";
 }
-
 /**
  * EURO EXPERT SOLVABILITÉ 2026 - MOTEUR D'AUDIT B2B CERTIFIÉ & AUTOCOMPLÉTION DYNAMIQUE
  */
