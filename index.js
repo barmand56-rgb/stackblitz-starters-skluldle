@@ -10,6 +10,7 @@ var searchDebounceTimeout = window.searchDebounceTimeout;
 // 🟢 FIXES GLOBAUX (Ne pas supprimer)
 var searchDebounceTimeout = null;
 var apiSearchCache = new Map();
+var financialChartInstance = null;
 
 function getTodayAccessCode() {
   return "EES-276219";
@@ -189,6 +190,9 @@ async function fetchGouvAPI(url) {
         console.error("Erreur API:", e);
         return null;
     }
+    if (!query || query.trim().length < 3) {
+        return;
+      }
 }
 
 function handleSearchKeyup(event) {
