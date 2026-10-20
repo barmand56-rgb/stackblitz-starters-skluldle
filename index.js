@@ -116,26 +116,27 @@ function handleSearchInput(event) {
         fetchAutocompleteSuggestions(query);
     }, 200);
 }
-// 🟢 Bloque les recherches de moins de 3 lettres (évite l'erreur 400 Bad Request)
-if (!query || query.trim().length < 3) {
-    const resultsContainer = document.getElementById("autocomplete-results");
-    if (resultsContainer) resultsContainer.classList.add("hidden");
-    return;
-  }
-
+// 🟢 Fonction d'autocomplétion correctement structurée
 async function fetchAutocompleteSuggestions(query) {
     const resultsContainer = document.getElementById("autocomplete-results");
+  
+    // Sécurité : bloquer si moins de 3 caractères (placée À L'INTÉRIEUR de la fonction)
+    if (!query || query.trim().length < 3) {
+      if (resultsContainer) resultsContainer.classList.add("hidden");
+      return;
+    }
+  
     if (!resultsContainer) return;
-
+  
     const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=6`;
     const data = await fetchGouvAPI(url);
-
+  
     if (data && data.results && data.results.length > 0) {
-        renderAutocompleteResults(data.results);
+      renderAutocompleteResults(data.results);
     } else {
-        resultsContainer.classList.add("hidden");
+      resultsContainer.classList.add("hidden");
     }
-}
+  }
 
 function renderAutocompleteResults(results) {
     const resultsContainer = document.getElementById("autocomplete-results");
