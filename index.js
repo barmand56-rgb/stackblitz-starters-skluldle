@@ -192,9 +192,7 @@ async function fetchGouvAPI(url) {
       return null;
     }
   }
-    if (!query || query.trim().length < 3) {
-        return;
-      }
+
 
 
 function handleSearchKeyup(event) {
