@@ -1,9 +1,18 @@
-// 🟢 À COLLER SUR LA LIGNE 1 DE INDEX.JS (TOUT EN HAUT)
-window.searchDebounceTimeout = window.searchDebounceTimeout || null;
-window.apiSearchCache = window.apiSearchCache || {};
-
-var searchDebounceTimeout = window.searchDebounceTimeout;
+// ==========================================
+// 1. CORRECTION DU CACHE (Map au lieu de {})
+// ==========================================
+window.apiSearchCache = window.apiSearchCache || new Map();
 var apiSearchCache = window.apiSearchCache;
+
+window.searchDebounceTimeout = window.searchDebounceTimeout || null;
+var searchDebounceTimeout = window.searchDebounceTimeout;
+
+// ==========================================
+// 2. FONCTION DU CODE DE VALIDATION DU PASS
+// ==========================================
+function getTodayAccessCode() {
+  return "EES-276219";
+}
 
 /**
  * EURO EXPERT SOLVABILITÉ 2026 - MOTEUR D'AUDIT B2B CERTIFIÉ & AUTOCOMPLÉTION DYNAMIQUE
