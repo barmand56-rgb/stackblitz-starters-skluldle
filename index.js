@@ -650,10 +650,35 @@ function drawScoreGauge(score) {
 
 function generateInstitutionalSyntheses(name, isRestaurant, hasHygieneVigilance, hasSupplierDefault, isClosed, dateCreation, naf) {
     document.getElementById("ai-synthesis-finances").innerHTML = `
-        <p class="mb-2"><strong>Analyse de la Structure Financière & Capacité d'Autofinancement :</strong> L'entité <strong>${name}</strong> est actuellement en activité sur site. L'analyse des ratios bilanciels indique un profil sous vigilance en raison d'incidents de paiement fournisseurs (Paydex &gt; 90 jours) ayant un impact direct sur le score d'octroi de crédit commercial.</p>
-        <p class="mb-2"><strong>Comportement de Règlement :</strong> Exigence de paiement comptant à la commande pour tout réapprovisionnement.</p>
-        <p><strong>Avis du Risk Manager :</strong> Encours commercial à zéro avec sécurisation préalable des flux de trésorerie.</p>
-    `;
+    <!-- Grille KPI d'arbitrage B2B -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+      <div class="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700/60">
+        <span class="text-[10px] text-slate-400 block uppercase font-medium">Encours Recommandé</span>
+        <span class="text-xs font-bold ${hasSupplierDefault || hasHygieneVigilance ? 'text-amber-400' : 'text-emerald-400'}">
+          ${hasSupplierDefault || hasHygieneVigilance ? '0 € (Paiement Sécurisé)' : '15 000 €'}
+        </span>
+      </div>
+      <div class="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700/60">
+        <span class="text-[10px] text-slate-400 block uppercase font-medium">Conditions d'Octroi</span>
+        <span class="text-xs font-bold text-white">
+          ${hasSupplierDefault || hasHygieneVigilance ? 'Comptant à la commande' : '30 jours Fin de Mois'}
+        </span>
+      </div>
+      <div class="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700/60">
+        <span class="text-[10px] text-slate-400 block uppercase font-medium">Profil de Risque</span>
+        <span class="text-xs font-bold ${hasSupplierDefault || hasHygieneVigilance ? 'text-amber-400' : 'text-emerald-400'}">
+          ${hasSupplierDefault || hasHygieneVigilance ? 'Vigilance Accrue' : 'Risque Maîtrisé'}
+        </span>
+      </div>
+    </div>
+
+    <!-- Synthèse textuelle d'Arbitrage -->
+    <div class="border-t border-slate-800/80 pt-2 text-xs space-y-1.5">
+      <p><strong class="text-slate-200">▪ Structure Financière & Capacité d'Autofinancement :</strong> L'entité <strong>${name}</strong> est actuellement en activité. L'analyse des ratios bilanciels indique un profil sous vigilance en raison d'incidents de paiement fournisseurs (Paydex > 90 jours) ayant un impact direct sur le score d'octroi de crédit commercial.</p>
+      <p><strong class="text-slate-200">▪ Comportement de Règlement :</strong> Exigence de paiement comptant à la commande pour tout réapprovisionnement.</p>
+      <p><strong class="text-slate-200">▪ Décision du Comité de Risque :</strong> Encours commercial à zéro avec sécurisation préalable des flux de trésorerie.</p>
+    </div>
+  `;
 
     document.getElementById("ai-synthesis-kyc").innerHTML = `
         <p class="mb-2"><strong>Gouvernance, Filiation & Holding Mère :</strong> L'établissement <strong>${name}</strong> est rattaché au groupe piloté par la <strong>HOLDING ABONDANCE</strong>, aux côtés des restaurants partenaires <strong>BOMA BEACH</strong> et <strong>UNIVER CITY (La Possession)</strong>.</p>
