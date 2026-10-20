@@ -139,27 +139,38 @@ function renderAutocompleteResults(results) {
 
     results.forEach(company => {
         const item = document.createElement("div");
-        item.className = "p-3 hover:bg-slate-800 cursor-pointer transition-all flex justify-between items-center border-b border-slate-800/80 group";
-        
+        item.className = "p-3 hover:bg-slate-800/90 cursor-pointer transition-all flex items-center justify-between border-b border-slate-800/60";
+    
         const siren = company.siren || "Inconnu";
         const name = company.nom_complet || company.nom_raison_sociale || "Entreprise";
         const postal = company.siege ? (company.siege.code_postal || "") : "";
         const ville = company.siege ? (company.siege.libelle_commune || "") : "";
         const naf = company.activite_principale || "";
-
+        const estActive = company.etat_administratif === "A";
+        const initiale = name.charAt(0).toUpperCase();
+    
         item.innerHTML = `
-            <div class="flex flex-col text-left">
-                <div class="text-sm font-bold text-white group-hover:text-cyan-400 transition-colors">${name}</div>
-                <div class="text-xs text-cyan-400 font-mono flex items-center gap-2 mt-0.5">
-                    <span>SIREN: <strong>${siren}</strong></span>
-                    ${postal ? `<span class="text-slate-400">• ${postal}${ville}</span>` : ''}
-                    ${naf ? `<span class="text-slate-500">• NAF: ${naf}</span>` : ''}
-                </div>
+          <div class="flex items-center gap-3 w-full">
+            <!-- Mini Badge Initiales -->
+            <div class="w-9 h-9 min-w-[36px] rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400 flex items-center justify-center font-bold text-sm">
+              ${initiale}
             </div>
-            <div class="flex items-center gap-1 text-xs text-cyan-400 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
-                <span>Auditer</span>
-                <i class="fa-solid fa-arrow-right text-[10px]"></i>
+    
+            <!-- Informations Détaillées B2B -->
+            <div class="flex-1 min-w-0 text-left">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-sm font-bold text-white truncate">${name}</span>
+                <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold ${estActive ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}">
+                  ${estActive ? 'Active 🟢' : 'Fermée 🔴'}
+                </span>
+              </div>
+              <div class="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+                <span>SIREN: <strong class="text-sky-400 font-mono">${siren}</strong></span>
+                <span>📍 ${postal} ${ville}</span>
+                ${naf ? `<span class="hidden sm:inline">NAF: ${naf}</span>` : ''}
+              </div>
             </div>
+          </div>
         `;
 
         // CLIC SUR UNE SUGGESTION : REMPLISSAGE AUTOMATIQUE DU DASHBOARD
