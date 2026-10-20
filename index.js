@@ -117,6 +117,13 @@ function handleSearchInput(event) {
     }, 200);
 }
 
+// 🟢 Bloque les recherches de moins de 3 lettres (évite l'erreur 400 Bad Request)
+if (!query || query.trim().length < 3) {
+    const resultsContainer = document.getElementById("autocomplete-results");
+    if (resultsContainer) resultsContainer.classList.add("hidden");
+    return;
+  }
+
 async function fetchAutocompleteSuggestions(query) {
     const resultsContainer = document.getElementById("autocomplete-results");
     if (!resultsContainer) return;
@@ -134,6 +141,18 @@ async function fetchAutocompleteSuggestions(query) {
 function renderAutocompleteResults(results) {
     const resultsContainer = document.getElementById("autocomplete-results");
     if (!resultsContainer) return;
+
+    // 🟢 FIX : Passer le menu au premier plan au-dessus de la carte
+  if (resultsContainer.parentElement) {
+    resultsContainer.parentElement.style.position = "relative";
+    resultsContainer.parentElement.style.zIndex = "9999";
+    resultsContainer.parentElement.style.overflow = "visible";
+  }
+  resultsContainer.style.position = "absolute";
+  resultsContainer.style.top = "100%";
+  resultsContainer.style.left = "0";
+  resultsContainer.style.right = "0";
+  resultsContainer.style.zIndex = "99999";
 
     resultsContainer.innerHTML = "";
 
