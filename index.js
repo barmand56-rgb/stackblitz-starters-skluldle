@@ -191,9 +191,7 @@ async function fetchGouvAPI(url) {
       console.error("Erreur API:", e);
       return null;
     }
-  }
-
-
+}
 
 function handleSearchKeyup(event) {
     if (event.key === "Enter") {
