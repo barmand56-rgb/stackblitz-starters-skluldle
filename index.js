@@ -1,3 +1,10 @@
+// 🟢 À COLLER SUR LA LIGNE 1 DE INDEX.JS (TOUT EN HAUT)
+window.searchDebounceTimeout = window.searchDebounceTimeout || null;
+window.apiSearchCache = window.apiSearchCache || {};
+
+var searchDebounceTimeout = window.searchDebounceTimeout;
+var apiSearchCache = window.apiSearchCache;
+
 /**
  * EURO EXPERT SOLVABILITÉ 2026 - MOTEUR D'AUDIT B2B CERTIFIÉ & AUTOCOMPLÉTION DYNAMIQUE
  */
@@ -5,8 +12,6 @@
 // ============================================================================
 // AUTHENTIFICATION SÉCURISÉE (MÉTHODE 1)
 // ============================================================================
-let searchDebounceTimeout = null;
-const apiSearchCache = {};
 
 const MASTER_MANAGER_CODE = "EES-2026";
 const SECRET_KEY = "MonSecretSuperPrive2026"; // Doit correspondre à admin-generator.html
