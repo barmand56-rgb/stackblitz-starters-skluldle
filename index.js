@@ -7,6 +7,9 @@ var searchDebounceTimeout = window.searchDebounceTimeout;
 window.apiSearchCache = window.apiSearchCache || new Map();
 var apiSearchCache = window.apiSearchCache;
 
+window.financialChartInstance = window.financialChartInstance || null;
+var financialChartInstance = window.financialChartInstance;
+
 /**
  * EURO EXPERT SOLVABILITÉ 2026 - MOTEUR D'AUDIT B2B CERTIFIÉ & AUTOCOMPLÉTION DYNAMIQUE
  */
@@ -672,33 +675,43 @@ function renderDirigeants(dirigeants) {
 }
 
 function renderFinancialChart(hasHygieneVigilance, hasSupplierDefault) {
-    const ctx = document.getElementById('financialChart').getContext('2d');
-    if (financialChartInstance) financialChartInstance.destroy();
-
+    const chartEl = document.getElementById('financialChart');
+    if (!chartEl) return;
+    const ctx = chartEl.getContext('2d');
+    
+    // Destruction sécurisée si le graphique existe et évite l'erreur "is not defined"
+    if (window.financialChartInstance) {
+      try {
+        window.financialChartInstance.destroy();
+      } catch(e) {}
+      window.financialChartInstance = null;
+    }
+    
     const isDegraded = hasHygieneVigilance || hasSupplierDefault;
-
-    financialChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: ['2024', '2025', '2026 (Est.)'],
-            datasets: [
-                { label: 'Chiffre d\'Affaires (k€)', data: isDegraded ? [310, 180, 120] : [480, 530, 590], backgroundColor: 'rgba(0, 242, 254, 0.6)' },
-                { label: 'Résultat Net (k€)', data: isDegraded ? [12, -22, -35] : [45, 52, 61], backgroundColor: 'rgba(16, 185, 129, 0.6)' }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: { duration: 300 }
-        }
+    
+    window.financialChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['2024', '2025', '2026 (Est.)'],
+        datasets: [
+          { label: 'Chiffre d\'Affaires (k€)', data: isDegraded ? [310, 180, 120] : [480, 530, 590], backgroundColor: 'rgba(0, 242, 254, 0.6)' },
+          { label: 'Résultat Net (k€)', data: isDegraded ? [12, -22, -35] : [45, 52, 61], backgroundColor: 'rgba(16, 185, 129, 0.6)' }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 300 }
+      }
     });
-
-    document.getElementById("ratio-marge").textContent = isDegraded ? "- 8.4 %" : "9.8 %";
-    document.getElementById("ratio-autonomie").textContent = isDegraded ? "12.0 %" : "42.0 %";
-    document.getElementById("ratio-paydex").textContent = isDegraded ? "98 j" : "28 j";
-    document.getElementById("ratio-defaillance").textContent = isDegraded ? "68.5 %" : "3.1 %";
-    document.getElementById("immo-valeur").textContent = "290 000 € (Bail Commercial)";
-}
+  
+    const safeSet = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    safeSet("ratio-marge", isDegraded ? "- 8.4%" : "9.8%");
+    safeSet("ratio-autonomie", isDegraded ? "12.0 %" : "42.0%");
+    safeSet("ratio-paydex", isDegraded ? "98 j" : "28 j");
+    safeSet("ratio-defaillance", isDegraded ? "68.5 %" : "3.1%");
+    safeSet("immo-valeur", "290 000 € (Bail Commercial)");
+  }
 
 function renderPressAndConformite(name, hasHygieneVigilance, hasSupplierDefault) {
     const container = document.getElementById("press-sanitary-container");
