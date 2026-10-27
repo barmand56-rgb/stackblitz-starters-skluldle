@@ -1,369 +1,502 @@
 <!DOCTYPE html>
-<html lang="fr" class="dark">
+<html lang="fr" data-theme="dark">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EURO EXPERT SOLVABILITÉ 2026 — Moteur d'Audit B2B</title>
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="color-scheme" content="dark light">
+    <title>Euro Expert Solvabilité — Dossier de crédit B2B</title>
+    <script>
+        // Applique le thème choisi avant l'affichage (évite un flash)
+        try { var t = localStorage.getItem('ees_theme'); if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+    </script>
 
-<!-- BIBLIOTHÈQUE PDFMAKE (TÉLÉCHARGEMENT DIRECT DE PDF VECTORIEL) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <!-- Bibliothèques (versions figées) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
-    <!-- FAVICON LOGO NÉON -->
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><path d='M20 70 L40 40 L60 55 L80 25' stroke='%2300f2fe' stroke-width='10' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+    <!-- Polices : Source Serif 4 (titres, chiffres clés) et IBM Plex Sans (interface) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
 
-    <!-- CDN Tailwind CSS & FontAwesome -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230b1322'/><path d='M50 15 L82 30 V55 C82 76 50 90 50 90 C50 90 18 76 18 55 V30 Z' fill='none' stroke='%234cc9d9' stroke-width='7'/><path d='M40 50 L48 58 L62 40' fill='none' stroke='%233fd1a0' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'/></svg>">
 
-    <!-- CDN Leaflet & Chart.js -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- STYLES CSS INTÉGRÉS DIRECTEMENT (ÉLIMINE L'ERREUR 404) -->
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
+        /* ===== Jetons de design ===== */
         :root {
-            --bg-main: #060b13;
-            --panel-bg: rgba(14, 23, 38, 0.85);
-            --cyan-accent: #00f2fe;
-            --border-color: rgba(0, 242, 254, 0.2);
+            --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+            --serif: "Source Serif 4", Georgia, "Times New Roman", serif;
+            --r-s: 6px; --r-m: 10px; --r-l: 14px;
+            --bg: #0b1322; --bg-raise: #101b30; --bg-sunk: #0a101d;
+            --line: #1f2e4b; --line-soft: #182640;
+            --ink: #e9eff9; --ink-2: #b4c1d9; --ink-3: #8294b3;
+            --accent: #4cc9d9; --accent-ink: #052329; --accent-soft: rgba(76, 201, 217, .12);
+            --ok: #3fd1a0; --ok-soft: rgba(63, 209, 160, .12);
+            --warn: #f2b84b; --warn-soft: rgba(242, 184, 75, .12);
+            --bad: #f2766e; --bad-soft: rgba(242, 118, 110, .13);
+            --info: #7aa7ff; --info-soft: rgba(122, 167, 255, .12);
+            --ai: #b79cff; --ai-soft: rgba(183, 156, 255, .13);
+            --s1: #b4372c; --s2: #cf5a2a; --s3: #d9902b; --s4: #cdb83a; --s5: #6fb86a; --s6: #2fa57a; --s7: #1f8a68;
+            --shadow: 0 1px 0 rgba(255, 255, 255, .03) inset, 0 10px 30px rgba(0, 0, 0, .28);
         }
 
+        [data-theme="light"] {
+            --bg: #f3f5f9; --bg-raise: #ffffff; --bg-sunk: #e8ecf3;
+            --line: #d6dde9; --line-soft: #e5e9f1;
+            --ink: #111c33; --ink-2: #3b4a67; --ink-3: #62729a;
+            --accent: #0b7d92; --accent-ink: #ffffff; --accent-soft: rgba(11, 125, 146, .09);
+            --ok: #0b7f5c; --ok-soft: rgba(11, 127, 92, .09);
+            --warn: #9a6200; --warn-soft: rgba(154, 98, 0, .1);
+            --bad: #b3261e; --bad-soft: rgba(179, 38, 30, .08);
+            --info: #2756c5; --info-soft: rgba(39, 86, 197, .08);
+            --ai: #6a43d6; --ai-soft: rgba(106, 67, 214, .08);
+            --shadow: 0 1px 2px rgba(17, 28, 51, .06), 0 8px 24px rgba(17, 28, 51, .06);
+        }
+
+        /* ===== Base ===== */
+        *, *::before, *::after { box-sizing: border-box; }
+        [hidden] { display: none !important; }
+        html { -webkit-text-size-adjust: 100%; }
         body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background-color: var(--bg-main);
-            color: #f1f5f9;
-            min-height: 100vh;
-            margin: 0;
-            overflow-x: hidden;
+            margin: 0; background: var(--bg); color: var(--ink);
+            font: 400 15px/1.55 var(--sans); font-variant-numeric: tabular-nums lining-nums;
+            -webkit-font-smoothing: antialiased; min-height: 100vh;
         }
+        a { color: var(--accent); text-underline-offset: 3px; }
+        button, input, select, textarea { font: inherit; color: inherit; }
+        :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        h1, h2, h3, p, dl, dd, ul { margin: 0; }
+        ul { padding: 0; list-style: none; }
+        .wrap { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+        .muted { color: var(--ink-2); }
+        .faint { color: var(--ink-3); }
+        .small { font-size: 13px; }
+        .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-        .glass-panel {
-            background: var(--panel-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid var(--border-color);
+        /* ===== Boutons ===== */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 9px 14px; border-radius: var(--r-s); border: 1px solid var(--line);
+            background: transparent; font-weight: 500; font-size: 13.5px; cursor: pointer; text-decoration: none; color: var(--ink);
+            transition: border-color .15s, background-color .15s;
         }
+        .btn:hover { border-color: var(--ink-3); }
+        .btn--primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+        .btn--primary:hover { border-color: var(--accent); filter: brightness(1.08); }
+        .btn--ai { background: var(--ai-soft); border-color: transparent; color: var(--ai); font-weight: 600; }
+        .btn--ghost { border-color: transparent; color: var(--ink-2); }
+        .btn--ghost:hover { color: var(--ink); background: var(--accent-soft); border-color: transparent; }
+        .btn--dashed { border-style: dashed; color: var(--ink-3); width: 100%; }
+        .btn--small { padding: 6px 10px; font-size: 12.5px; }
+        .btn[disabled] { opacity: .55; cursor: default; }
 
-        .neon-glow-box {
-            box-shadow: 0 0 25px rgba(0, 242, 254, 0.15);
+        /* ===== Pastilles ===== */
+        .chip {
+            display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+            font-size: 12.5px; font-weight: 500; background: var(--bg-sunk); color: var(--ink-2); border: 1px solid transparent; white-space: nowrap;
         }
+        .chip--ok { background: var(--ok-soft); color: var(--ok); }
+        .chip--warn { background: var(--warn-soft); color: var(--warn); }
+        .chip--bad { background: var(--bad-soft); color: var(--bad); }
+        .chip--info { background: var(--info-soft); color: var(--info); }
+        .chip--ai { background: var(--ai-soft); color: var(--ai); }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; display: inline-block; }
+        .dot--ok { background: var(--ok); } .dot--warn { background: var(--warn); } .dot--bad { background: var(--bad); } .dot--info { background: var(--info); }
 
-        .tab-btn {
-            background: rgba(15, 23, 42, 0.6);
-            color: #94a3b8;
-            border: 1px solid transparent;
-            cursor: pointer;
+        /* ===== Barre supérieure ===== */
+        .topbar { position: sticky; top: 0; z-index: 40; background: var(--bg); border-bottom: 1px solid var(--line); }
+        @supports (background: color-mix(in srgb, red, blue)) {
+            .topbar { background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(10px); }
         }
+        .topbar__in { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
+        .brand { display: flex; align-items: center; gap: 12px; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+        .brand svg { width: 34px; height: 34px; flex: none; }
+        .brand__name { font: 600 18px/1.1 var(--serif); letter-spacing: .002em; display: block; }
+        .brand__tag { font-size: 12.5px; color: var(--ink-3); display: block; margin-top: 2px; }
+        .topbar__actions { display: flex; gap: 4px; }
 
-        .tab-btn.active {
-            background: rgba(14, 23, 38, 0.95);
-            color: var(--cyan-accent);
-            border-color: rgba(0, 242, 254, 0.4);
+        /* ===== Recherche ===== */
+        .hero { padding: 56px 0 8px; }
+        .hero h1 { font: 600 clamp(30px, 4.6vw, 48px)/1.08 var(--serif); letter-spacing: -.012em; max-width: 20ch; }
+        .hero p { margin-top: 16px; max-width: 58ch; color: var(--ink-2); font-size: 16.5px; }
+        .search { position: relative; margin-top: 28px; }
+        .search__field {
+            display: flex; align-items: center; gap: 12px; background: var(--bg-raise); border: 1px solid var(--line);
+            border-radius: var(--r-m); padding: 6px 6px 6px 18px; box-shadow: var(--shadow);
         }
-
-        #map {
-            height: 280px !important;
-            width: 100% !important;
-            border-radius: 0.75rem;
+        .search__field:focus-within { border-color: var(--accent); }
+        .search__field > i { color: var(--ink-3); }
+        .search input { flex: 1; min-width: 0; background: none; border: 0; outline: none; font-size: 16px; padding: 12px 0; }
+        .search input::placeholder { color: var(--ink-3); }
+        .quick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; font-size: 13.5px; color: var(--ink-3); }
+        .quick button { background: none; border: 1px solid var(--line); color: var(--ink-2); border-radius: 999px; padding: 4px 12px; cursor: pointer; font-size: 13px; }
+        .quick button:hover { border-color: var(--accent); color: var(--ink); }
+        .ac {
+            position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 60; background: var(--bg-raise);
+            border: 1px solid var(--line); border-radius: var(--r-m); max-height: 340px; overflow: auto; box-shadow: var(--shadow);
         }
+        .ac__item { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 11px 16px; cursor: pointer; border-bottom: 1px solid var(--line-soft); }
+        .ac__item:last-child { border-bottom: 0; }
+        .ac__item:hover { background: var(--accent-soft); }
+        .ac__name { font-weight: 500; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .ac__meta { font-size: 12.5px; color: var(--ink-3); }
 
-        /* FORMATAGE D'IMPRESSION A4 STRICT (ANTI-PAGE BLANCHE) */
-        #pdf-report-template {
-            display: none;
+        /* ===== Fiche entreprise ===== */
+        .dash { padding-bottom: 8px; }
+        .company { padding: 34px 0 22px; border-bottom: 1px solid var(--line); margin-top: 8px; }
+        .company__top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 20px; }
+        .company__name { font: 600 clamp(28px, 3.8vw, 42px)/1.08 var(--serif); letter-spacing: -.012em; overflow-wrap: anywhere; }
+        .company__legal { margin-top: 6px; color: var(--ink-2); }
+        .company__chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+        .company__actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 18px 28px; margin-top: 26px; }
+        .facts dt { font-size: 12.5px; color: var(--ink-3); }
+        .facts dd { font-weight: 500; margin-top: 2px; overflow-wrap: anywhere; }
+
+        /* ===== Alertes ===== */
+        .alerts { display: grid; gap: 10px; margin-top: 22px; }
+        .alert { display: flex; gap: 12px; padding: 13px 16px; border-radius: var(--r-m); background: var(--bg-sunk); border-left: 3px solid var(--ink-3); }
+        .alert > i { margin-top: 3px; }
+        .alert strong { display: block; font-weight: 600; }
+        .alert p { font-size: 14px; color: var(--ink-2); margin-top: 2px; }
+        .alert--bad { background: var(--bad-soft); border-color: var(--bad); } .alert--bad > i { color: var(--bad); }
+        .alert--warn { background: var(--warn-soft); border-color: var(--warn); } .alert--warn > i { color: var(--warn); }
+        .alert--info { background: var(--info-soft); border-color: var(--info); } .alert--info > i { color: var(--info); }
+
+        /* ===== Verdict ===== */
+        .verdict {
+            display: grid; grid-template-columns: minmax(200px, 270px) 1fr; gap: 12px 44px; align-items: start;
+            margin-top: 26px; padding: 30px 32px; background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--r-l); box-shadow: var(--shadow);
         }
+        .score { font: 600 84px/0.95 var(--serif); letter-spacing: -.03em; }
+        .score small { font: 400 20px var(--sans); color: var(--ink-3); letter-spacing: 0; margin-left: 6px; }
+        .score-cap { margin-top: 12px; color: var(--ink-2); font-size: 13.5px; }
+        .verdict__title { font: 600 clamp(22px, 2.6vw, 28px)/1.15 var(--serif); }
+        .verdict__sub { margin-top: 6px; color: var(--ink-2); }
+        .scale { position: relative; margin: 52px 0 26px; }
+        .scale__bar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; height: 10px; }
+        .scale__bar span { border-radius: 2px; }
+        .scale__bar span:nth-child(1) { background: var(--s1); } .scale__bar span:nth-child(2) { background: var(--s2); }
+        .scale__bar span:nth-child(3) { background: var(--s3); } .scale__bar span:nth-child(4) { background: var(--s4); }
+        .scale__bar span:nth-child(5) { background: var(--s5); } .scale__bar span:nth-child(6) { background: var(--s6); }
+        .scale__bar span:nth-child(7) { background: var(--s7); }
+        .scale__marker { position: absolute; top: -9px; left: 0; width: 0; transition: left 1.1s cubic-bezier(.2, .8, .2, 1); }
+        .scale__marker::before { content: ""; position: absolute; left: -1px; top: 0; width: 2px; height: 28px; background: var(--ink); border-radius: 1px; }
+        .scale__tag { position: absolute; left: 0; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: var(--bg); font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 4px; }
+        .scale__ends { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12.5px; color: var(--ink-3); }
+        .terms { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px 28px; padding-top: 18px; border-top: 1px solid var(--line); }
+        .terms dt { font-size: 12.5px; color: var(--ink-3); }
+        .terms dd { font-weight: 500; margin-top: 2px; }
 
-        @media print {
-            header, footer, main, #auth-modal, .search-wrapper, button, #autocomplete-results {
-                display: none !important;
-            }
+        /* ===== Mise en page des blocs ===== */
+        .grid-2 { display: grid; grid-template-columns: 1.15fr .85fr; gap: 20px 56px; margin-top: 40px; }
+        .block { min-width: 0; }
+        .block > h2 { font: 600 16px/1.3 var(--sans); padding-bottom: 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+        .block__body { padding-top: 16px; }
+        .stack { display: grid; gap: 14px; }
+        .big { font: 600 clamp(30px, 3.4vw, 40px)/1.05 var(--serif); letter-spacing: -.015em; }
+        .big small { font: 400 15px var(--sans); color: var(--ink-3); letter-spacing: 0; }
+        .rows .row { display: flex; justify-content: space-between; align-items: baseline; gap: 20px; padding: 11px 0; border-bottom: 1px solid var(--line-soft); }
+        .rows .row:last-child { border-bottom: 0; }
+        .row__k { color: var(--ink-2); display: flex; align-items: center; gap: 10px; }
+        .row__v { font-weight: 500; text-align: right; }
+        .estimate { border: 1px dashed var(--warn); background: var(--warn-soft); border-radius: var(--r-m); padding: 14px 16px; }
+        .estimate .chip { margin-bottom: 8px; }
+        .note { font-size: 13px; color: var(--ink-3); margin-top: 8px; }
 
-            #pdf-report-template {
-                display: block !important;
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
-                width: 100% !important;
-                background-color: #ffffff !important;
-                color: #0f172a !important;
-            }
+        .ai { margin-top: 44px; }
+        .prose { max-width: 74ch; }
+        .prose p { color: var(--ink); }
+        .prose .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px 36px; margin: 16px 0; }
+        .prose h3 { font: 600 14px var(--sans); margin-bottom: 6px; }
+        .prose li { display: flex; gap: 10px; margin: 4px 0; color: var(--ink-2); }
+        .prose li::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--ink-3); margin-top: 9px; flex: none; }
+        .spin { animation: spin 1s linear infinite; display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-            .pdf-page-a4 {
-                width: 210mm !important;
-                height: 290mm !important;
-                padding: 10mm 12mm !important;
-                margin: 0 auto !important;
-                box-sizing: border-box !important;
-                page-break-after: always !important;
-                page-break-inside: avoid !important;
-                background-color: #ffffff !important;
-                color: #0f172a !important;
-                display: flex !important;
-                flex-direction: column !important;
-                justify-content: space-between !important;
-            }
+        /* ===== Onglets ===== */
+        .tabs { display: flex; gap: 4px; margin-top: 44px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+        .tab { padding: 12px 16px; background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; color: var(--ink-2); font-weight: 500; cursor: pointer; white-space: nowrap; }
+        .tab:hover { color: var(--ink); }
+        .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+        .panel { padding-top: 28px; display: grid; gap: 36px; }
 
-            body {
-                background-color: #ffffff !important;
-                color: #0f172a !important;
-            }
+        /* ===== Tableaux ===== */
+        .tbl-wrap { overflow-x: auto; }
+        .tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .tbl th { font-weight: 500; color: var(--ink-3); text-align: left; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); white-space: nowrap; font-size: 13px; }
+        .tbl td { padding: 11px 12px 11px 0; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+        .tbl tr:last-child td { border-bottom: 0; }
+        .tbl .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .tbl th.num { text-align: right; }
+
+        /* ===== Graphique ===== */
+        .chart svg { width: 100%; height: auto; display: block; }
+        .chart .grid { stroke: var(--line-soft); stroke-width: 1; }
+        .chart .axis { stroke: var(--ink-3); stroke-width: 1; }
+        .chart text { fill: var(--ink-3); font: 400 11.5px var(--sans); }
+        .chart .val { fill: var(--ink-2); font-weight: 500; }
+        .bar-ca { fill: var(--accent); } .bar-res { fill: var(--ok); } .bar-neg { fill: var(--bad); }
+        .legend { display: flex; gap: 18px; font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+        .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; }
+
+        /* ===== Frise (BODACC) ===== */
+        .tl li { display: grid; grid-template-columns: 96px 1fr; gap: 6px 18px; padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+        .tl li:last-child { border-bottom: 0; }
+        .tl__date { color: var(--ink-3); font-size: 13.5px; }
+        .tl__title { font-weight: 500; }
+        .tl__meta { font-size: 13.5px; color: var(--ink-2); }
+
+        /* ===== Formulaire alertes ===== */
+        .form { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-m); background: var(--bg-sunk); }
+        .form label { display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); }
+        .form .wide { grid-column: 1 / -1; }
+        .form input, .form select, .form textarea { background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--r-s); padding: 8px 10px; font-size: 14px; color: var(--ink); }
+        .form textarea { min-height: 64px; resize: vertical; }
+
+        /* ===== Carte ===== */
+        .mapcard { margin-top: 52px; }
+        #map { height: 320px; border-radius: var(--r-m); border: 1px solid var(--line); margin-top: 14px; background: var(--bg-sunk); }
+        .diag { margin-top: 36px; padding: 14px 16px; border: 1px dashed var(--line); border-radius: var(--r-m); font-size: 12.5px; }
+        .diag pre { white-space: pre-wrap; word-break: break-all; margin: 8px 0 0; font: 12px/1.5 ui-monospace, Menlo, monospace; color: var(--ink-2); }
+
+        .footer { margin-top: 72px; padding: 28px 0 40px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 13px; }
+        .footer p + p { margin-top: 6px; max-width: 80ch; }
+
+        /* ===== Accès ===== */
+        .auth { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: rgba(5, 10, 20, .86); backdrop-filter: blur(8px); }
+        .auth__card { width: 100%; max-width: 410px; background: var(--bg-raise); border: 1px solid var(--line); border-radius: var(--r-l); padding: 34px 30px 26px; box-shadow: var(--shadow); }
+        .auth__card svg { width: 44px; height: 44px; }
+        .auth__card h2 { font: 600 24px/1.15 var(--serif); margin-top: 16px; }
+        .auth__card p { color: var(--ink-2); margin-top: 6px; font-size: 14.5px; }
+        .auth__card form { display: grid; gap: 12px; margin-top: 22px; }
+        .auth__card input { width: 100%; background: var(--bg-sunk); border: 1px solid var(--line); border-radius: var(--r-s); padding: 12px 14px; font-size: 16px; letter-spacing: .08em; }
+        .auth__card input:focus { border-color: var(--accent); outline: none; }
+        .auth__card input.err { border-color: var(--bad); }
+        .auth__err { color: var(--bad); font-size: 13.5px; }
+        .auth__foot { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--ink-3); }
+
+        .toast { position: fixed; right: 18px; bottom: 18px; z-index: 200; max-width: 380px; padding: 12px 16px; border-radius: var(--r-m); background: var(--ink); color: var(--bg); font-size: 14px; box-shadow: var(--shadow); }
+        .leaflet-container { font-family: var(--sans); }
+
+        /* ===== Adaptatif ===== */
+        @media (max-width: 900px) {
+            .verdict { grid-template-columns: 1fr; padding: 24px; }
+            .grid-2 { grid-template-columns: 1fr; margin-top: 32px; }
+        }
+        @media (max-width: 560px) {
+            .wrap { padding: 0 16px; }
+            .hero { padding-top: 36px; }
+            .brand__tag { display: none; }
+            .score { font-size: 66px; }
+            .tl li { grid-template-columns: 1fr; }
+            .search__field { padding-left: 14px; }
+            .search .btn span { display: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .scale__marker { transition: none; }
+            .spin { animation: none; }
         }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
 
-    <!-- MODAL ACCÈS -->
-<!-- MODAL ACCÈS SÉCURISÉ (STYLISÉ & SOBRE) -->
-<div id="auth-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[1000] flex items-center justify-center p-4">
-    <div class="glass-panel max-w-md w-full p-8 rounded-2xl border border-cyan-500/30 neon-glow-box text-center">
-        <div class="w-16 h-16 bg-cyan-500/10 border border-cyan-400/30 rounded-2xl flex items-center justify-center mx-auto mb-4 text-cyan-400 text-2xl">
-            <i class="fa-solid fa-shield-halved"></i>
+<body>
+
+    <!-- ACCÈS -->
+    <div id="auth-modal" class="auth">
+        <div class="auth__card" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+            <svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="18" fill="#0b1322" /><path d="M50 15 L82 30 V55 C82 76 50 90 50 90 C50 90 18 76 18 55 V30 Z" fill="none" stroke="#4cc9d9" stroke-width="6" /><path d="M40 50 L48 58 L62 40" fill="none" stroke="#3fd1a0" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            <h2 id="auth-title">Accès réservé aux abonnés</h2>
+            <p>Saisissez la clé d'accès fournie avec votre abonnement Euro Expert Solvabilité.</p>
+            <form id="auth-form" autocomplete="off">
+                <label class="sr-only" for="access-code-input">Clé d'accès</label>
+                <input type="password" id="access-code-input" placeholder="Clé d'accès" autocomplete="off">
+                <div id="auth-error" class="auth__err" role="alert" hidden>Clé d'accès invalide ou expirée.</div>
+                <button type="submit" class="btn btn--primary"><i class="fa-solid fa-key"></i> Ouvrir mon espace</button>
+            </form>
+            <p class="auth__foot"><i class="fa-solid fa-lock"></i> Connexion chiffrée. Une session dure 12 heures.</p>
         </div>
-        <h2 class="text-xl font-black text-white uppercase tracking-wider mb-1">Accès Sécurisé Réservé</h2>
-        <p class="text-xs text-slate-400 mb-6">Plateforme d'Audit Institutionnel B2B Euro Expert Solvabilité 2026</p>
+    </div>
 
-        <form onsubmit="validateAccessCode(event)" class="space-y-4" autocomplete="off">
-            <div class="relative">
-                <input type="password" id="access-code-input" placeholder="Saisissez la clé d'accès..." 
-                       class="w-full px-4 py-3 bg-slate-900/90 border border-slate-700 rounded-xl text-center text-white text-lg font-mono focus:outline-none focus:border-cyan-400 transition-all">
-            </div>
-            
-            <div id="auth-error" class="hidden text-xs font-bold text-red-400 bg-red-500/10 py-2.5 rounded-lg border border-red-500/20">
-                Clé d'accès invalide ou expirée.
-            </div>
-        
-            <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-extrabold rounded-xl transition-all hover:brightness-110">
-                Déverrouiller <i class="fa-solid fa-key ml-1"></i>
+    <!-- BARRE SUPÉRIEURE -->
+    <header class="topbar">
+        <div class="wrap topbar__in">
+            <button class="brand" data-action="home" aria-label="Retour à l'accueil">
+                <svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="18" fill="#0b1322" /><path d="M50 15 L82 30 V55 C82 76 50 90 50 90 C50 90 18 76 18 55 V30 Z" fill="none" stroke="#4cc9d9" stroke-width="6" /><path d="M40 50 L48 58 L62 40" fill="none" stroke="#3fd1a0" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" /></svg>
+                <span><span class="brand__name">Euro Expert Solvabilité</span><span class="brand__tag">Dossier de crédit B2B</span></span>
             </button>
-        </form>
-        
-        <div class="mt-6 pt-4 border-t border-slate-800 text-[11px] text-slate-500 flex justify-between items-center font-mono">
-            <span class="text-slate-400"><i class="fa-solid fa-shield-cat text-cyan-400 mr-1"></i>Authentification B2B</span>
-            <span class="text-emerald-400"><i class="fa-solid fa-lock mr-1"></i>Chiffrement SSL</span>
-        </div>
-        </div>
-        </div>
-
-    <!-- EN-TÊTE -->
-    <header class="border-b border-slate-800 bg-slate-900/60 sticky top-0 z-40 backdrop-blur-lg">
-        <div class="max-w-7xl mx-auto px-4 py-3.5 flex justify-between items-center">
-            <div class="flex items-center gap-3 cursor-pointer" onclick="resetToHome()">
-                <div class="w-10 h-10 bg-cyan-500/10 border border-cyan-400/40 rounded-xl flex items-center justify-center text-cyan-400 text-lg">
-                    <i class="fa-solid fa-chart-line"></i>
-                </div>
-                <div>
-                    <span class="text-base font-black text-white">EURO EXPERT <span class="text-cyan-400">SOLVABILITÉ</span></span>
-                    <span class="text-[10px] text-slate-400 font-mono block">MOTEUR D'AUDIT B2B & ANALYSE DE RISQUE 2026</span>
-                </div>
+            <div class="topbar__actions">
+                <button class="btn btn--ghost" data-action="theme" aria-label="Changer de thème"><i class="fa-solid fa-circle-half-stroke"></i></button>
+                <button class="btn btn--ghost" data-action="lock"><i class="fa-solid fa-lock"></i> Verrouiller</button>
             </div>
-            <button onclick="lockSession()" class="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold">
-                <i class="fa-solid fa-lock"></i> Verrouiller
-            </button>
         </div>
     </header>
 
-    <!-- CONTENU PRINCIPAL -->
-    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
-        <!-- BARRE DE RECHERCHE ET AUTOCOMPLÉTION -->
-        <section class="glass-panel p-6 rounded-2xl relative border border-cyan-500/30 neon-glow-box">
-            <div class="relative w-full">
-                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-cyan-400 text-lg"></i>
-                <input type="text" id="search-input" placeholder="Saisissez un SIREN, SIRET ou nom d'entreprise (ex: L'UNI VERT, ABONDANCE)..." 
-                       class="w-full pl-12 pr-36 py-4 bg-slate-900/90 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-cyan-400"
-                       oninput="handleSearchInput(event)" onkeyup="handleSearchKeyup(event)" autocomplete="off">
-                <button onclick="executeSearch()" class="absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 bg-gradient-to-r from-cyan-400 to-emerald-400 text-slate-950 font-extrabold rounded-lg">
-                    Lancer l'Audit <i class="fa-solid fa-arrow-right ml-1"></i>
-                </button>
-                <div id="autocomplete-results" class="hidden absolute left-0 right-0 top-[105%] bg-slate-900 border border-cyan-500/50 rounded-xl shadow-2xl z-[100] max-h-80 overflow-y-auto divide-y divide-slate-800"></div>
+    <main class="wrap">
+        <!-- RECHERCHE -->
+        <section class="hero" id="hero">
+            <div id="hero-copy">
+                <h1>Savoir à qui vous vendez, avant de livrer.</h1>
+                <p>Identité légale, comptes publiés, annonces au BODACC et contrôles sanitaires d'une entreprise française, réunis dans un dossier que vous pouvez transmettre.</p>
             </div>
-
-            <div class="flex flex-wrap items-center gap-2 mt-3 text-xs text-slate-400">
-                <span class="font-semibold text-slate-500"><i class="fa-solid fa-bolt text-amber-400 mr-1"></i>Remplissage Rapide :</span>
-                <button onclick="triggerSearchBySiren('815297270')" class="px-2.5 py-1 bg-slate-800 hover:bg-cyan-500/20 text-cyan-300 border border-slate-700 rounded-lg">L'UNI VERT</button>
-                <button onclick="triggerSearchBySiren('838491205')" class="px-2.5 py-1 bg-slate-800 hover:bg-indigo-500/20 text-indigo-300 border border-slate-700 rounded-lg">HOLDING ABONDANCE</button>
-                <button onclick="triggerSearchBySiren('BOMA BEACH')" class="px-2.5 py-1 bg-slate-800 hover:bg-cyan-500/20 text-cyan-300 border border-slate-700 rounded-lg">BOMA BEACH</button>
-                <button onclick="triggerSearchBySiren('UNIVER CITY LA POSSESSION')" class="px-2.5 py-1 bg-slate-800 hover:bg-emerald-500/20 text-emerald-300 border border-slate-700 rounded-lg">UNIVER CITY</button>
+            <div class="search">
+                <div class="search__field">
+                    <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                    <label class="sr-only" for="search-input">Rechercher une entreprise</label>
+                    <input type="text" id="search-input" placeholder="Nom, SIREN ou SIRET — ajoutez un code postal pour affiner" autocomplete="off">
+                    <button class="btn btn--primary" data-action="search"><span>Analyser</span><i class="fa-solid fa-arrow-right"></i></button>
+                </div>
+                <div id="autocomplete-results" class="ac" role="listbox" hidden></div>
+            </div>
+            <div class="quick">
+                <span>Exemples</span>
+                <button data-quick="815297270">L'Uni Vert</button>
+                <button data-quick="838491205">Holding Abondance</button>
+                <button data-quick="BOMA BEACH">Boma Beach</button>
+                <button data-quick="UNIVER CITY LA POSSESSION">Univer City</button>
             </div>
         </section>
 
-        <!-- DASHBOARD -->
-        <div id="dashboard-content" class="hidden space-y-6">
-            <div class="glass-panel p-6 rounded-2xl border border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <!-- DOSSIER -->
+        <div id="dashboard-content" class="dash" hidden>
+            <section class="company" aria-labelledby="company-name">
+                <div class="company__top">
+                    <div>
+                        <h1 id="company-name" class="company__name">—</h1>
+                        <p id="company-legal" class="company__legal"></p>
+                        <div id="company-chips" class="company__chips"></div>
+                    </div>
+                    <div class="company__actions">
+                        <div id="company-official-links" class="company__actions"></div>
+                        <button class="btn btn--primary" data-action="pdf"><i class="fa-solid fa-file-pdf"></i> Rapport PDF</button>
+                    </div>
+                </div>
+                <dl id="company-facts" class="facts"></dl>
+                <div id="alerts" class="alerts"></div>
+            </section>
+
+            <!-- VERDICT -->
+            <section class="verdict" aria-label="Verdict de solvabilité">
                 <div>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <h1 id="company-name" class="text-2xl font-black text-white">Raison Sociale</h1>
-                        <span id="badge-status-insee" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Actif (INSEE)</span>
-                        <span id="badge-status-site" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"><i class="fa-solid fa-store mr-1"></i> OUVERT / EXPLOITÉ</span>
-                        <span id="badge-daaf-status" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"><i class="fa-solid fa-circle-check"></i> CONFORMITÉ SANITAIRE</span>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-400 mt-2">
-                        <span>SIREN: <strong id="company-siren" class="text-slate-200">---</strong></span>
-                        <span>NAF/APE: <strong id="company-naf" class="text-slate-200">---</strong></span>
-                        <span>Création: <strong id="company-date" class="text-slate-200">---</strong></span>
-                    </div>
-                    <div id="company-official-links" class="flex flex-wrap items-center gap-2 mt-3"></div>
+                    <div class="score"><span id="score-value">—</span><small>/ 100</small></div>
+                    <p class="score-cap">Note indicative, calculée sur données publiques</p>
                 </div>
+                <div>
+                    <h2 id="score-label" class="verdict__title">—</h2>
+                    <p id="verdict-sub" class="verdict__sub"></p>
+                    <div class="scale" aria-hidden="true">
+                        <div class="scale__bar"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+                        <div id="scale-marker" class="scale__marker"><span id="scale-tag" class="scale__tag">0</span></div>
+                        <div class="scale__ends"><span>Risque très élevé</span><span>Risque très faible</span></div>
+                    </div>
+                    <dl class="terms">
+                        <div><dt>Niveau de risque</dt><dd id="risk-level">—</dd></div>
+                        <div><dt>Grade indicatif</dt><dd id="credit-rating-grade">—</dd></div>
+                        <div><dt>Conditions suggérées</dt><dd id="payment-terms">—</dd></div>
+                        <div><dt>Plafond d'encours</dt><dd id="credit-limit">Non chiffré</dd></div>
+                    </dl>
+                </div>
+            </section>
 
-                <button onclick="generatePDFReport()" class="px-5 py-3 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-extrabold rounded-xl transition-all shadow-lg text-xs flex items-center gap-2 border border-indigo-400/30">
-                    <i class="fa-solid fa-file-pdf text-sm"></i>
-                    <span>Télécharger / Imprimer l'Audit PDF</span>
-                </button>
+            <!-- CA + SIGNAUX -->
+            <div class="grid-2">
+                <section class="block">
+                    <h2>Chiffre d'affaires</h2>
+                    <div id="revenue-block" class="block__body"></div>
+                </section>
+                <section class="block">
+                    <h2>Signaux</h2>
+                    <div id="signals-list" class="block__body rows"></div>
+                </section>
             </div>
 
-            <!-- ALERTE DAAF -->
-            <div id="alert-banner-daaf" class="hidden p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-200 text-xs flex items-start gap-3">
-                <i class="fa-solid fa-triangle-exclamation text-amber-400 text-lg mt-0.5"></i>
-                <div id="alert-daaf-text">
-                    <strong>Alerte Vigilance Solvabilité & Hygiène :</strong> Établissement sous suivi sanitaire et retards de règlement enregistrés.
-                </div>
-            </div>
-
-            <!-- SCORE & INDICATEURS -->
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div class="glass-panel p-5 rounded-2xl border border-slate-800 text-center flex flex-col justify-between items-center">
-                    <span class="text-xs font-bold text-slate-400 uppercase">Score de Solvabilité</span>
-                    <div class="relative w-36 h-36 my-2 flex items-center justify-center">
-                        <canvas id="scoreGaugeCanvas" width="150" height="150"></canvas>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
-                            <span id="score-value" class="text-3xl font-black text-white">--</span>
-                            <span class="text-[10px] text-slate-400 font-mono">/ 100</span>
-                        </div>
-                    </div>
-                    <span id="score-label" class="text-xs font-bold text-amber-400">ÉVALUATION...</span>
-                </div>
-
-                <div class="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
-                    <div>
-                        <span class="text-xs font-bold text-slate-400 uppercase block mb-1">Limite d'Encours Conseillée</span>
-                        <div id="credit-limit" class="text-2xl font-black text-cyan-400">0 €</div>
-                        <p class="text-[11px] text-slate-400 mt-1">Plafond d'octroi de crédit commercial par IA.</p>
-                    </div>
-                    <div class="pt-3 border-t border-slate-800">
-                        <span class="text-[10px] text-slate-500 uppercase block font-mono">Conditions de Paiement</span>
-                        <span id="payment-terms" class="text-xs font-bold text-slate-200">Comptant à la Commande</span>
-                    </div>
-                </div>
-
-                <div class="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
-                    <div>
-                        <span class="text-xs font-bold text-slate-400 uppercase block mb-1">Risque de Défaillance</span>
-                        <div id="risk-level" class="text-2xl font-black text-red-400">Élevé (68.5 %)</div>
-                        <p class="text-[11px] text-slate-400 mt-1">Probabilité de cessation à 12 mois.</p>
-                    </div>
-                    <div class="pt-3 border-t border-slate-800">
-                        <span class="text-[10px] text-slate-500 uppercase block font-mono">Rating Commercial</span>
-                        <span id="credit-rating-grade" class="text-xs font-bold text-red-400">GRADE D</span>
-                    </div>
-                </div>
-
-                <div class="glass-panel p-5 rounded-2xl border border-slate-800 flex flex-col justify-between">
-                    <div>
-                        <span class="text-xs font-bold text-slate-400 uppercase block mb-1">Gouvernance & Dirigeants</span>
-                        <div id="leaders-container" class="space-y-2 mt-2"></div>
-                    </div>
-                </div>
-            </div>
+            <!-- ANALYSE RÉDIGÉE -->
+            <section class="block ai">
+                <h2>
+                    <span>Analyse rédigée</span>
+                    <button id="ai-generate-btn" class="btn btn--ai btn--small" data-action="ai"><i class="fa-solid fa-wand-magic-sparkles"></i> Générer l'analyse</button>
+                </h2>
+                <div id="ai-analysis" class="block__body prose"></div>
+            </section>
 
             <!-- ONGLETS -->
-            <div class="flex border-b border-slate-800 space-x-2 overflow-x-auto">
-                <button id="tab-btn-cat-finances" onclick="switchTab('cat-finances')" class="tab-btn px-5 py-3 rounded-t-xl text-xs font-bold active">
-                    <i class="fa-solid fa-chart-pie mr-1"></i> Finances & Bilan
-                </button>
-                <button id="tab-btn-cat-kyc" onclick="switchTab('cat-kyc')" class="tab-btn px-5 py-3 rounded-t-xl text-xs font-bold">
-                    <i class="fa-solid fa-sitemap mr-1"></i> Groupe & Organigramme
-                </button>
-                <button id="tab-btn-cat-conformite" onclick="switchTab('cat-conformite')" class="tab-btn px-5 py-3 rounded-t-xl text-xs font-bold">
-                    <i class="fa-solid fa-shield-cat mr-1"></i> Conformité & DAAF
-                </button>
-                <button id="tab-btn-cat-legal" onclick="switchTab('cat-legal')" class="tab-btn px-5 py-3 rounded-t-xl text-xs font-bold">
-                    <i class="fa-solid fa-house-flag mr-1"></i> Cadastre DVF & Immobilier
-                </button>
+            <div class="tabs" role="tablist">
+                <button class="tab" role="tab" id="tab-btn-cat-finances" data-tab="cat-finances" aria-selected="true">Finances</button>
+                <button class="tab" role="tab" id="tab-btn-cat-groupe" data-tab="cat-groupe" aria-selected="false">Dirigeants et établissements</button>
+                <button class="tab" role="tab" id="tab-btn-cat-alertes" data-tab="cat-alertes" aria-selected="false">Alertes et conformité</button>
+                <button class="tab" role="tab" id="tab-btn-cat-sources" data-tab="cat-sources" aria-selected="false">Sources et méthode</button>
             </div>
 
-            <!-- CONTENU ONGLETS -->
-            <div id="cat-finances" class="tab-content space-y-6">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-800">
-                        <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-chart-column text-cyan-400 mr-2"></i>Historique Financier Triennal (k€)</h3>
-                        <div class="h-64"><canvas id="financialChart"></canvas></div>
-                    </div>
-                    <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-3">
-                        <h3 class="text-sm font-bold text-white mb-4"><i class="fa-solid fa-calculator text-emerald-400 mr-2"></i>Ratios Clés & Paydex</h3>
-                        <div class="flex justify-between p-2.5 bg-slate-900 rounded-lg border border-slate-800 text-xs"><span class="text-slate-400">Marge Brute</span><strong id="ratio-marge" class="text-slate-200">-- %</strong></div>
-                        <div class="flex justify-between p-2.5 bg-slate-900 rounded-lg border border-slate-800 text-xs"><span class="text-slate-400">Autonomie Financière</span><strong id="ratio-autonomie" class="text-slate-200">-- %</strong></div>
-                        <div class="flex justify-between p-2.5 bg-slate-900 rounded-lg border border-slate-800 text-xs"><span class="text-slate-400">Retard de Paiement (Paydex)</span><strong id="ratio-paydex" class="text-amber-400 font-mono">-- j</strong></div>
-                        <div class="flex justify-between p-2.5 bg-slate-900 rounded-lg border border-slate-800 text-xs"><span class="text-slate-400">Taux de Défaillance</span><strong id="ratio-defaillance" class="text-red-400 font-mono">-- %</strong></div>
-                    </div>
-                </div>
-                <div class="glass-panel p-6 rounded-2xl border border-slate-800">
-                    <h3 class="text-sm font-bold text-sky-400 mb-3 flex items-center gap-2"><i class="fa-solid fa-shield-halved text-sky-400"></i>Arbitrage Crédit & Décision d'Octroi</h3>                
-                        <div id="ai-synthesis-finances" class="text-xs text-slate-300 leading-relaxed"></div>
-                </div>
+            <div id="cat-finances" class="panel tab-content" role="tabpanel">
+                <section class="block"><h2>Comptes publiés</h2><div id="finance-chart" class="block__body chart"></div></section>
+                <section class="block"><h2>Détail et ratios</h2><div id="finance-table" class="block__body"></div></section>
             </div>
 
-            <div id="cat-kyc" class="tab-content hidden space-y-6">
-                <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-                    <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-diagram-project text-indigo-400 mr-2"></i>Maison Mère & Holding</h3>
-                    <div id="holding-container"></div>
-                    <h3 class="text-sm font-bold text-white pt-4 border-t border-slate-800"><i class="fa-solid fa-utensils text-cyan-400 mr-2"></i>Restaurants & Établissements Associés du Groupe</h3>
-                    <div id="associated-restaurants-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
-                </div>
-                <div class="glass-panel p-6 rounded-2xl border border-slate-800">
-                    <h3 class="text-sm font-bold text-sky-400 mb-3 flex items-center gap-2"><i class="fa-solid fa-sitemap text-sky-400"></i>Conformité LCB-FT & Organigramme Groupe</h3>                 
-                       <div id="ai-synthesis-kyc" class="text-xs text-slate-300 leading-relaxed"></div>
-                </div>
+            <div id="cat-groupe" class="panel tab-content" role="tabpanel" hidden>
+                <section class="block"><h2>Dirigeants</h2><div id="leaders-container" class="block__body"></div></section>
+                <section class="block"><h2>Personnes morales dirigeantes</h2><div id="holding-container" class="block__body"></div></section>
+                <section class="block"><h2>Établissements</h2><div id="etablissements-container" class="block__body"></div></section>
             </div>
 
-            <div id="cat-conformite" class="tab-content hidden space-y-6">
-                <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-                    <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-clipboard-check text-amber-400 mr-2"></i>Relevé Sanitaire & Conformité DAAF</h3>
-                    <div id="press-sanitary-container"></div>
-                </div>
-                <div class="glass-panel p-6 rounded-2xl border border-slate-800">
-                    <h3 class="text-sm font-bold text-sky-400 mb-3 flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-sky-400"></i>Relevé Sanitaire & Conformité DAAF</h3>
-                    <div id="ai-synthesis-conformite" class="text-xs text-slate-300 leading-relaxed"></div>
-                </div>
+            <div id="cat-alertes" class="panel tab-content" role="tabpanel" hidden>
+                <section class="block"><h2>Annonces légales (BODACC)</h2><div id="bodacc-container" class="block__body"></div></section>
+                <section class="block"><h2>Contrôles sanitaires officiels</h2><div id="sanitary-container" class="block__body"></div></section>
+                <section class="block">
+                    <h2>Alertes saisies par l'analyste</h2>
+                    <div class="block__body stack">
+                        <div id="manual-alerts"></div>
+                        <form id="alert-form" class="form">
+                            <label>Type
+                                <select id="alert-type">
+                                    <option value="fermeture_sanitaire">Fermeture administrative (sanitaire)</option>
+                                    <option value="fermeture_autre">Fermeture administrative (autre)</option>
+                                    <option value="agrement">Retrait ou suspension d'agrément</option>
+                                    <option value="autre">Autre signal</option>
+                                </select>
+                            </label>
+                            <label>Date de la décision<input type="date" id="alert-date"></label>
+                            <label class="wide">Source (obligatoire)<input type="text" id="alert-source" maxlength="300" placeholder="Ex. arrêté préfectoral n° …, article de presse, lien"></label>
+                            <label class="wide">Précision<textarea id="alert-note" maxlength="300"></textarea></label>
+                            <div class="wide"><button type="submit" class="btn btn--primary"><i class="fa-solid fa-plus"></i> Ajouter l'alerte</button></div>
+                        </form>
+                        <p class="note">Ces alertes sont saisies par vous, enregistrées dans ce navigateur et signalées « non vérifiées » dans le dossier et le PDF. Elles ne modifient pas la note.</p>
+                    </div>
+                </section>
             </div>
 
-            <div id="cat-legal" class="tab-content hidden space-y-6">
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-                        <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-building text-cyan-400 mr-2"></i>Valeur du Bail Commercial</h3>
-                        <div class="p-4 bg-slate-900 rounded-xl border border-slate-800 text-center">
-                            <span class="text-xs text-slate-400 block mb-1">Estimation Cadastrale DVF</span>
-                            <div id="immo-valeur" class="text-xl font-black text-emerald-400">290 000 €</div>
-                        </div>
-                    </div>
-                    <div class="lg:col-span-2 glass-panel p-6 rounded-2xl border border-slate-800">
-                        <h3 class="text-sm font-bold text-sky-400 mb-3 flex items-center gap-2"><i class="fa-solid fa-building-flag text-sky-400"></i>Expertise Cadastrale & Valuation Immobilère</h3>
-                        <div id="ai-synthesis-legal" class="text-xs text-slate-300 leading-relaxed"></div>
-                    </div>
-                </div>
+            <div id="cat-sources" class="panel tab-content" role="tabpanel" hidden>
+                <section class="block"><h2>Couverture des sources</h2><div id="sources-container" class="block__body"></div></section>
+                <section class="block"><h2>Méthode de la note indicative</h2><div id="method-container" class="block__body"></div></section>
             </div>
         </div>
 
         <!-- CARTE -->
-        <section class="glass-panel p-6 rounded-2xl border border-slate-800 space-y-4">
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
-                <h3 id="map-section-title" class="text-sm font-bold text-white"><i class="fa-solid fa-location-dot text-cyan-400 mr-2"></i>Couverture Cartographique B2B Europe</h3>
-                <span id="map-postal-code" class="text-xs font-mono px-2.5 py-1 rounded bg-slate-800 text-cyan-300 border border-slate-700">FRANCE / EUROPE</span>
-            </div>
-            <p id="map-address-text" class="text-xs text-slate-400">Sélectionnez une entreprise pour géolocaliser le siège social.</p>
+        <section class="mapcard block">
+            <h2><span id="map-section-title">Localisation du siège social</span><span id="map-postal-code" class="chip">FRANCE</span></h2>
+            <p id="map-address-text" class="note" style="margin-top:12px">Sélectionnez une entreprise pour situer son siège.</p>
             <div id="map"></div>
         </section>
+
+        <div id="diag-panel" class="diag" hidden></div>
     </main>
 
-    <!-- CONTENEUR POUR L'IMPRESSION PDF NATIVE -->
-    <div id="pdf-report-template"></div>
-
-    <footer class="border-t border-slate-800 bg-slate-950 py-6 mt-12 text-center text-xs text-slate-500 font-mono">
-        <p>© 2026 EURO EXPERT SOLVABILITÉ — Tous droits réservés. Plateforme B2B Certifiée.</p>
+    <footer class="footer">
+        <div class="wrap">
+            <p>© 2026 Euro Expert Solvabilité. Tous droits réservés.</p>
+            <p>Données issues de sources publiques (Sirene / INSEE, API Recherche d'entreprises, BODACC, Alim'confiance). Les notes sont indicatives et fournies à titre d'information : elles ne constituent ni une notation réglementée, ni un conseil, ni une garantie de solvabilité.</p>
+        </div>
     </footer>
 
     <script src="index.js" defer></script>
 </body>
+
 </html>
