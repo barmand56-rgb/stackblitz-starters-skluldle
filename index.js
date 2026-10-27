@@ -24,6 +24,7 @@
      minAutocompleteChars: 3,
      autocompleteDelayMs: 250,
      cacheMaxEntries: 100,
+     analysisEndpoint: '/api/analyse',
      auth: Object.freeze({
        endpoint: '/api/verify',
        storageKey: 'ees_session',
@@ -67,6 +68,39 @@
      red: { text: 'text-red-400', pill: 'bg-red-500/20 text-red-400 border border-red-500/30', hex: '#ef4444', pdf: '#dc2626' },
      slate: { text: 'text-slate-300', pill: 'bg-slate-500/20 text-slate-300 border border-slate-500/30', hex: '#94a3b8', pdf: '#475569' }
    });
+   
+   /* Effectif : bornes (nombre de salariés) par tranche Sirene */
+   const TRANCHE_RANGES = Object.freeze({
+     '01': [1, 2], '02': [3, 5], '03': [6, 9], 11: [10, 19], 12: [20, 49], 21: [50, 99], 22: [100, 199],
+     31: [200, 249], 32: [250, 499], 41: [500, 999], 42: [1000, 1999], 51: [2000, 4999], 52: [5000, 9999], 53: [10000, 10000]
+   });
+   
+   /* ESTIMATION DE CA — ordres de grandeur du chiffre d'affaires par salarié, par division NAF.
+      ⚠ Valeurs indicatives posées à la main et volontairement larges. À CALIBRER avec les statistiques
+      sectorielles ESANE de l'INSEE avant tout usage commercial intensif. */
+   const SECTOR_BENCHMARKS = Object.freeze([
+     { from: 1, to: 3, label: 'agriculture, sylviculture, pêche', min: 40000, max: 120000 },
+     { from: 10, to: 33, label: 'industrie manufacturière', min: 150000, max: 400000 },
+     { from: 35, to: 39, label: 'énergie, eau, déchets', min: 200000, max: 600000 },
+     { from: 41, to: 43, label: 'construction', min: 90000, max: 200000 },
+     { from: 45, to: 45, label: 'commerce et réparation automobile', min: 250000, max: 600000 },
+     { from: 46, to: 46, label: 'commerce de gros', min: 350000, max: 900000 },
+     { from: 47, to: 47, label: 'commerce de détail', min: 120000, max: 300000 },
+     { from: 49, to: 53, label: 'transports et entreposage', min: 90000, max: 200000 },
+     { from: 55, to: 55, label: 'hébergement', min: 50000, max: 120000 },
+     { from: 56, to: 56, label: 'restauration', min: 45000, max: 100000 },
+     { from: 58, to: 63, label: 'information et communication', min: 90000, max: 200000 },
+     { from: 68, to: 68, label: 'activités immobilières', min: 100000, max: 400000 },
+     { from: 69, to: 75, label: 'services spécialisés, scientifiques et techniques', min: 70000, max: 160000 },
+     { from: 77, to: 82, label: 'services administratifs et de soutien', min: 40000, max: 100000 },
+     { from: 85, to: 85, label: 'enseignement', min: 30000, max: 80000 },
+     { from: 86, to: 88, label: 'santé humaine et action sociale', min: 40000, max: 110000 },
+     { from: 90, to: 93, label: 'arts, spectacles, sports et loisirs', min: 40000, max: 120000 },
+     { from: 94, to: 96, label: 'autres services', min: 30000, max: 90000 }
+   ]);
+   const GENERIC_BENCHMARK = Object.freeze({ label: 'secteur non couvert, plage générique très large', min: 50000, max: 250000 });
+   // Activités pour lesquelles le CA ne se déduit pas de l'effectif (holdings, patrimoine immobilier, associations…)
+   const NON_ESTIMABLE_NAF = /^(64|65|66|68\.2|70\.10|84|94|97|98|99)/;
    
    const state = {
      view: null,
@@ -186,13 +220,32 @@
      return { status: res.status, data };
    }
    
+   const DEV_PREVIEW_KEY = 'ees_dev_preview';
+   
+   /** Aperçu développeur (StackBlitz / local) : l'écran de verrouillage s'affiche, avec un bouton pour continuer sans clé. */
+   function addDevPreviewButton() {
+     const form = document.querySelector('#auth-modal form');
+     if (!form || $('dev-preview-btn')) return;
+     const btn = h('button', 'w-full py-2.5 text-xs text-slate-400 border border-dashed border-slate-600 rounded-xl hover:text-cyan-300 hover:border-cyan-500/50 transition-all',
+       'Aperçu développeur : continuer sans clé');
+     btn.type = 'button';
+     btn.id = 'dev-preview-btn';
+     btn.addEventListener('click', () => {
+       try { sessionStorage.setItem(DEV_PREVIEW_KEY, '1'); } catch (e) { /* stockage indisponible */ }
+       setLocked(false);
+     });
+     form.appendChild(btn);
+   }
+   
    async function initAuth() {
      if (isDevHost()) {
-       console.info('[EES] Aperçu développeur : verrouillage désactivé sur cet hôte.');
-       setLocked(false);
-       return;
+       addDevPreviewButton();
+       let preview = false;
+       try { preview = sessionStorage.getItem(DEV_PREVIEW_KEY) === '1'; } catch (e) { /* stockage indisponible */ }
+       setLocked(!preview);
+     } else {
+       setLocked(true);
      }
-     setLocked(true);
      const session = readSession();
      if (!session) return;
      try {
@@ -200,7 +253,7 @@
        if (status === 200 && data && data.ok) setLocked(false);
        else clearSession();
      } catch (e) {
-       /* serveur injoignable : l'accès reste verrouillé */
+       /* serveur injoignable : l'état de verrouillage reste inchangé */
      }
    }
    
@@ -249,6 +302,7 @@
    
    function lockSession() {
      clearSession();
+     try { sessionStorage.removeItem(DEV_PREVIEW_KEY); } catch (e) { /* stockage indisponible */ }
      setLocked(true);
    }
    
@@ -257,31 +311,75 @@
       ============================================================================= */
    const apiCache = new Map();
    
+   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+   
    async function fetchGouvAPI(url, signal) {
      if (apiCache.has(url)) return apiCache.get(url);
-     try {
-       const res = await fetch(url, { signal });
-       if (!res.ok) return null;
-       const data = await res.json();
-       if (apiCache.size >= CONFIG.cacheMaxEntries) apiCache.delete(apiCache.keys().next().value);
-       apiCache.set(url, data);
-       return data;
-     } catch (e) {
-       if (e.name !== 'AbortError') console.error('Erreur API :', e);
-       return null;
+     for (let attempt = 0; attempt < 2; attempt += 1) {
+       try {
+         const res = await fetch(url, { signal });
+         if (res.status === 429 || res.status >= 500) { await sleep(500); continue; } // surcharge : une seconde chance
+         if (!res.ok) return null;
+         const data = await res.json();
+         if (apiCache.size >= CONFIG.cacheMaxEntries) apiCache.delete(apiCache.keys().next().value);
+         apiCache.set(url, data);
+         return data;
+       } catch (e) {
+         if (e.name === 'AbortError') return null;
+         console.error('Erreur API :', e);
+         await sleep(300);
+       }
      }
+     return null;
    }
    
-   function buildSearchUrl(raw, perPage) {
-     const compact = raw.replace(/\s+/g, '');
-     let query;
-     if (/^\d{9,14}$/.test(compact)) {
-       query = compact.slice(0, 9); // SIREN, ou début d'un SIRET
-     } else {
-       const text = raw.replace(/['’\-]/g, ' ').replace(/\s+/g, ' ').trim();
-       query = text.replace(/\b[a-zA-Z]\b/g, '').replace(/\s+/g, ' ').trim() || text; // « L'UNI VERT » -> « UNI VERT »
+   function searchUrl(q, params, perPage) {
+     const qs = new URLSearchParams({ q, per_page: String(perPage), ...params });
+     return `${CONFIG.searchApi}?${qs.toString()}`;
+   }
+   
+   const normalizeName = (s) =>
+     String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+   
+   /** « uni vert 97434 » -> filtre code postal ; « uni vert 974 » -> filtre département. */
+   function extractLocation(raw) {
+     const parts = raw.trim().split(/\s+/);
+     const last = parts[parts.length - 1];
+     if (parts.length > 1) {
+       if (/^\d{5}$/.test(last)) return { text: parts.slice(0, -1).join(' '), params: { code_postal: last } };
+       if (/^97\d$/.test(last)) return { text: parts.slice(0, -1).join(' '), params: { departement: last } };
      }
-     return `${CONFIG.searchApi}?q=${encodeURIComponent(query)}&per_page=${perPage}`;
+     return { text: raw, params: {} };
+   }
+   
+   /**
+    * Recherche robuste : SIREN/SIRET directement ; sinon plusieurs formulations successives
+    * (texte normalisé, sans lettres isolées, deux premiers mots significatifs).
+    * Retourne { results, failed } : `failed` distingue « service en panne » de « aucun résultat ».
+    */
+   async function searchCompanies(raw, perPage = 25, signal) {
+     const compact = raw.replace(/\s+/g, '');
+     if (/^\d{9,14}$/.test(compact)) {
+       const data = await fetchGouvAPI(searchUrl(compact.slice(0, 9), {}, perPage), signal);
+       return { results: (data && data.results) || [], failed: !data, byNumber: true };
+     }
+   
+     const { text, params } = extractLocation(raw);
+     const hasParams = Object.keys(params).length > 0;
+     const normalized = text.replace(/['’\-]/g, ' ').replace(/\s+/g, ' ').trim();
+     const stripped = normalized.replace(/\b[a-zA-Z]\b/g, '').replace(/\s+/g, ' ').trim();
+     const shortened = normalized.split(' ').filter((w) => w.length >= 3).slice(0, 2).join(' ');
+     const attempts = [...new Set([normalized, stripped, shortened].filter((q) => q.length >= 2))];
+   
+     let failed = false;
+     for (const q of attempts) {
+       if (signal && signal.aborted) break;
+       let data = await fetchGouvAPI(searchUrl(q, params, perPage), signal);
+       if (!data && hasParams && !(signal && signal.aborted)) data = await fetchGouvAPI(searchUrl(q, {}, perPage), signal);
+       if (!data) { failed = true; continue; }
+       if (Array.isArray(data.results) && data.results.length > 0) return { results: data.results, failed: false, byNumber: false };
+     }
+     return { results: [], failed, byNumber: false };
    }
    
    const activeFirst = (results) =>
@@ -327,13 +425,15 @@
      if (raw.length < CONFIG.minAutocompleteChars) return hideAutocomplete();
    
      if (state.searchController) state.searchController.abort();
-     state.searchController = new AbortController();
+     const controller = new AbortController();
+     state.searchController = controller;
    
-     const data = await fetchGouvAPI(buildSearchUrl(raw, 10), state.searchController.signal);
+     const { results } = await searchCompanies(raw, 15, controller.signal);
+     if (controller.signal.aborted) return;
      const input = $('search-input');
      if (input && input.value.trim() !== raw) return; // la saisie a changé entre-temps
    
-     if (data && Array.isArray(data.results) && data.results.length > 0) renderAutocompleteResults(activeFirst(data.results));
+     if (results.length > 0) renderAutocompleteResults(activeFirst(results));
      else hideAutocomplete();
    }
    
@@ -379,21 +479,35 @@
      box.classList.remove('hidden');
    }
    
-   async function executeSearch() {
+   async function executeSearch(options) {
+     const pickFirst = !!(options && options.pickFirst === true);
      const input = $('search-input');
      const raw = input ? input.value.trim() : '';
      hideAutocomplete();
+     clearTimeout(state.searchTimer);
+     if (state.searchController) state.searchController.abort();
      if (raw.length < 2) return notify('Saisissez un nom d’entreprise, un SIREN ou un SIRET.');
    
-     const data = await fetchGouvAPI(buildSearchUrl(raw, 10));
-     if (data && Array.isArray(data.results) && data.results.length > 0) selectCompany(activeFirst(data.results)[0]);
-     else notify(`Aucune entreprise trouvée pour « ${raw} ».`);
+     const { results, failed, byNumber } = await searchCompanies(raw, 25);
+     if (results.length === 0) {
+       return notify(failed
+         ? 'Le service officiel de recherche ne répond pas. Réessayez dans un instant.'
+         : `Aucune entreprise trouvée pour « ${raw} ». Essayez le SIREN, ajoutez un code postal (ex. « nom 97400 ») ou vérifiez l’orthographe. Les entreprises « non diffusibles » n’apparaissent pas dans les sources publiques.`);
+     }
+   
+     const sorted = activeFirst(results);
+     const target = normalizeName(raw);
+     const exact = sorted.find((c) => normalizeName(companyDisplayName(c)) === target || normalizeName(c.nom_complet) === target);
+     if (byNumber || pickFirst || sorted.length === 1 || exact) return selectCompany(exact || sorted[0]);
+   
+     renderAutocompleteResults(sorted); // plusieurs possibilités : on laisse l'utilisateur choisir
+     notify(`${sorted.length} entreprises correspondent : choisissez-en une dans la liste.`);
    }
    
    function triggerSearchBySiren(query) {
      const input = $('search-input');
      if (input) input.value = query;
-     executeSearch();
+     executeSearch({ pickFirst: true });
    }
    
    function resetToHome() {
@@ -498,6 +612,40 @@
      return { rows: recent, latest, previous, growth, margin };
    }
    
+   /** Arrondi à 2 chiffres significatifs (vers le bas ou vers le haut). */
+   function roundSig(n, direction) {
+     const step = Math.pow(10, Math.floor(Math.log10(n)) - 1);
+     return (direction === 'down' ? Math.floor(n / step) : Math.ceil(n / step)) * step;
+   }
+   
+   /**
+    * Estimation du chiffre d'affaires lorsqu'aucun compte n'est publié :
+    * effectif (bornes de la tranche Sirene) x ordre de grandeur sectoriel de CA par salarié.
+    * Résultat = FOURCHETTE à fiabilité faible, toujours étiquetée « estimation » et jamais utilisée dans le score.
+    */
+   function estimateRevenue(company) {
+     const unavailable = (reason) => ({ available: false, reason });
+     if (company.etat_administratif !== 'A') return unavailable('Entreprise cessée : aucune estimation.');
+     const naf = company.activite_principale || '';
+     if (NON_ESTIMABLE_NAF.test(naf)) {
+       return unavailable('Pour une société de portefeuille, une activité immobilière patrimoniale ou une association, le chiffre d’affaires ne se déduit pas de l’effectif.');
+     }
+     const tranche = company.tranche_effectif_salarie;
+     const range = TRANCHE_RANGES[tranche];
+     if (!range) return unavailable('Effectif salarié inconnu ou nul : le chiffre d’affaires ne peut pas être déduit de l’effectif.');
+   
+     const division = parseInt(naf.slice(0, 2), 10);
+     const bench = SECTOR_BENCHMARKS.find((b) => division >= b.from && division <= b.to) || GENERIC_BENCHMARK;
+     const year = company.annee_tranche_effectif_salarie;
+     return {
+       available: true,
+       low: roundSig(range[0] * bench.min, 'down'),
+       high: roundSig(range[1] * bench.max, 'up'),
+       confidence: 'Faible',
+       basis: `${TRANCHES_EFFECTIF[tranche]}${year ? ` (donnée ${year})` : ''} × ${fmtEuro(bench.min)} à ${fmtEuro(bench.max)} de CA par salarié (${bench.label})`
+     };
+   }
+   
    function buildAddress(siege) {
      const cp = siege.code_postal || '';
      const city = siege.libelle_commune || '';
@@ -522,6 +670,8 @@
        siege,
        dirigeants,
        fin,
+       estimate: fin.rows.length ? { available: false, reason: 'Comptes publiés disponibles.' } : estimateRevenue(company),
+       analysis: null,
        score: computeScore(company, fin, dirigeants),
        displayName: companyDisplayName(company).toUpperCase(),
        raison: raison.split('(')[0].trim(),
@@ -587,6 +737,7 @@
      renderCompliance(view);
      renderRealEstate(view);
      renderCompanyMap(view);
+     renderAnalysis(view);
    
      const dash = $('dashboard-content');
      if (dash) dash.classList.remove('hidden');
@@ -704,7 +855,20 @@
      });
    }
    
-   function renderChart(rows) {
+   function emptyFinanceHTML(est) {
+     const base = '<p class="mb-3">Comptes non publiés ou non accessibles via les sources ouvertes : aucun historique financier à afficher.</p>';
+     if (!est || !est.available) {
+       return `<div class="text-center">${base}${est && est.reason ? `<p class="text-slate-500">${esc(est.reason)}</p>` : ''}</div>`;
+     }
+     return `<div class="max-w-md w-full text-left">${base}` +
+       `<div class="border border-dashed border-amber-500/60 bg-amber-500/5 rounded-xl p-4">` +
+       `<span class="text-[10px] font-bold uppercase text-amber-400 block mb-1">Estimation indicative — non issue de comptes publiés</span>` +
+       `<div class="text-lg font-black text-white">${esc(fmtEuro(est.low))} à ${esc(fmtEuro(est.high))}</div>` +
+       `<p class="text-[11px] text-slate-400 mt-1">Chiffre d’affaires annuel possible. Base : ${esc(est.basis)}. ` +
+       `Fiabilité : ${esc(est.confidence.toLowerCase())}. À ne pas utiliser pour fixer un encours.</p></div></div>`;
+   }
+   
+   function renderChart(rows, estimate) {
      const canvas = $('financialChart');
      if (!canvas) return;
      let empty = $('financial-empty');
@@ -718,9 +882,8 @@
      if (rows.length === 0 || typeof Chart === 'undefined') {
        canvas.classList.add('hidden');
        empty.classList.remove('hidden');
-       empty.textContent = rows.length === 0
-         ? 'Comptes non publiés ou non accessibles via les sources ouvertes : aucun historique financier à afficher.'
-         : 'Graphique indisponible (bibliothèque Chart.js non chargée).';
+       if (rows.length === 0) empty.innerHTML = emptyFinanceHTML(estimate);
+       else empty.textContent = 'Graphique indisponible (bibliothèque Chart.js non chargée).';
        return;
      }
      canvas.classList.remove('hidden');
@@ -744,7 +907,7 @@
    
    function renderFinances(v) {
      const { fin, score } = v;
-     renderChart(fin.rows);
+     renderChart(fin.rows, v.estimate);
    
      setText('ratio-marge', fin.margin === null ? NA : fmtPct(fin.margin));
      setText('ratio-autonomie', NA);
@@ -766,6 +929,7 @@
        tilesRow([tile('Niveau de risque indicatif', score.risk, tone.text), tile('Conditions suggérées', score.terms), tile('Note indicative', `${score.total} / 100 (grade ${score.grade})`, tone.text)]) +
        bullets([
          ['Données financières', latestText],
+         ...(v.estimate.available ? [['Estimation indicative du CA', `Entre ${fmtEuro(v.estimate.low)} et ${fmtEuro(v.estimate.high)} (fiabilité faible). Ce n’est pas un chiffre publié et il n’entre ni dans la note ni dans les ratios.`]] : []),
          ['Plafond d’encours', 'Aucun montant n’est calculé automatiquement : il dépend de votre exposition, de vos garanties et de comptes à jour.'],
          ['Indicateurs non disponibles', 'Autonomie financière, délais de paiement (Paydex), DSO, DPO et BFR ne figurent pas dans les sources ouvertes.']
        ]) +
@@ -897,7 +1061,8 @@
      'Ce rapport est établi par Euro Expert Solvabilité à partir de sources publiques (répertoire Sirene de l’INSEE et ' +
      'comptes publiés, via l’API Recherche d’entreprises). Il est fourni à titre d’information, sans valeur contractuelle ' +
      'ni garantie. La note est indicative : elle ne constitue ni une notation de crédit réglementée, ni un conseil, ni une ' +
-     'certification. Les éléments non consultés sont signalés comme tels et doivent être vérifiés auprès des sources officielles.';
+     'certification. Les éléments non consultés sont signalés comme tels et doivent être vérifiés auprès des sources officielles. ' +
+     'Les estimations et l’analyse rédigée, lorsqu’elles figurent dans ce rapport, sont signalées comme telles et ne constituent pas des données publiées.';
    
    const LOGO_SVG =
      '<svg width="45" height="45" viewBox="0 0 100 100"><rect width="100" height="100" rx="16" fill="#0f172a"/>' +
@@ -970,9 +1135,22 @@
        cell(fmtEuro(r.resultat), { alignment: 'right', color: r.resultat !== null && r.resultat < 0 ? '#dc2626' : '#0f172a' }),
        cell(i === 0 ? '—' : variation(r.ca, rows[i - 1].ca), { alignment: 'center' })
      ]));
+     const dashedLayout = {
+       hLineWidth: () => 1, vLineWidth: () => 1,
+       hLineColor: () => '#d97706', vLineColor: () => '#d97706',
+       hLineStyle: () => ({ dash: { length: 3, space: 2 } }), vLineStyle: () => ({ dash: { length: 3, space: 2 } })
+     };
+     const est = v.estimate;
+     const estimateBlock = est.available
+       ? { table: { widths: ['*'], body: [[{ fillColor: '#fffbeb', margin: [8, 8, 8, 8], stack: [
+         { text: 'ESTIMATION INDICATIVE — NON ISSUE DE COMPTES PUBLIÉS', fontSize: 7, bold: true, color: '#b45309', margin: [0, 0, 0, 3] },
+         { text: `Chiffre d’affaires annuel possible : ${fmtEuro(est.low)} à ${fmtEuro(est.high)}`, fontSize: 9.5, bold: true, color: '#0f172a', margin: [0, 0, 0, 3] },
+         { text: `Base de calcul : ${est.basis}. Fiabilité : ${est.confidence.toLowerCase()}. Cette fourchette n’entre ni dans la note ni dans les ratios et ne doit pas servir à fixer un encours.`, fontSize: 7, color: '#78350f' }] }]] },
+         layout: dashedLayout, margin: [0, 0, 0, 10] }
+       : { text: est.reason || '', fontSize: 7, color: '#64748b', margin: [0, 0, 0, 10] };
      const financeBlock = rows.length
        ? { table: { widths: ['16%', '30%', '30%', '24%'], body: financeBody }, layout, margin: [0, 0, 0, 10] }
-       : noticeBox('#f8fafc', '#475569', 'COMPTES NON DISPONIBLES', 'Aucun compte publié n’est accessible via les sources ouvertes pour cette entité (comptes non déposés ou confidentiels).');
+       : { stack: [noticeBox('#f8fafc', '#475569', 'COMPTES NON DISPONIBLES', 'Aucun compte publié n’est accessible via les sources ouvertes pour cette entité (comptes non déposés ou confidentiels).'), estimateBlock] };
    
      const ratioRows = [
        [head('INDICATEUR'), head('VALEUR', 'tableHeaderDarkCenter'), head('MÉTHODE / SOURCE')],
@@ -988,6 +1166,27 @@
          `sur la base de sa marge nette de ${fmtPct(v.fin.margin)} (exercice ${v.fin.latest.year}).`)
        : noticeBox('#f8fafc', '#475569', 'EFFORT DE CHIFFRE D’AFFAIRES EN CAS D’IMPAYÉ',
          'Non calculable : la marge nette de l’entité n’est pas disponible ou n’est pas positive.');
+   
+     /* ---- Analyse rédigée (si générée) ---- */
+     let sectionNo = 6;
+     const nextSection = (title) => section(`${++sectionNo}. ${title}`);
+     const analysisBlocks = [];
+     if (v.analysis) {
+       const a = v.analysis;
+       const listPdf = (title, items, titleColor) => (items && items.length
+         ? [{ text: title, fontSize: 7.5, bold: true, color: titleColor, margin: [0, 2, 0, 2] }, { ul: items.map((t) => ({ text: t, fontSize: 7.5, margin: [0, 0, 0, 1] })), margin: [0, 0, 0, 4] }]
+         : []);
+       analysisBlocks.push(
+         nextSection('ANALYSE RÉDIGÉE'),
+         { text: a.source === 'ia' ? 'Texte rédigé par une IA à partir des seules données de ce rapport. À relire avant diffusion.' : 'Synthèse générée automatiquement, sans IA, à partir des données de ce rapport.', fontSize: 6.5, italics: true, color: '#64748b', margin: [0, 0, 0, 4] },
+         { text: a.resume, fontSize: 7.5, color: '#0f172a', margin: [0, 0, 0, 6] },
+         ...listPdf('Points forts', a.points_forts, '#059669'),
+         ...listPdf('Points de vigilance', a.points_vigilance, '#d97706'),
+         { text: [{ text: 'Recommandation : ', bold: true }, a.recommandation], fontSize: 7.5, color: '#0f172a', margin: [0, 2, 0, 4] },
+         ...listPdf('À vérifier', a.verifications, '#0284c7'),
+         { text: '', margin: [0, 0, 0, 6] }
+       );
+     }
    
      /* ---- Gouvernance ---- */
      const governanceBody = [[head('NOM / DÉNOMINATION'), head('QUALITÉ'), head('TYPE')]];
@@ -1090,15 +1289,16 @@
    
          /* ===== PAGE 3 ===== */
          { text: '', pageBreak: 'after' },
-         pageHeader('PAGE 3 — GOUVERNANCE, CONTRÔLES ET MENTIONS'),
+         pageHeader('PAGE 3 — ANALYSE, GOUVERNANCE, CONTRÔLES ET MENTIONS'),
          rule,
-         section('7. DIRIGEANTS DÉCLARÉS'),
+         ...analysisBlocks,
+         nextSection('DIRIGEANTS DÉCLARÉS'),
          governanceBlock,
-         section('8. CONTRÔLES ET VÉRIFICATIONS COMPLÉMENTAIRES'),
+         nextSection('CONTRÔLES ET VÉRIFICATIONS COMPLÉMENTAIRES'),
          { table: { widths: ['32%', '18%', '50%'], body: checks }, layout, margin: [0, 0, 0, 10] },
          noticeBox('#fffbe1', '#b45309', 'À VÉRIFIER AVANT TOUT ENGAGEMENT SIGNIFICATIF',
            'Les contrôles marqués « Non consulté » ne sont pas couverts par ce rapport. Demandez un RIB au nom exact de l’entité (SIREN ci-dessus) et rapprochez ces données de vos propres informations (historique de paiement, garanties, assurance-crédit).'),
-         section('9. MENTIONS ET LIMITES'),
+         nextSection('MENTIONS ET LIMITES'),
          { text: LEGAL_NOTICE, fontSize: 7, color: '#475569', margin: [0, 0, 0, 14] },
          { columns: [
            { stack: [
@@ -1133,6 +1333,117 @@
        console.error('Erreur de génération du PDF :', e);
        notify('Impossible de générer le PDF. Réessayez.');
      }
+   }
+   
+   /* =============================================================================
+      9 bis. ANALYSE RÉDIGÉE — IA côté serveur (api/analyse.js), repli local sans IA
+      Les chiffres sont toujours calculés par le code ; le modèle ne fait que rédiger.
+      ============================================================================= */
+   const isLegalPerson = (d) => d.type_dirigeant === 'personne morale';
+   
+   /** Faits transmis au serveur : pas de nom de dirigeant personne physique (minimisation des données). */
+   function buildAIFacts(v) {
+     const s = v.score;
+     return {
+       identite: {
+         raison_sociale: v.raison, siren: v.siren, code_naf: v.naf, forme_juridique: v.forme,
+         date_creation: v.dateCreation, anciennete_ans: ageInYears(v.dateCreation), tranche_effectif: v.effectif,
+         categorie: v.categorie, statut: v.active ? 'Active' : 'Cessée', date_cessation: v.dateFermeture || null,
+         commune: v.city, nb_etablissements: v.nbEtab, nb_etablissements_ouverts: v.nbEtabOpen
+       },
+       score: { note: s.total, grade: s.grade, risque: s.risk, conditions: s.terms, criteres: s.criteria },
+       finances: {
+         exercices: v.fin.rows.map((r) => ({ annee: r.year, ca: r.ca, resultat: r.resultat })),
+         croissance: v.fin.growth,
+         marge: v.fin.margin
+       },
+       estimation_ca: v.estimate.available ? { bas: v.estimate.low, haut: v.estimate.high, base: v.estimate.basis } : null,
+       dirigeants: {
+         nombre: v.dirigeants.length,
+         fonctions: v.dirigeants.map((d) => d.qualite).filter(Boolean),
+         personnes_morales: v.dirigeants.filter(isLegalPerson).map((d) => d.denomination).filter(Boolean)
+       }
+     };
+   }
+   
+   /** Synthèse déterministe (sans IA), utilisée si le service d'analyse n'est pas disponible. */
+   function buildFallbackAnalysis(v) {
+     const s = v.score;
+     const age = ageInYears(v.dateCreation);
+     const latest = v.fin.latest;
+     const sentences = [
+       `${v.raison} (SIREN ${v.siren}) est ${v.active ? 'une entreprise active' : 'une entreprise cessée'}` +
+         `${v.forme !== NA ? `, de forme ${v.forme}` : ''}${age !== null ? `, créée il y a ${age} an${age > 1 ? 's' : ''}` : ''}${v.city ? `, établie à ${v.city}` : ''}.`,
+       v.effectif !== NA ? `Effectif déclaré : ${v.effectif.toLowerCase()}.` : 'Effectif non renseigné.',
+       latest
+         ? `Les derniers comptes publiés (exercice ${latest.year}) indiquent${latest.ca !== null ? ` un chiffre d’affaires de ${fmtEuro(latest.ca)}` : ''}` +
+           `${latest.ca !== null && latest.resultat !== null ? ' et' : ''}${latest.resultat !== null ? ` un résultat net de ${fmtEuro(latest.resultat)}` : ''}.`
+         : 'Aucun compte publié n’est accessible : l’appréciation financière reste limitée.',
+       `La note indicative ressort à ${s.total}/100 (grade ${s.grade}, risque ${s.risk.toLowerCase()}).`
+     ];
+     return {
+       resume: sentences.join(' '),
+       points_forts: s.criteria.filter((c) => c.pts > 0 && c.pts >= c.max * 0.8).map((c) => `${c.name} : ${c.note}.`).slice(0, 4),
+       points_vigilance: s.criteria.filter((c) => c.pts < c.max * 0.5).map((c) => `${c.name} : ${c.note}.`).slice(0, 4),
+       recommandation: `${s.terms}. Cette appréciation repose uniquement sur des données publiques et doit être complétée par vos propres informations.`,
+       verifications: ['Annonces et procédures collectives (BODACC)', 'Bénéficiaires effectifs et gel des avoirs', 'Historique de paiement et garanties disponibles']
+     };
+   }
+   
+   async function generateAIAnalysis() {
+     const v = state.view;
+     if (!v) return notify('Sélectionnez d’abord une entreprise.');
+     const btn = $('ai-generate-btn');
+     if (btn) btn.disabled = true;
+     setHTML('ai-analysis', '<p class="text-slate-400"><i class="fa-solid fa-spinner animate-spin text-violet-400 mr-2"></i>Rédaction de l’analyse en cours…</p>');
+   
+     let analysis = null;
+     let source = 'local';
+     const session = readSession();
+     if (session) {
+       try {
+         const res = await fetch(CONFIG.analysisEndpoint, {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ token: session.token, facts: buildAIFacts(v) })
+         });
+         const data = await res.json().catch(() => null);
+         if (res.ok && data && data.ok && data.analysis) { analysis = data.analysis; source = 'ia'; }
+         else if (res.status === 401) { notify('Session expirée : reconnectez-vous.'); lockSession(); }
+       } catch (e) { /* service d'analyse indisponible */ }
+     }
+     if (state.view !== v) return; // une autre entreprise a été sélectionnée entre-temps
+   
+     if (!analysis) {
+       analysis = buildFallbackAnalysis(v);
+       notify(session ? 'Analyse IA indisponible : synthèse automatique affichée à la place.' : 'Analyse IA disponible uniquement avec une session active : synthèse automatique affichée.');
+     }
+     v.analysis = { ...analysis, source, generatedAt: new Date() };
+     renderAnalysis(v);
+   }
+   
+   function renderAnalysis(v) {
+     const btn = $('ai-generate-btn');
+     if (btn) btn.disabled = false;
+     const a = v.analysis;
+     if (!a) {
+       setHTML('ai-analysis', '<p class="text-slate-400">Cliquez sur « Générer l’analyse » pour obtenir une synthèse rédigée à partir des données ci-dessus.</p>');
+       if (btn) btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Générer l’analyse';
+       return;
+     }
+     if (btn) btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Régénérer';
+   
+     const isAI = a.source === 'ia';
+     const chip = `<span class="inline-block mb-3 px-2.5 py-1 rounded-full text-[10px] font-bold ${isAI ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30' : 'bg-slate-500/20 text-slate-300 border border-slate-500/30'}">` +
+       `${isAI ? 'Rédigée par IA à partir des données de ce rapport — à relire avant diffusion' : 'Synthèse automatique (sans IA)'}</span>`;
+     const list = (title, items, tone) => (items && items.length
+       ? `<div><strong class="${tone} block mb-1">${esc(title)}</strong><ul class="space-y-1">${items.map((i) => `<li class="flex gap-2"><span class="text-slate-500">•</span><span>${esc(i)}</span></li>`).join('')}</ul></div>`
+       : '');
+     setHTML('ai-analysis',
+       `${chip}<p class="mb-3 text-slate-200">${esc(a.resume)}</p>` +
+       `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">${list('Points forts', a.points_forts, 'text-emerald-400')}${list('Points de vigilance', a.points_vigilance, 'text-amber-400')}</div>` +
+       `<p class="border-t border-slate-800 pt-2 mb-3"><strong class="text-white">Recommandation :</strong> ${esc(a.recommandation)}</p>` +
+       list('À vérifier', a.verifications, 'text-sky-400'));
    }
    
    /* =============================================================================
