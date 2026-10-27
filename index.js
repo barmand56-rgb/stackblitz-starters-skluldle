@@ -1831,8 +1831,59 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
   
+// ============================================================================
+// 1. DÉCLARATION SÉCURISÉE DU CACHE API
+// ============================================================================
+if (typeof apiSearchCache === "undefined") {
+    var apiSearchCache = new Map();
+  }
+  
   // ============================================================================
-  // FONCTION D'AUDIT DIRECT (RECHERCHE PAR SIREN OU NOM DE MARQUE)
+  // 2. INITIALISATION DES ÉCOUTEURS (COMPATIBLE STACKBLITZ HOT-RELOAD)
+  // ============================================================================
+  function initSearchEvents() {
+    // Détection souple du champ de recherche (par ID ou sélecteur HTML)
+    const searchInput = document.getElementById("search-input") || document.querySelector("input[type='text']") || document.querySelector("input");
+  
+    if (searchInput) {
+      // Saisie au clavier
+      searchInput.oninput = (e) => {
+        if (typeof fetchAutocompleteSuggestions === "function") {
+          fetchAutocompleteSuggestions(e.target.value);
+        }
+      };
+  
+      // Touche Entrée
+      searchInput.onkeydown = async (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          await triggerDirectAudit(searchInput.value);
+        }
+      };
+    }
+  
+    // Détection souple du bouton "Lancer l'Audit"
+    const buttons = Array.from(document.querySelectorAll("button"));
+    const launchBtn = buttons.find(b => b.textContent.includes("Lancer l'Audit")) || document.getElementById("launch-audit-btn");
+  
+    if (launchBtn) {
+      launchBtn.onclick = async (e) => {
+        e.preventDefault();
+        const val = searchInput ? searchInput.value : "";
+        await triggerDirectAudit(val);
+      };
+    }
+  }
+  
+  // Exécution immédiate pour StackBlitz + secours DOMContentLoaded
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initSearchEvents);
+  } else {
+    initSearchEvents();
+  }
+  
+  // ============================================================================
+  // 3. FONCTION D'AUDIT DIRECT
   // ============================================================================
   async function triggerDirectAudit(query) {
     if (!query || query.trim().length < 2) return;
@@ -1841,14 +1892,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const numericOnly = raw.replace(/\s+/g, '');
     let apiUrl = "";
   
-    // CAS 1 : Saisie d'un SIREN (9 chiffres) ou SIRET (14 chiffres), même avec espaces
+    // Cas 1 : SIREN (9 chiffres) ou SIRET (14 chiffres)
     if (/^\d{9,14}$/.test(numericOnly)) {
       const siren = numericOnly.substring(0, 9);
       apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${siren}&per_page=5`;
     } 
-    // CAS 2 : Recherche textuelle par nom / enseigne (ex: "L'OLIVIER BEG MEIL")
+    // Cas 2 : Nom ou raison sociale
     else {
-      // Conserve les espaces entre les mots, remplace apostrophes et tirets
       const cleanText = raw.replace(/[''-]/g, ' ').replace(/\s+/g, ' ');
       apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanText)}&per_page=15`;
     }
@@ -1859,34 +1909,21 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data && data.results && data.results.length > 0) {
         const results = data.results;
   
-        // Tri intelligent : Priorité aux entreprises en activité + secteur restauration si précisé
-        results.sort((a, b) => {
-          let scoreA = a.etat_administratif === "A" ? 50 : 0;
-          let scoreB = b.etat_administratif === "A" ? 50 : 0;
-  
-          if (/\b(pizzeria|restaurant|resto|bar|brasserie)\b/i.test(raw)) {
-            if (a.activite_principale && a.activite_principale.startsWith("56")) scoreA += 30;
-            if (b.activite_principale && b.activite_principale.startsWith("56")) scoreB += 30;
-          }
-  
-          return scoreB - scoreA;
-        });
+        // Priorité aux établissements actifs
+        results.sort((a, b) => (b.etat_administratif === "A" ? 1 : 0) - (a.etat_administratif === "A" ? 1 : 0));
   
         const company = results[0];
   
-        // Injection synchrone des données dans le tableau de bord
         if (typeof selectCompany === "function") {
           selectCompany(company);
         }
   
-        // Masquage du menu d'autocomplétion
         const container = document.getElementById("autocomplete-results");
         if (container) container.classList.add("hidden");
-  
       } else {
-        alert(`Aucune entreprise trouvée pour la référence : "${query}"`);
+        alert(`Aucune entreprise trouvée pour : "${query}"`);
       }
     } catch (err) {
-      console.error("Erreur lors du lancement de l'audit direct :", err);
+      console.error("Erreur lors de l'audit direct :", err);
     }
   }
