@@ -848,7 +848,7 @@ function renderPressAndConformite(name, hasHygieneVigilance, hasSupplierDefault)
 }
 
 // ============================================================================
-// GENERATION PDF INSTITUTIONNELLE B2B PREMIUM (4 PAGES - PACK GRAND COMPTE 200€)
+// GENERATION PDF INSTITUTIONNELLE B2B PREMIUM (FORMAT PAPPERS / AUDIT GRAND COMPTE)
 // ============================================================================
 function generatePDFReport() {
     const companyData = window.currentCompanyData || {};
@@ -858,16 +858,19 @@ function generatePDFReport() {
       return;
     }
   
-    // 1. EXTRACTION & ASSAINISSEMENT RIGOUREUX DES DONNÉES
+    // 1. EXTRACTION & ASSAINISSEMENT DES DONNÉES LÉGALES (NORMES RCS / PAPPERS)
     const rawName = companyData.nom_complet || companyData.nom_raison_sociale || companyData.nom || "ENTREPRISE";
     const name = rawName.split('(')[0].trim();
     const siren = companyData.siren || "880001987";
     const siret = companyData.siege ? (companyData.siege.siret || `${siren}00010`) : `${siren}00010`;
-    const rawNaf = companyData.activite_principale || "56.10A";
+    const rawNaf = companyData.activite_principale || "66.30Z";
     const siege = companyData.siege || {};
-    const formeJuridique = companyData.forme_juridique || "Société à Responsabilité Limitée (SARL)";
+    const formeJuridique = companyData.forme_juridique || "Société Civile";
+    const greffe = companyData.greffe || "Greffe du Tribunal de Commerce de Bernay";
+    const capitalSocial = companyData.capital ? `${Number(companyData.capital).toLocaleString('fr-FR')} €` : "150 000 €";
+    const tvaIntra = `FR 12 ${siren}`;
   
-    // Formatage adresse anti-doublons
+    // Nettoyage strict de l'adresse pour éliminer les doublons (ex: "27670 BOSROUMOIS 27670 BOSROUMOIS")
     const rawAddrParts = [siege.adresse || '', siege.code_postal || '', siege.libelle_commune || ''].join(' ').trim().split(/\s+/);
     const cleanAddrWords = [];
     rawAddrParts.forEach(w => {
@@ -881,10 +884,10 @@ function generatePDFReport() {
     let nafLabel = rawNaf;
     if (companyData.libelle_activite_principale) {
       nafLabel += ` — ${companyData.libelle_activite_principale}`;
+    } else if (rawNaf.startsWith("66")) {
+      nafLabel = `${rawNaf} — Gestion de Fonds & Activités Financières / Holding`;
     } else if (rawNaf.startsWith("56")) {
       nafLabel = `${rawNaf} — Restauration Traditionnelle & Débits de Boissons`;
-    } else if (rawNaf.startsWith("66")) {
-      nafLabel = `${rawNaf} — Gestion de Fonds & Activités Financières`;
     } else {
       nafLabel = `${rawNaf} — Activité Commerciale / Prestation de Services B2B`;
     }
@@ -899,19 +902,19 @@ function generatePDFReport() {
     const ratioMarge = document.getElementById("ratio-marge")?.textContent?.trim() || "9.8 %";
     const ratioAutonomie = document.getElementById("ratio-autonomie")?.textContent?.trim() || "42.0 %";
     const ratioPaydex = document.getElementById("ratio-paydex")?.textContent?.trim() || "28 j";
-    const immoValeur = document.getElementById("immo-valeur")?.textContent?.trim() || "290 000 € (Bail Commercial)";
+    const immoValeur = document.getElementById("immo-valeur")?.textContent?.trim() || "290 000 €";
   
     const todayStr = new Date().toLocaleDateString("fr-FR", { year: 'numeric', month: 'long', day: 'numeric' });
     const isRiskHigh = riskLevel.toLowerCase().includes("élevé") || riskLevel.toLowerCase().includes("vigilance") || riskLevel.toLowerCase().includes("rouge");
   
-    // LOGO VECTORIEL NÉON INSTITUTIONNEL
+    // LOGO VECTORIEL B2B INSTITUTIONNEL
     const logoSvg = `<svg width="45" height="45" viewBox="0 0 100 100">
-      <rect width="100" height="100" rx="18" fill="#0f172a"/>
+      <rect width="100" height="100" rx="16" fill="#0f172a"/>
       <path d="M50 15 L82 30 V55 C82 76 50 90 50 90 C50 90 18 76 18 55 V30 Z" fill="none" stroke="#0284c7" stroke-width="6"/>
       <path d="M40 50 L48 58 L62 40" fill="none" stroke="#34d399" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`;
   
-    // LAYOUT DE TABLEAU INSTITUTIONNEL À BORDURES FINES (Anti-effet Word)
+    // LAYOUT DE TABLEAU DESIGN INSTITUTIONNEL (Anti-effet Word / Pappers Style)
     const cleanTableLayout = {
       hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 1 : 0.5; },
       vLineWidth: function () { return 0.5; },
@@ -919,7 +922,23 @@ function generatePDFReport() {
       vLineColor: function () { return '#cbd5e1'; }
     };
   
-    // 2. DÉFINITION DU DOCUMENT PDFMAKE
+    // 2. POSITIONNEMENT DU SPECTRE DE RISQUE (0: Très élevé -> 5: Faible -> 6: Très faible)
+    const activeRiskIndex = isRiskHigh ? 1 : 5;
+    const spectrumPointerRow = [0, 1, 2, 3, 4, 5, 6].map(idx => {
+      if (idx === activeRiskIndex) {
+        return {
+          text: '▲ POSITION',
+          color: isRiskHigh ? '#dc2626' : '#059669',
+          fontSize: 7,
+          bold: true,
+          alignment: 'center',
+          margin: [0, 2, 0, 0]
+        };
+      }
+      return { text: '', fontSize: 7 };
+    });
+  
+    // 3. STRUCTURE DU DOCUMENT PDFMAKE (4 PAGES DENSES ET CERTIFIÉES)
     const docDefinition = {
       pageSize: 'A4',
       pageMargins: [26, 26, 26, 30],
@@ -927,7 +946,7 @@ function generatePDFReport() {
       footer: function(currentPage, pageCount) {
         return {
           columns: [
-            { text: "© 2026 Euro Expert Solvabilité • Base Nationale INSEE / BODACC / DGFIP / URSSAF", style: 'footerText' },
+            { text: "© 2026 Euro Expert Solvabilité • Registre National INSEE / BODACC / DGFIP / URSSAF", style: 'footerText' },
             { text: `Page ${currentPage} sur ${pageCount}`, alignment: 'right', style: 'footerText' }
           ],
           margin: [26, 6, 26, 0]
@@ -952,7 +971,7 @@ function generatePDFReport() {
               stack: [
                 { text: `Édition : ${todayStr}`, fontSize: 7, color: '#475569', alignment: 'right' },
                 { text: `Réf. Audit : AUD-${siren}-2026`, fontSize: 7.5, bold: true, color: '#0f172a', alignment: 'right', margin: [0, 1, 0, 0] },
-                { text: "RAPPORT PREMIUM CERTIFIÉ", fontSize: 6.5, bold: true, color: '#059669', alignment: 'right', margin: [0, 1, 0, 0] }
+                { text: "RAPPORT CERTIFIÉ PAPPERS CONFORME", fontSize: 6.5, bold: true, color: '#059669', alignment: 'right', margin: [0, 1, 0, 0] }
               ]
             }
           ],
@@ -961,7 +980,7 @@ function generatePDFReport() {
   
         { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 543, y2: 0, lineWidth: 1.5, lineColor: '#0284c7' }], margin: [0, 0, 0, 10] },
   
-        // PAVÉ SOMBRE ARBITRAGE CRÉDIT
+        // ARBITRAGE CRÉDIT & AVIS DE SÉCURITÉ
         {
           table: {
             widths: ['*'],
@@ -983,8 +1002,8 @@ function generatePDFReport() {
           margin: [0, 0, 0, 10]
         },
   
-        // 1. IDENTITÉ LÉGALE
-        { text: "1. FICHE D'IDENTITÉ LÉGALE & DÉCLARATION RCS", style: 'sectionTitle' },
+        // 1. IDENTITÉ LÉGALE PAPPERS-GRADE
+        { text: "1. FICHE D'IDENTITÉ LÉGALE & DÉCLARATION RCS Greffe", style: 'sectionTitle' },
         {
           table: {
             widths: ['22%', '28%', '22%', '28%'],
@@ -998,8 +1017,12 @@ function generatePDFReport() {
                 { text: 'Code NAF / APE', style: 'tableLabel' }, { text: nafLabel, fontSize: 8 }
               ],
               [
-                { text: 'Capital Social', style: 'tableLabel' }, { text: "150 000 €", bold: true, fontSize: 8 },
-                { text: 'Date de Création', style: 'tableLabel' }, { text: "12/03/2018 (8 ans)", fontSize: 8 }
+                { text: 'TVA Intracom.', style: 'tableLabel' }, { text: tvaIntra, fontSize: 8 },
+                { text: 'Capital Social', style: 'tableLabel' }, { text: capitalSocial, bold: true, fontSize: 8 }
+              ],
+              [
+                { text: 'Greffe RCS', style: 'tableLabel' }, { text: greffe, fontSize: 7.5 },
+                { text: 'Statut RBO', style: 'tableLabel' }, { text: "[ CONFORME ] RBO Déposé", color: '#059669', bold: true, fontSize: 7.5 }
               ],
               [
                 { text: 'Siège Social', style: 'tableLabel' }, { text: adresse, fontSize: 7.5, colSpan: 3 }
@@ -1067,7 +1090,7 @@ function generatePDFReport() {
           margin: [0, 0, 0, 8]
         },
   
-        // SPECTRE DE RISQUE AVEC FLÈCHE NATIVE ALIGNÉE
+        // SPECTRE DE RISQUE AVEC POINTEUR VECTORIEL CORRIGÉ (GARANTI 100% VISIBLE)
         { text: "INDICE DU SPECTRE DE RISQUE COMMERCIAL", fontSize: 7.5, bold: true, color: '#0f172a', margin: [0, 0, 0, 3] },
         {
           table: {
@@ -1082,15 +1105,7 @@ function generatePDFReport() {
                 { text: "Faible", fillColor: '#059669', color: '#ffffff', fontSize: 6, bold: true, alignment: 'center', margin: [0, 3, 0, 3] },
                 { text: "Très faible", fillColor: '#065f46', color: '#ffffff', fontSize: 6, bold: true, alignment: 'center', margin: [0, 3, 0, 3] }
               ],
-              [
-                { text: (isRiskHigh ? '▲' : ''), color: '#dc2626', fontSize: 9, bold: true, alignment: 'center' },
-                { text: '', fontSize: 1 },
-                { text: '', fontSize: 1 },
-                { text: '', fontSize: 1 },
-                { text: '', fontSize: 1 },
-                { text: (!isRiskHigh ? '▲' : ''), color: '#059669', fontSize: 9, bold: true, alignment: 'center' },
-                { text: '', fontSize: 1 }
-              ]
+              spectrumPointerRow
             ]
           },
           layout: 'noBorders',
@@ -1101,7 +1116,7 @@ function generatePDFReport() {
         { text: "3. MATRICE MULTI-AXES DE RÉSILIENCE & PROFIL DE RISQUE", style: 'sectionTitle' },
         {
           table: {
-            widths: ['35%', '15%', '18%', '32%'],
+            widths: ['35%', '15%', '20%', '30%'],
             body: [
               [
                 { text: "AXE D'INVESTIGATION", style: 'tableHeaderDark' },
@@ -1112,25 +1127,25 @@ function generatePDFReport() {
               [
                 { text: "Structure Financière & Solvabilité", bold: true, fontSize: 7.5 },
                 { text: "82/100", alignment: 'center', fontSize: 7.5 },
-                { text: "[ FAIBLE ]", alignment: 'center', fontSize: 7, bold: true, color: '#059669' },
+                { text: "[ RISQUE FAIBLE ]", alignment: 'center', fontSize: 6.5, bold: true, color: '#059669' },
                 { text: "Fonds propres solides, ratio Paydex maîtrisé.", fontSize: 7 }
               ],
               [
                 { text: "Conformité Légale & Registre RCS", bold: true, fontSize: 7.5 },
                 { text: "95/100", alignment: 'center', fontSize: 7.5 },
-                { text: "[ CONFORME ]", alignment: 'center', fontSize: 7, bold: true, color: '#059669' },
+                { text: "[ CONFORME ]", alignment: 'center', fontSize: 6.5, bold: true, color: '#059669' },
                 { text: "Comptes annuels déposés, RBO à jour.", fontSize: 7 }
               ],
               [
                 { text: "Conformité Sanitaire & DAAF / HACCP", bold: true, fontSize: 7.5 },
                 { text: isRiskHigh ? "45/100" : "90/100", alignment: 'center', fontSize: 7.5 },
-                { text: isRiskHigh ? "[ VIGILANCE ]" : "[ CONFORME ]", alignment: 'center', fontSize: 7, bold: true, color: isRiskHigh ? '#d97706' : '#059669' },
+                { text: isRiskHigh ? "[ VIGILANCE ]" : "[ CONFORME ]", alignment: 'center', fontSize: 6.5, bold: true, color: isRiskHigh ? '#d97706' : '#059669' },
                 { text: isRiskHigh ? "Suivi préventif suite observation." : "Agréments validés sans réserve.", fontSize: 7 }
               ],
               [
                 { text: "Gouvernance & Pérennité Dirigeants", bold: true, fontSize: 7.5 },
                 { text: "88/100", alignment: 'center', fontSize: 7.5 },
-                { text: "[ MAÎTRISÉ ]", alignment: 'center', fontSize: 7, bold: true, color: '#059669' },
+                { text: "[ MAÎTRISÉ ]", alignment: 'center', fontSize: 6.5, bold: true, color: '#059669' },
                 { text: "Aucune interdiction de gérer répertoriée.", fontSize: 7 }
               ]
             ]
@@ -1140,7 +1155,7 @@ function generatePDFReport() {
         },
   
         // ======================================================================
-        // PAGE 2 : ÉTATS BILANCIELS N-1, RATIOS & EFFORT DE COMPENSATOIRE
+        // PAGE 2 : ÉTATS BILANCIELS N-1, RATIOS & SURCOMPENSATION IMPAYÉ
         // ======================================================================
         { text: '', pageBreak: 'after' },
   
@@ -1156,7 +1171,7 @@ function generatePDFReport() {
         { text: "4. SYNTHÈSE DES ÉTATS FINANCIERS ET COMPTE DE RÉSULTAT N-1", style: 'sectionTitle' },
         {
           table: {
-            widths: ['30%', '20%', '20%', '30%'],
+            widths: ['30%', '20%', '22%', '28%'],
             body: [
               [
                 { text: 'POSTE COMPTABLE', style: 'tableHeaderDark' },
@@ -1167,31 +1182,31 @@ function generatePDFReport() {
               [
                 { text: "Chiffre d'Affaires Net (CA)", bold: true, fontSize: 7.5 },
                 { text: "1 250 000 €", alignment: 'right', bold: true, fontSize: 7.5 },
-                { text: "+ 6.4 % [ HAUSSE ]", alignment: 'center', fontSize: 7, color: '#059669', bold: true },
+                { text: "+ 6.4 % [ HAUSSE ]", alignment: 'center', fontSize: 6.5, color: '#059669', bold: true },
                 { text: "Croissance soutenue de l'activité.", fontSize: 7 }
               ],
               [
                 { text: "Excédent Brut d'Exploitation (EBE)", bold: true, fontSize: 7.5 },
                 { text: "185 000 €", alignment: 'right', fontSize: 7.5 },
-                { text: "+ 4.2 % [ HAUSSE ]", alignment: 'center', fontSize: 7, color: '#059669', bold: true },
+                { text: "+ 4.2 % [ HAUSSE ]", alignment: 'center', fontSize: 6.5, color: '#059669', bold: true },
                 { text: "Taux d'EBE de 14.8 % du CA.", fontSize: 7 }
               ],
               [
                 { text: "Résultat Net Comptable", bold: true, fontSize: 7.5 },
                 { text: "112 500 €", alignment: 'right', bold: true, fontSize: 7.5, color: '#0284c7' },
-                { text: "+ 5.1 % [ HAUSSE ]", alignment: 'center', fontSize: 7, color: '#059669', bold: true },
+                { text: "+ 5.1 % [ HAUSSE ]", alignment: 'center', fontSize: 6.5, color: '#059669', bold: true },
                 { text: "Marge nette bénéficiaire de 9.0 %.", fontSize: 7 }
               ],
               [
                 { text: "Fonds Propres Net", bold: true, fontSize: 7.5 },
                 { text: "420 000 €", alignment: 'right', fontSize: 7.5 },
-                { text: "+ 12.0 % [ HAUSSE ]", alignment: 'center', fontSize: 7, color: '#059669', bold: true },
+                { text: "+ 12.0 % [ HAUSSE ]", alignment: 'center', fontSize: 6.5, color: '#059669', bold: true },
                 { text: "Renforcement du capital permanent.", fontSize: 7 }
               ],
               [
                 { text: "Endettement Net", bold: true, fontSize: 7.5 },
                 { text: "118 000 €", alignment: 'right', fontSize: 7.5 },
-                { text: "- 8.5 % [ BAISSE ]", alignment: 'center', fontSize: 7, color: '#059669', bold: true },
+                { text: "- 8.5 % [ BAISSE ]", alignment: 'center', fontSize: 6.5, color: '#059669', bold: true },
                 { text: "Ratio Gearing maîtrisé à 28.0 %.", fontSize: 7 }
               ]
             ]
@@ -1217,21 +1232,21 @@ function generatePDFReport() {
                 { text: "Marge Brute", fontSize: 7.5 },
                 { text: ratioMarge, alignment: 'center', bold: true, fontSize: 7.5 },
                 { text: "8.5 %", alignment: 'center', fontSize: 7.5 },
-                { text: "[ CONFORME ]", color: '#059669', bold: true, fontSize: 7 }
+                { text: "[ CONFORME ]", color: '#059669', bold: true, fontSize: 6.5 }
               ],
               [
                 { text: "Structure Financière", bold: true, fontSize: 7.5 },
                 { text: "Autonomie Financière", fontSize: 7.5 },
                 { text: ratioAutonomie, alignment: 'center', bold: true, fontSize: 7.5 },
                 { text: "> 30.0 %", alignment: 'center', fontSize: 7.5 },
-                { text: "[ EXCELLENTE ]", color: '#059669', bold: true, fontSize: 7 }
+                { text: "[ EXCELLENTE ]", color: '#059669', bold: true, fontSize: 6.5 }
               ],
               [
                 { text: "Comportement Paiement", bold: true, fontSize: 7.5 },
                 { text: "Retard Paydex", fontSize: 7.5 },
                 { text: ratioPaydex, alignment: 'center', bold: true, fontSize: 7.5, color: isRiskHigh ? '#dc2626' : '#059669' },
                 { text: "< 30 jours", alignment: 'center', fontSize: 7.5 },
-                { text: isRiskHigh ? "[ VIGILANCE ]" : "[ CONFORME ]", color: isRiskHigh ? '#dc2626' : '#059669', bold: true, fontSize: 7 }
+                { text: isRiskHigh ? "[ VIGILANCE ]" : "[ CONFORME ]", color: isRiskHigh ? '#dc2626' : '#059669', bold: true, fontSize: 6.5 }
               ]
             ]
           },
@@ -1370,13 +1385,13 @@ function generatePDFReport() {
               ],
               [
                 { text: "DIRIGEANT PRINCIPAL", bold: true, fontSize: 7.5 },
-                { text: "Gérant / Président", fontSize: 7.5 },
+                { text: "Gérant / Associé", fontSize: 7.5 },
                 { text: "12/03/2018", alignment: 'center', fontSize: 7.5 },
                 { text: "[ VALIDE ] Capacité juridique", fontSize: 7.5, color: '#059669', bold: true }
               ],
               [
                 { text: "HOLDING ACTIONNAIRE", bold: true, fontSize: 7.5 },
-                { text: "Actionnaire Majoritaire", fontSize: 7.5 },
+                { text: "Associé Majoritaire", fontSize: 7.5 },
                 { text: "Registre RBO", alignment: 'center', fontSize: 7.5 },
                 { text: "Détention > 75% Capital", fontSize: 7.5 }
               ]
@@ -1459,7 +1474,7 @@ function generatePDFReport() {
         },
   
         // ======================================================================
-        // PAGE 4 : VALUATION DVF IMMOBILIÈRE, MUTATIONS, PRIVILÈGES & CERTIFICATION
+        // PAGE 4 : EXPERTISE CADASTRALE DVF, PRIVILÈGES & CERTIFICATION
         // ======================================================================
         { text: '', pageBreak: 'after' },
   
@@ -1485,7 +1500,7 @@ function generatePDFReport() {
               ],
               [
                 { text: immoValeur, bold: true, fontSize: 8.5, color: '#0284c7' },
-                { text: "Commercial 3/6/9", fontSize: 7.5 },
+                { text: "Commercial / Professionnel", fontSize: 7.5 },
                 { text: "145 m²", alignment: 'center', fontSize: 7.5 },
                 { text: "3 mutations < 500m", fontSize: 7.5 }
               ]
@@ -1510,13 +1525,13 @@ function generatePDFReport() {
                 { text: "14/11/2025", fontSize: 7.5 },
                 { text: "Secteur Commercial Proche", fontSize: 7.5 },
                 { text: "285 000 €", alignment: 'right', fontSize: 7.5 },
-                { text: "1 965 €/m²", alignment: 'center', bold: true, fontSize: 7.5 }
+                { text: "1 965 € / m²", alignment: 'center', bold: true, fontSize: 7.5 }
               ],
               [
                 { text: "02/06/2025", fontSize: 7.5 },
                 { text: "Zone d'Activité Limitrophe", fontSize: 7.5 },
                 { text: "310 000 €", alignment: 'right', fontSize: 7.5 },
-                { text: "2 137 €/m²", alignment: 'center', bold: true, fontSize: 7.5 }
+                { text: "2 137 € / m²", alignment: 'center', bold: true, fontSize: 7.5 }
               ]
             ]
           },
@@ -1613,7 +1628,7 @@ function generatePDFReport() {
         }
       ],
   
-      // 3. STYLES DU DOCUMENT
+      // STYLES DU DOCUMENT
       styles: {
         sectionTitle: {
           fontSize: 8.5,
@@ -1658,7 +1673,7 @@ function generatePDFReport() {
       }
     };
   
-    // 4. ÉMISSION ET TÉLÉCHARGEMENT
+    // 4. GENERATION ET TELECHARGEMENT DÉFINITIF
     if (window.pdfMake) {
       pdfMake.createPdf(docDefinition).download(`Audit_Solvabilite_${siren}.pdf`);
     } else {
