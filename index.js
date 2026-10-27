@@ -1,3 +1,11 @@
+// ============================================================================
+// FIX DES VARIABLES MANQUANTES (AUTOCOMPLÉTION & API CACHE)
+// ============================================================================
+window.searchDebounceTimeout = window.searchDebounceTimeout || null;
+var searchDebounceTimeout = window.searchDebounceTimeout;
+
+window.apiSearchCache = window.apiSearchCache || new Map();
+var apiSearchCache = window.apiSearchCache;
 
 /**
  * EURO EXPERT SOLVABILITÉ 2026 - MOTEUR D'AUDIT B2B CERTIFIÉ & AUTOCOMPLÉTION DYNAMIQUE
