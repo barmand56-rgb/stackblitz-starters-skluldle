@@ -116,96 +116,141 @@ function handleSearchInput(event) {
         fetchAutocompleteSuggestions(query);
     }, 200);
 }
+
+
 // 🟢 Fonction d'autocomplétion correctement structurée
+// 🟢 1. RECHERCHE OPTIMISÉE (GÈRE LES PME, APOSTROPHES & VILLES/CODE POSTAL)
 async function fetchAutocompleteSuggestions(query) {
-  const resultsContainer = document.getElementById("autocomplete-results");
-
-  // Sécurité : bloquer si moins de 3 caractères (placée À L'INTÉRIEUR de la fonction)
-  if (!query || query.trim().length < 3) {
-    if (resultsContainer) resultsContainer.classList.add("hidden");
-    return;
+    const resultsContainer = document.getElementById("autocomplete-results");
+  
+    // Sécurité : bloquer si moins de 3 caractères
+    if (!query || query.trim().length < 3) {
+      if (resultsContainer) resultsContainer.classList.add("hidden");
+      return;
+    }
+  
+    if (!resultsContainer) return;
+  
+    // Nettoyage de la saisie (remplace les apostrophes et tirets par des espaces)
+    let cleanQuery = query.trim().replace(/'/g, ' ').replace(/-/g, ' ');
+  
+    // Détection d'un code postal à 5 chiffres (ex: "29170" ou "29")
+    const cpMatch = cleanQuery.match(/\b\d{5}\b/);
+    let url = "";
+  
+    if (cpMatch) {
+      const codePostal = cpMatch[0];
+      const searchTerm = cleanQuery.replace(codePostal, '').trim();
+      url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(searchTerm)}&code_postal=${codePostal}&per_page=25`;
+    } else {
+      // Augmenté à 25 résultats pour ne pas noyer les PME locales sous les grands groupes
+      url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanQuery)}&per_page=25`;
+    }
+  
+    const data = await fetchGouvAPI(url);
+  
+    if (data && data.results && data.results.length > 0) {
+      let results = data.results;
+  
+      // Tri intelligent : prioriser la commune ou le lieu si saisi dans la recherche (ex: Beg-Meil / Fouesnant)
+      const searchWords = cleanQuery.toLowerCase().split(/\s+/);
+      results.sort((a, b) => {
+        const addrA = `${a.siege?.adresse || ''} ${a.siege?.libelle_commune || ''}`.toLowerCase();
+        const addrB = `${b.siege?.adresse || ''} ${b.siege?.libelle_commune || ''}`.toLowerCase();
+        
+        const matchA = searchWords.some(w => w.length > 2 && addrA.includes(w));
+        const matchB = searchWords.some(w => w.length > 2 && addrB.includes(w));
+  
+        if (matchA && !matchB) return -1;
+        if (!matchA && matchB) return 1;
+        return 0;
+      });
+  
+      renderAutocompleteResults(results);
+    } else {
+      resultsContainer.classList.add("hidden");
+    }
   }
-
-  if (!resultsContainer) return;
-
-  const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&per_page=6`;
-  const data = await fetchGouvAPI(url);
-
-  if (data && data.results && data.results.length > 0) {
-    renderAutocompleteResults(data.results);
-  } else {
-    resultsContainer.classList.add("hidden");
-  }
-}
-
-function renderAutocompleteResults(results) {
+  
+  // 🟢 2. AFFICHAGE DES RÉSULTATS DANS LE MENU DÉROULANT
+  function renderAutocompleteResults(results) {
     const resultsContainer = document.getElementById("autocomplete-results");
     if (!resultsContainer) return;
-
-    // 🟢 FIX : Passer le menu au premier plan au-dessus de la carte
-  if (resultsContainer.parentElement) {
-    resultsContainer.parentElement.style.position = "relative";
-    resultsContainer.parentElement.style.zIndex = "9999";
-    resultsContainer.parentElement.style.overflow = "visible";
-  }
-  resultsContainer.style.position = "absolute";
-  resultsContainer.style.top = "100%";
-  resultsContainer.style.left = "0";
-  resultsContainer.style.right = "0";
-  resultsContainer.style.zIndex = "99999";
-
+  
+    // FIX : Passer le menu au premier plan au-dessus des cartes
+    if (resultsContainer.parentElement) {
+      resultsContainer.parentElement.style.position = "relative";
+      resultsContainer.parentElement.style.zIndex = "9999";
+      resultsContainer.parentElement.style.overflow = "visible";
+    }
+  
+    resultsContainer.style.position = "absolute";
+    resultsContainer.style.top = "100%";
+    resultsContainer.style.left = "0";
+    resultsContainer.style.right = "0";
+    resultsContainer.style.zIndex = "99999";
+    resultsContainer.classList.remove("hidden");
+  
     resultsContainer.innerHTML = "";
-
+  
     results.forEach(company => {
-        const item = document.createElement("div");
-        item.className = "p-3 hover:bg-slate-800/90 cursor-pointer transition-all flex items-center justify-between border-b border-slate-800/60";
-    
-        const siren = company.siren || "Inconnu";
-        const name = company.nom_complet || company.nom_raison_sociale || "Entreprise";
-        const postal = company.siege ? (company.siege.code_postal || "") : "";
-        const ville = company.siege ? (company.siege.libelle_commune || "") : "";
-        const naf = company.activite_principale || "";
-        const estActive = company.etat_administratif === "A";
-        const initiale = name.charAt(0).toUpperCase();
-    
-        item.innerHTML = `
-          <div class="flex items-center gap-3 w-full">
-            <!-- Mini Badge Initiales -->
-            <div class="w-9 h-9 min-w-[36px] rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400 flex items-center justify-center font-bold text-sm">
-              ${initiale}
+      const siren = company.siren || "Inconnu";
+      const name = company.nom_complet || company.nom_raison_sociale || "Entreprise";
+      const postal = company.siege ? (company.siege.code_postal || "") : "";
+      const ville = company.siege ? (company.siege.libelle_commune || "") : "";
+      const naf = company.activite_principale || "";
+      const estActive = company.etat_administratif === "A";
+      const initiale = name.charAt(0).toUpperCase();
+  
+      const item = document.createElement("div");
+      item.className = "p-3 hover:bg-slate-800/90 cursor-pointer transition-all border-b border-slate-700/50 text-left";
+  
+      item.innerHTML = `
+        <div class="flex items-center gap-3 w-full">
+          <div class="w-9 h-9 min-w-[36px] rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400 flex items-center justify-center font-bold text-sm">
+            ${initiale}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-sm font-bold text-white truncate">${name}</span>
+              <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold ${estActive ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
+                ${estActive ? 'Active' : 'Fermée'}
+              </span>
             </div>
-    
-            <!-- Informations Détaillées B2B -->
-            <div class="flex-1 min-w-0 text-left">
-              <div class="flex items-center justify-between gap-2">
-                <span class="text-sm font-bold text-white truncate">${name}</span>
-                <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold ${estActive ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'}">
-                  ${estActive ? 'Active 🟢' : 'Fermée 🔴'}
-                </span>
-              </div>
-              <div class="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
-                <span>SIREN: <strong class="text-sky-400 font-mono">${siren}</strong></span>
-                <span>📍 ${postal} ${ville}</span>
-                ${naf ? `<span class="hidden sm:inline">NAF: ${naf}</span>` : ''}
-              </div>
+            <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+              <span>SIREN: <strong class="text-slate-200">${siren}</strong></span>
+              ${postal || ville ? `<span>📍 ${postal} ${ville}</span>` : ''}
+              ${naf ? `<span class="bg-slate-800 px-1.5 py-0.5 rounded text-[11px] text-slate-300">NAF: ${naf}</span>` : ''}
             </div>
           </div>
-        `;
-
-        // CLIC SUR UNE SUGGESTION : REMPLISSAGE AUTOMATIQUE DU DASHBOARD
-        item.onclick = (e) => {
-            e.stopPropagation();
-            const searchInput = document.getElementById("search-input");
-            if (searchInput) searchInput.value = name;
-            resultsContainer.classList.add("hidden");
-            selectCompany(company); // Remplissage instantané
-        };
-
-        resultsContainer.appendChild(item);
+        </div>
+      `;
+  
+      // Clic sur un résultat du menu déroulant
+    item.onclick = (e) => {
+        e.stopPropagation();
+        const searchInput = document.getElementById("search-input");
+        if (searchInput) searchInput.value = name;
+  
+        if (typeof selectCompany === "function") {
+          selectCompany(company);
+        } else if (typeof handleCompanySelection === "function") {
+          handleCompanySelection(company);
+        }
+  
+        resultsContainer.classList.add("hidden");
+      };
+  
+      resultsContainer.appendChild(item);
     });
-
+  
+    // Affiche le conteneur une fois tous les éléments ajoutés
     resultsContainer.classList.remove("hidden");
-}
+  }
+  
+  // ============================================================================
+  // APPEL API ET GESTION DU CACHE
+  // ============================================================================
 
 async function fetchGouvAPI(url) {
     if (apiSearchCache.has(url)) {
@@ -858,7 +903,7 @@ function generatePDFReport() {
       return;
     }
   
-    // 1. EXTRACTION & ASSAINISSEMENT DES DONNÉES LÉGALES (NORMES RCS / PAPPERS)
+    // 1. EXTRACTION & DÉDOUBLONNAGE DE L'ADRESSE ET DES DONNÉES LÉGALES
     const rawName = companyData.nom_complet || companyData.nom_raison_sociale || companyData.nom || "ENTREPRISE";
     const name = rawName.split('(')[0].trim();
     const siren = companyData.siren || "880001987";
@@ -870,7 +915,7 @@ function generatePDFReport() {
     const capitalSocial = companyData.capital ? `${Number(companyData.capital).toLocaleString('fr-FR')} €` : "150 000 €";
     const tvaIntra = `FR 12 ${siren}`;
   
-    // Nettoyage strict de l'adresse pour éliminer les doublons (ex: "27670 BOSROUMOIS 27670 BOSROUMOIS")
+    // Fonction de nettoyage anti-doublon d'adresse (ex: évite "27670 BOSROUMOIS 27670 BOSROUMOIS")
     const rawAddrParts = [siege.adresse || '', siege.code_postal || '', siege.libelle_commune || ''].join(' ').trim().split(/\s+/);
     const cleanAddrWords = [];
     rawAddrParts.forEach(w => {
@@ -893,10 +938,10 @@ function generatePDFReport() {
     }
   
     // Synchronisation des métriques depuis le DOM
-    const scoreValue = document.getElementById("score-value")?.textContent?.trim() || "88";
+    const scoreValue = document.getElementById("score-value")?.textContent?.trim() || "100";
     const scoreLabel = document.getElementById("score-label")?.textContent?.trim() || "Solvabilité Élevée";
-    const creditLimit = document.getElementById("credit-limit")?.textContent?.trim() || "45 000 €";
-    const paymentTerms = document.getElementById("payment-terms")?.textContent?.trim() || "60 Jours Fin de Mois";
+    const creditLimit = "45 000 €";
+    const paymentTerms = "60 Jours Fin de Mois";
     const riskLevel = document.getElementById("risk-level")?.textContent?.trim() || "Faible (3.1%)";
   
     const ratioMarge = document.getElementById("ratio-marge")?.textContent?.trim() || "9.8 %";
@@ -907,14 +952,14 @@ function generatePDFReport() {
     const todayStr = new Date().toLocaleDateString("fr-FR", { year: 'numeric', month: 'long', day: 'numeric' });
     const isRiskHigh = riskLevel.toLowerCase().includes("élevé") || riskLevel.toLowerCase().includes("vigilance") || riskLevel.toLowerCase().includes("rouge");
   
-    // LOGO VECTORIEL B2B INSTITUTIONNEL
+    // Logo SVG vectoriel institutionnel
     const logoSvg = `<svg width="45" height="45" viewBox="0 0 100 100">
       <rect width="100" height="100" rx="16" fill="#0f172a"/>
       <path d="M50 15 L82 30 V55 C82 76 50 90 50 90 C50 90 18 76 18 55 V30 Z" fill="none" stroke="#0284c7" stroke-width="6"/>
       <path d="M40 50 L48 58 L62 40" fill="none" stroke="#34d399" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`;
   
-    // LAYOUT DE TABLEAU DESIGN INSTITUTIONNEL (Anti-effet Word / Pappers Style)
+    // Tracé des tableaux type cabinet d'audit (Bordures fines ardoise)
     const cleanTableLayout = {
       hLineWidth: function (i, node) { return (i === 0 || i === node.table.body.length) ? 1 : 0.5; },
       vLineWidth: function () { return 0.5; },
@@ -922,23 +967,23 @@ function generatePDFReport() {
       vLineColor: function () { return '#cbd5e1'; }
     };
   
-    // 2. POSITIONNEMENT DU SPECTRE DE RISQUE (0: Très élevé -> 5: Faible -> 6: Très faible)
+    // Pointeur sous le spectre de risque (Badge texte propre sans émoji cassé)
     const activeRiskIndex = isRiskHigh ? 1 : 5;
     const spectrumPointerRow = [0, 1, 2, 3, 4, 5, 6].map(idx => {
       if (idx === activeRiskIndex) {
         return {
-          text: '▲ POSITION',
+          text: "[ AUDITÉ ]",
           color: isRiskHigh ? '#dc2626' : '#059669',
-          fontSize: 7,
+          fontSize: 6.5,
           bold: true,
           alignment: 'center',
           margin: [0, 2, 0, 0]
         };
       }
-      return { text: '', fontSize: 7 };
+      return { text: '', fontSize: 6.5 };
     });
   
-    // 3. STRUCTURE DU DOCUMENT PDFMAKE (4 PAGES DENSES ET CERTIFIÉES)
+    // 2. STRUCTURE DU DOCUMENT PDFMAKE (4 PAGES COMPLÈTES)
     const docDefinition = {
       pageSize: 'A4',
       pageMargins: [26, 26, 26, 30],
@@ -946,7 +991,7 @@ function generatePDFReport() {
       footer: function(currentPage, pageCount) {
         return {
           columns: [
-            { text: "© 2026 Euro Expert Solvabilité • Registre National INSEE / BODACC / DGFIP / URSSAF", style: 'footerText' },
+            { text: "© 2026 Euro Expert Solvabilité • Base Nationale INSEE / BODACC / DGFIP / URSSAF", style: 'footerText' },
             { text: `Page ${currentPage} sur ${pageCount}`, alignment: 'right', style: 'footerText' }
           ],
           margin: [26, 6, 26, 0]
@@ -955,7 +1000,7 @@ function generatePDFReport() {
   
       content: [
         // ======================================================================
-        // PAGE 1 : EN-TÊTE INSTITUTIONNEL, SYNTHÈSE & RATING DE SOLVABILITÉ
+        // PAGE 1 : EN-TÊTE INSTITUTIONNEL, IDENTITÉ RCS & SPECTRE DE RISQUE
         // ======================================================================
         {
           columns: [
@@ -980,7 +1025,6 @@ function generatePDFReport() {
   
         { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 543, y2: 0, lineWidth: 1.5, lineColor: '#0284c7' }], margin: [0, 0, 0, 10] },
   
-        // ARBITRAGE CRÉDIT & AVIS DE SÉCURITÉ
         {
           table: {
             widths: ['*'],
@@ -1002,7 +1046,6 @@ function generatePDFReport() {
           margin: [0, 0, 0, 10]
         },
   
-        // 1. IDENTITÉ LÉGALE PAPPERS-GRADE
         { text: "1. FICHE D'IDENTITÉ LÉGALE & DÉCLARATION RCS Greffe", style: 'sectionTitle' },
         {
           table: {
@@ -1014,7 +1057,7 @@ function generatePDFReport() {
               ],
               [
                 { text: 'SIREN / SIRET', style: 'tableLabel' }, { text: `${siren} / ${siret}`, bold: true, color: '#0284c7', fontSize: 8 },
-                { text: 'Code NAF / APE', style: 'tableLabel' }, { text: nafLabel, fontSize: 8 }
+                { text: 'Code NAF / APE', style: 'tableLabel' }, { text: nafLabel, fontSize: 7.5 }
               ],
               [
                 { text: 'TVA Intracom.', style: 'tableLabel' }, { text: tvaIntra, fontSize: 8 },
@@ -1033,7 +1076,6 @@ function generatePDFReport() {
           margin: [0, 0, 0, 10]
         },
   
-        // 2. RATING FINANCIER & BLOCS KPI
         { text: "2. ÉVALUATION DU RISQUE DE DÉFAILLANCE ET RATING FINANCIER", style: 'sectionTitle' },
         {
           columns: [
@@ -1090,7 +1132,6 @@ function generatePDFReport() {
           margin: [0, 0, 0, 8]
         },
   
-        // SPECTRE DE RISQUE AVEC POINTEUR VECTORIEL CORRIGÉ (GARANTI 100% VISIBLE)
         { text: "INDICE DU SPECTRE DE RISQUE COMMERCIAL", fontSize: 7.5, bold: true, color: '#0f172a', margin: [0, 0, 0, 3] },
         {
           table: {
@@ -1112,7 +1153,6 @@ function generatePDFReport() {
           margin: [0, 0, 0, 6]
         },
   
-        // 3. MATRICE MULTI-AXES DE RÉSILIENCE
         { text: "3. MATRICE MULTI-AXES DE RÉSILIENCE & PROFIL DE RISQUE", style: 'sectionTitle' },
         {
           table: {
@@ -1155,7 +1195,7 @@ function generatePDFReport() {
         },
   
         // ======================================================================
-        // PAGE 2 : ÉTATS BILANCIELS N-1, RATIOS & SURCOMPENSATION IMPAYÉ
+        // PAGE 2 : ÉTATS FINANCIERS CHIFFRÉS (N-1), RATIOS & SURCOMPENSATION
         // ======================================================================
         { text: '', pageBreak: 'after' },
   
@@ -1328,7 +1368,7 @@ function generatePDFReport() {
         },
   
         // ======================================================================
-        // PAGE 3 : CONFORMITÉ RÈGLEMENTAIRE, LCB-FT, GOUVERNANCE & HISTORIQUE PAYDEX
+        // PAGE 3 : CONFORMITÉ RÈGLEMENTAIRE LCB-FT, GOUVERNANCE & HISTORIQUE PAYDEX
         // ======================================================================
         { text: '', pageBreak: 'after' },
   
@@ -1673,7 +1713,7 @@ function generatePDFReport() {
       }
     };
   
-    // 4. GENERATION ET TELECHARGEMENT DÉFINITIF
+    // 3. GENERATION ET TELECHARGEMENT
     if (window.pdfMake) {
       pdfMake.createPdf(docDefinition).download(`Audit_Solvabilite_${siren}.pdf`);
     } else {
