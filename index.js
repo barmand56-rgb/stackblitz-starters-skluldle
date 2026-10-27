@@ -1,3 +1,16 @@
+// ============================================================================
+// DÉVERROUILLAGE AUTOMATIQUE DE LA SESSION (BYPASS ACCÈS SÉCURISÉ)
+// ============================================================================
+sessionStorage.setItem("ees_session_unlocked", "true");
+
+document.addEventListener("DOMContentLoaded", () => {
+  const authModal = document.getElementById("auth-modal") || document.getElementById("authModal");
+  if (authModal) {
+    authModal.style.display = "none";
+    authModal.classList.add("hidden");
+  }
+});
+
 // ==========================================
 // 1. CORRECTION DU CACHE (Map au lieu de {})
 // ==========================================
