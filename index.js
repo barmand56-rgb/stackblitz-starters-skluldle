@@ -848,7 +848,7 @@ function renderPressAndConformite(name, hasHygieneVigilance, hasSupplierDefault)
 }
 
 // ============================================================================
-// GENERATION PDF INSTITUTIONNELLE B2B PREMIUM (4 PAGES COMPLÈTES - OBLIGATION DE RENDU)
+// GENERATION PDF INSTITUTIONNELLE B2B PREMIUM (4 PAGES - DESIGN DENSE & DYNAMIQUE)
 // ============================================================================
 function generatePDFReport() {
     const companyData = window.currentCompanyData || {};
@@ -858,7 +858,7 @@ function generatePDFReport() {
       return;
     }
   
-    // 1. EXTRACTION ET FORMATAGE DES DONNÉES
+    // 1. EXTRACTION ET PRÉPARATION DES DONNÉES
     const rawName = companyData.nom_complet || companyData.nom_raison_sociale || companyData.nom || "ENTREPRISE";
     const name = rawName.split('(')[0].trim();
     const siren = companyData.siren || "815297270";
@@ -868,7 +868,7 @@ function generatePDFReport() {
     const adresse = `${siege.adresse || ''} ${siege.code_postal || ''} ${siege.libelle_commune || 'France'}`.trim() || "70 ROUTE DU TROU D'EAU 97434 SAINT-PAUL";
     const formeJuridique = companyData.forme_juridique || "Société à Responsabilité Limitée (SARL)";
   
-    // Récupération dynamique depuis le DOM
+    // Valeurs dynamiques du DOM
     const scoreValue = document.getElementById("score-value")?.textContent?.trim() || "88";
     const scoreLabel = document.getElementById("score-label")?.textContent?.trim() || "Solvabilité Élevée";
     const creditLimit = document.getElementById("credit-limit")?.textContent?.trim() || "15 000 €";
@@ -883,17 +883,17 @@ function generatePDFReport() {
     const todayStr = new Date().toLocaleDateString("fr-FR", { year: 'numeric', month: 'long', day: 'numeric' });
     const isRiskHigh = riskLevel.toLowerCase().includes("élevé") || riskLevel.toLowerCase().includes("vigilance");
   
-    // 🟢 LOGO VECTORIEL SVG (Garantit l'affichage du bouclier sans bug d'emoji)
-    const logoSvg = `<svg width="40" height="40" viewBox="0 0 100 100">
-      <rect width="100" height="100" rx="20" fill="#0f172a"/>
-      <path d="M50 15 L80 30 V55 C80 75 50 90 50 90 C50 90 20 75 20 55 V30 Z" fill="none" stroke="#38bdf8" stroke-width="6"/>
-      <path d="M40 50 L48 58 L62 42" fill="none" stroke="#34d399" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    // LOGO SVG VECTORIEL NÉON (Garanti sans bug d'emoji)
+    const logoSvg = `<svg width="45" height="45" viewBox="0 0 100 100">
+      <rect width="100" height="100" rx="18" fill="#0f172a"/>
+      <path d="M50 15 L82 30 V55 C82 76 50 90 50 90 C50 90 18 76 18 55 V30 Z" fill="none" stroke="#0284c7" stroke-width="6"/>
+      <path d="M40 50 L48 58 L62 40" fill="none" stroke="#34d399" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`;
   
-    // 2. DOCUMENT PDFMAKE 4 PAGES
+    // 2. CONFIGURATION PDFMAKE
     const docDefinition = {
       pageSize: 'A4',
-      pageMargins: [28, 28, 28, 32],
+      pageMargins: [26, 26, 26, 30],
       
       footer: function(currentPage, pageCount) {
         return {
@@ -901,38 +901,38 @@ function generatePDFReport() {
             { text: "© 2026 Euro Expert Solvabilité • Registre National BODACC / DGFIP / INSEE", style: 'footerText' },
             { text: `Page ${currentPage} sur ${pageCount}`, alignment: 'right', style: 'footerText' }
           ],
-          margin: [28, 8, 28, 0]
+          margin: [26, 6, 26, 0]
         };
       },
   
       content: [
         // ======================================================================
-        // PAGE 1 : EN-TÊTE INSTITUTIONNEL, SYNTHÈSE & RATING DE SOLVABILITÉ
+        // PAGE 1 : EN-TÊTE INSTITUTIONNEL, SYNTHÈSE EXÉCUTIVE & SPECTRE DE RISQUE
         // ======================================================================
         {
           columns: [
-            { svg: logoSvg, width: 34, height: 34 },
+            { svg: logoSvg, width: 36, height: 36 },
             {
               stack: [
-                { text: "DOSSIER D'AUDIT DE SOLVABILITÉ B2B", fontSize: 13, bold: true, color: '#0f172a' },
-                { text: "EURO EXPERT SOLVABILITÉ — DIRECTION DU RISQUE ET CONFORMITÉ 2026", fontSize: 7, bold: true, color: '#0284c7', margin: [0, 2, 0, 0] }
+                { text: "EURO EXPERT SOLVABILITÉ", fontSize: 14, bold: true, color: '#0f172a', letterSpacing: 0.5 },
+                { text: "PLATEFORME D'AUDIT INSTITUTIONNEL B2B & ANALYSE DE RISQUE 2026", fontSize: 7, bold: true, color: '#0284c7', margin: [0, 2, 0, 0] }
               ],
               margin: [8, 0, 0, 0]
             },
             {
               stack: [
                 { text: `Édition : ${todayStr}`, fontSize: 7, color: '#475569', alignment: 'right' },
-                { text: `Réf. Audit : AUD-${siren}-2026`, fontSize: 7, bold: true, color: '#0f172a', alignment: 'right', margin: [0, 1, 0, 0] },
-                { text: "RAPPORT PREMIUM CERTIFIÉ", fontSize: 6.5, bold: true, color: '#059669', alignment: 'right', margin: [0, 1, 0, 0] }
+                { text: `Réf. Audit : AUD-${siren}-2026`, fontSize: 7.5, bold: true, color: '#0f172a', alignment: 'right', margin: [0, 1, 0, 0] },
+                { text: "CERTIFIÉ CONFORME B2B", fontSize: 6.5, bold: true, color: '#059669', alignment: 'right', margin: [0, 1, 0, 0] }
               ]
             }
           ],
           margin: [0, 0, 0, 8]
         },
   
-        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 539, y2: 0, lineWidth: 1.5, lineColor: '#0284c7' }], margin: [0, 0, 0, 8] },
+        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 543, y2: 0, lineWidth: 2, lineColor: '#0284c7' }], margin: [0, 0, 0, 10] },
   
-        // PAVÉ SYNTHÈSE EXÉCUTIVE ET ARBITRAGE
+        // CARTUCHE SOMBRE DE SYNTHÈSE D'ARBITRAGE
         {
           table: {
             widths: ['*'],
@@ -940,11 +940,11 @@ function generatePDFReport() {
               fillColor: '#0f172a',
               margin: [10, 8, 10, 8],
               stack: [
-                { text: "ARBITRAGE CRÉDIT & DÉCISION D'OCTROI COMMERCIAL", fontSize: 9, bold: true, color: '#38bdf8', margin: [0, 0, 0, 3] },
+                { text: "ARBITRAGE CRÉDIT & DÉCISION D'OCTROI COMMERCIAL", fontSize: 9.5, bold: true, color: '#38bdf8', margin: [0, 0, 0, 4] },
                 {
                   text: isRiskHigh
-                    ? `L'analyse d'audit de l'entité ${name} (SIREN ${siren}) met en évidence un profil de risque sous vigilance accrue. En raison d'incidents de paiement fournisseurs récents (Paydex > 90 jours), les lignes de crédit non sécurisées doivent être restreintes.`
-                    : `L'analyse d'audit de l'entité ${name} (SIREN ${siren}) confirme une situation financière robuste et équilibrée. Le comportement de règlement est conforme aux standards sectoriels (Paydex < 30 jours). Octroi de crédit commercial recommandé.`,
+                    ? `L'audit de solvabilité de ${name} (SIREN ${siren}) met en évidence une structure financière sous vigilance. Des retards de paiement fournisseurs importants (Paydex > 90 jours) imposent la fermeture des lignes de crédit non sécurisées.`
+                    : `L'audit de solvabilité de ${name} (SIREN ${siren}) valide une structure financière équilibrée et pérenne. Le comportement de paiement est conforme aux exigences sectorielles (Paydex < 30 jours). L'octroi de crédit commercial est autorisé.`,
                   fontSize: 7.5, color: '#f8fafc', leadingIndent: 0
                 }
               ]
@@ -954,8 +954,8 @@ function generatePDFReport() {
           margin: [0, 0, 0, 10]
         },
   
-        // 1. IDENTITÉ & STRUCTURE LÉGALE
-        { text: "1. FICHE D'IDENTITÉ LÉGALE & INSCRIPTION RCS", style: 'sectionTitle' },
+        // 1. IDENTITÉ LÉGALE
+        { text: "1. FICHE D'IDENTITÉ LÉGALE & DÉCLARATION RCS", style: 'sectionTitle' },
         {
           table: {
             widths: ['22%', '28%', '22%', '28%'],
@@ -977,7 +977,7 @@ function generatePDFReport() {
           margin: [0, 0, 0, 10]
         },
   
-        // 2. RATING & DÉCISION D'OCTROI
+        // 2. BLOCS KPI & RATING DE SOLVABILITÉ
         { text: "2. ÉVALUATION DU RISQUE DE DÉFAILLANCE ET RATING FINANCIER", style: 'sectionTitle' },
         {
           columns: [
@@ -989,8 +989,8 @@ function generatePDFReport() {
                   fillColor: '#f8fafc',
                   margin: [4, 6, 4, 6],
                   stack: [
-                    { text: "NOTE SOLVABILITÉ", fontSize: 6.5, bold: true, color: '#475569' },
-                    { text: `${scoreValue} / 100`, fontSize: 13, bold: true, color: isRiskHigh ? '#d97706' : '#059669', alignment: 'center', margin: [0, 2, 0, 2] },
+                    { text: "NOTE SOLVABILITÉ", fontSize: 6.5, bold: true, color: '#475569', alignment: 'center' },
+                    { text: `${scoreValue} / 100`, fontSize: 14, bold: true, color: isRiskHigh ? '#d97706' : '#059669', alignment: 'center', margin: [0, 2, 0, 2] },
                     { text: scoreLabel, fontSize: 7, bold: true, color: isRiskHigh ? '#d97706' : '#059669', alignment: 'center' }
                   ]
                 }]]
@@ -1005,9 +1005,9 @@ function generatePDFReport() {
                   fillColor: '#f8fafc',
                   margin: [4, 6, 4, 6],
                   stack: [
-                    { text: "PROBABILITÉ DÉFAILLANCE (12M)", fontSize: 6.5, bold: true, color: '#475569' },
-                    { text: riskLevel, fontSize: 9.5, bold: true, color: isRiskHigh ? '#dc2626' : '#059669', alignment: 'center', margin: [0, 3, 0, 2] },
-                    { text: "Algorithme Prédictif BODACC & URSSAF", fontSize: 6, color: '#64748b', alignment: 'center' }
+                    { text: "PROBABILITÉ DÉFAILLANCE (12M)", fontSize: 6.5, bold: true, color: '#475569', alignment: 'center' },
+                    { text: riskLevel, fontSize: 9.5, bold: true, color: isRiskHigh ? '#dc2626' : '#059669', alignment: 'center', margin: [0, 4, 0, 2] },
+                    { text: "Modèle Prédictif BODACC & URSSAF", fontSize: 6, color: '#64748b', alignment: 'center' }
                   ]
                 }]]
               },
@@ -1021,7 +1021,7 @@ function generatePDFReport() {
                   fillColor: '#f8fafc',
                   margin: [4, 6, 4, 6],
                   stack: [
-                    { text: "AVIS D'OCTROI DE CRÉDIT", fontSize: 6.5, bold: true, color: '#475569' },
+                    { text: "AVIS D'OCTROI DE CRÉDIT", fontSize: 6.5, bold: true, color: '#475569', alignment: 'center' },
                     { text: creditLimit, fontSize: 11, bold: true, color: isRiskHigh ? '#dc2626' : '#0284c7', alignment: 'center', margin: [0, 2, 0, 2] },
                     { text: paymentTerms, fontSize: 7, color: '#334155', alignment: 'center' }
                   ]
@@ -1031,6 +1031,27 @@ function generatePDFReport() {
             }
           ],
           columnGap: 6,
+          margin: [0, 0, 0, 10]
+        },
+  
+        // BARRE DE RISQUE DE DÉFAILLANCE (SPECTRE COLORÉ B2B)
+        { text: "INDICE DU SPECTRE DE RISQUE COMMERCIAL", fontSize: 7.5, bold: true, color: '#0f172a', margin: [0, 0, 0, 3] },
+        {
+          table: {
+            widths: ['14.28%', '14.28%', '14.28%', '14.28%', '14.28%', '14.28%', '14.32%'],
+            body: [
+              [
+                { text: "Très élevé", fillColor: '#991b1b', color: '#ffffff', fontSize: 6, bold: true, alignment: 'center', margin: [0, 3, 0, 3] },
+                { text: "Élevé", fillColor: '#c2410c', color: '#ffffff', fontSize: 6, bold: true, alignment: 'center', margin: [0, 3, 0, 3] },
+                { text: "Assez élevé", fillColor: '#d97706', color: '#ffffff', fontSize: 6, bold: true, alignment: 'center', margin: [0, 3, 0, 3] },
+                { text: "Moyen", fillColor: '#eab308', color: '#0f172a', fontSize: 6, bold: true, alignment: 'center', margin: [0, 3, 0, 3] },
+                { text: "Assez faible", fillColor: '#0d9488', color: '#ffffff', fontSize: 6, bold: true, alignment: 'center', margin: [0, 3, 0, 3] },
+                { text: "Faible", fillColor: '#059669', color: '#ffffff', fontSize: 6, bold: true, alignment: 'center', margin: [0, 3, 0, 3] },
+                { text: "Très faible", fillColor: '#065f46', color: '#ffffff', fontSize: 6, bold: true, alignment: 'center', margin: [0, 3, 0, 3] }
+              ]
+            ]
+          },
+          layout: 'noBorders',
           margin: [0, 0, 0, 10]
         },
   
@@ -1077,18 +1098,18 @@ function generatePDFReport() {
         },
   
         // ======================================================================
-        // PAGE 2 : RATIOS FINANCIERS, CYCLE D'EXPLOITATION & RÈGLEMENTS
+        // PAGE 2 : RATIOS BILANCIELS, CYCLE D'EXPLOITATION & SURCOMPENSATION
         // ======================================================================
         { text: '', pageBreak: 'after' },
   
         {
           columns: [
-            { text: "PAGE 2 — ANALYSE FINANCIÈRE APPROFONDIE & BILAN", fontSize: 8, bold: true, color: '#0f172a' },
+            { text: "PAGE 2 — ANALYSE FINANCIÈRE APPROFONDIE & BILAN", fontSize: 8.5, bold: true, color: '#0f172a' },
             { text: `SIREN : ${siren}`, fontSize: 8, bold: true, color: '#475569', alignment: 'right' }
           ],
           margin: [0, 0, 0, 6]
         },
-        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 539, y2: 0, lineWidth: 1, lineColor: '#cbd5e1' }], margin: [0, 0, 0, 8] },
+        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 543, y2: 0, lineWidth: 1.5, lineColor: '#0284c7' }], margin: [0, 0, 0, 10] },
   
         // 4. RATIOS BILANCIELS
         { text: "4. TABLEAU DÉTAILLÉ DES RATIOS FINANCIERS ET BILANCIELS", style: 'sectionTitle' },
@@ -1134,7 +1155,7 @@ function generatePDFReport() {
             ]
           },
           layout: 'tableGridCustom',
-          margin: [0, 0, 0, 10]
+          margin: [0, 0, 0, 12]
         },
   
         // 5. CYCLE D'EXPLOITATION
@@ -1149,7 +1170,7 @@ function generatePDFReport() {
                   fillColor: '#f8fafc',
                   margin: [4, 6, 4, 6],
                   stack: [
-                    { text: "DSO (DÉLAI CLIENTS)", fontSize: 6.5, bold: true, color: '#475569' },
+                    { text: "DSO (DÉLAI CLIENTS)", fontSize: 6.5, bold: true, color: '#475569', alignment: 'center' },
                     { text: "34 jours", fontSize: 11, bold: true, color: '#0284c7', alignment: 'center', margin: [0, 2, 0, 1] },
                     { text: "Encaissement Moyen", fontSize: 6, color: '#64748b', alignment: 'center' }
                   ]
@@ -1165,7 +1186,7 @@ function generatePDFReport() {
                   fillColor: '#f8fafc',
                   margin: [4, 6, 4, 6],
                   stack: [
-                    { text: "DPO (DÉLAI FOURNISSEURS)", fontSize: 6.5, bold: true, color: '#475569' },
+                    { text: "DPO (DÉLAI FOURNISSEURS)", fontSize: 6.5, bold: true, color: '#475569', alignment: 'center' },
                     { text: ratioPaydex, fontSize: 11, bold: true, color: isRiskHigh ? '#dc2626' : '#059669', alignment: 'center', margin: [0, 2, 0, 1] },
                     { text: "Décaissement Moyen", fontSize: 6, color: '#64748b', alignment: 'center' }
                   ]
@@ -1181,7 +1202,7 @@ function generatePDFReport() {
                   fillColor: '#f8fafc',
                   margin: [4, 6, 4, 6],
                   stack: [
-                    { text: "BFR EN JOURS DE CA", fontSize: 6.5, bold: true, color: '#475569' },
+                    { text: "BFR EN JOURS DE CA", fontSize: 6.5, bold: true, color: '#475569', alignment: 'center' },
                     { text: "18 jours", fontSize: 11, bold: true, color: '#334155', alignment: 'center', margin: [0, 2, 0, 1] },
                     { text: "Besoin de Financement", fontSize: 6, color: '#64748b', alignment: 'center' }
                   ]
@@ -1191,7 +1212,7 @@ function generatePDFReport() {
             }
           ],
           columnGap: 6,
-          margin: [0, 0, 0, 10]
+          margin: [0, 0, 0, 12]
         },
   
         // 6. MATRICE SURCOMPENSATION CA
@@ -1201,15 +1222,15 @@ function generatePDFReport() {
             widths: ['*'],
             body: [[{
               fillColor: '#fff1f2',
-              margin: [8, 6, 8, 6],
+              margin: [8, 8, 8, 8],
               stack: [
-                { text: "IMPACT COMPENSATOIRE EN CAS D'IMPAYÉ CLIENT :", fontSize: 7.5, bold: true, color: '#be123c', margin: [0, 0, 0, 2] },
-                { text: `Pour une perte brute constatée de 10 000 € d'impayé, l'entreprise ${name} devra générer un Chiffre d'Affaires additionnel de 102 040 € (sur la base d'une marge nette sectorielle de 9.8%) pour amortir intégralement la perte.`, fontSize: 7, color: '#881337' }
+                { text: "⚠️ EFFORT DE CA COMPENSATOIRE EN CAS D'IMPAYÉ CLIENT :", fontSize: 8, bold: true, color: '#be123c', margin: [0, 0, 0, 3] },
+                { text: `Pour une perte brute constatée de 10 000 € d'impayé non récouvré, l'entreprise ${name} devra impérativement générer un Chiffre d'Affaires additionnel de 102 040 € (sur la base d'une marge nette sectorielle de 9.8%) pour reconstituer sa trésorerie initiale.`, fontSize: 7.5, color: '#881337', leadingIndent: 0 }
               ]
             }]]
           },
           layout: 'noBorders',
-          margin: [0, 0, 0, 10]
+          margin: [0, 0, 0, 12]
         },
   
         // 7. COMPORTEMENT PRIVILÈGES
@@ -1220,11 +1241,11 @@ function generatePDFReport() {
             body: [
               [
                 { text: "Inscriptions de Privilèges URSSAF", bold: true, fontSize: 7.5 },
-                { text: isRiskHigh ? "⚠️ Signalement d'inscriptions conservatoires." : "✓ Aucune inscription enregistrée au Greffe.", fontSize: 7.5, color: isRiskHigh ? '#d97706' : '#059669' }
+                { text: isRiskHigh ? "⚠️ Signalement d'inscriptions conservatoires au Greffe." : "✓ Aucune inscription enregistrée au Greffe du Tribunal.", fontSize: 7.5, color: isRiskHigh ? '#d97706' : '#059669' }
               ],
               [
                 { text: "Nantissements & Gage sur Matériel", bold: true, fontSize: 7.5 },
-                { text: "✓ Situation foncière et matérielle sans alerte.", fontSize: 7.5 }
+                { text: "✓ Situation foncière et gage matériel exempt d'inscription.", fontSize: 7.5 }
               ]
             ]
           },
@@ -1233,20 +1254,20 @@ function generatePDFReport() {
         },
   
         // ======================================================================
-        // PAGE 3 : CONFORMITÉ LÉGALE, LCB-FT, SANITAIRE & GOUVERNANCE
+        // PAGE 3 : CONFORMITÉ RÈGLEMENTAIRE, LCB-FT, HYGIÈNE & ACTIONNARIAT
         // ======================================================================
         { text: '', pageBreak: 'after' },
   
         {
           columns: [
-            { text: "PAGE 3 — CONFORMITÉ RÈGLEMENTAIRE, LCB-FT & GOUVERNANCE", fontSize: 8, bold: true, color: '#0f172a' },
+            { text: "PAGE 3 — CONFORMITÉ RÈGLEMENTAIRE, LCB-FT & GOUVERNANCE", fontSize: 8.5, bold: true, color: '#0f172a' },
             { text: `SIREN : ${siren}`, fontSize: 8, bold: true, color: '#475569', alignment: 'right' }
           ],
           margin: [0, 0, 0, 6]
         },
-        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 539, y2: 0, lineWidth: 1, lineColor: '#cbd5e1' }], margin: [0, 0, 0, 8] },
+        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 543, y2: 0, lineWidth: 1.5, lineColor: '#0284c7' }], margin: [0, 0, 0, 10] },
   
-        // 8. CONTRÔLE LCB-FT & SAPIN II
+        // 8. AUDIT LCB-FT
         { text: "8. AUDIT DE CONFORMITÉ LCB-FT & LOI SAPIN II (RBO & SANCTIONS)", style: 'sectionTitle' },
         {
           table: {
@@ -1254,23 +1275,23 @@ function generatePDFReport() {
             body: [
               [
                 { text: "Registre des Bénéficiaires Effectifs (RBO)", bold: true, fontSize: 7.5 },
-                { text: "✓ Déclaration conforme enregistrée auprès du Greffe du Tribunal.", fontSize: 7.5 }
+                { text: "✓ Déclaration conforme enregistrée auprès du Greffe du Tribunal de Commerce.", fontSize: 7.5 }
               ],
               [
                 { text: "Gel des Avoirs & Sanctions Internationales", bold: true, fontSize: 7.5 },
-                { text: "✓ Filtrage négatif sur les registres officiels DG Trésor, ONU & UE.", fontSize: 7.5 }
+                { text: "✓ Filtrage négatif sur les registres officiels DG Trésor, ONU & Union Européenne.", fontSize: 7.5 }
               ],
               [
                 { text: "Personnes Politiquement Exposées (PPE)", bold: true, fontSize: 7.5 },
-                { text: "✓ Aucun dirigeant ou ayant droit répertorié comme PPE.", fontSize: 7.5 }
+                { text: "✓ Aucun dirigeant ou ayant droit répertorié comme Personne Politiquement Exposée.", fontSize: 7.5 }
               ]
             ]
           },
           layout: 'tableGridCustom',
-          margin: [0, 0, 0, 10]
+          margin: [0, 0, 0, 12]
         },
   
-        // 9. RELEVÉ SANITAIRE DAAF / HACCP
+        // 9. RELEVÉ DAAF / HACCP
         { text: "9. RELEVÉ ADMINISTRATIF & CONFORMITÉ SANITAIRE DAAF / HACCP", style: 'sectionTitle' },
         {
           table: {
@@ -1282,15 +1303,15 @@ function generatePDFReport() {
               ],
               [
                 { text: "Évaluation Hygiène DAAF / Ministère", bold: true, fontSize: 7.5 },
-                { text: isRiskHigh ? "🟠 Niveau à améliorer — Suivi préventif en cours." : "🟢 Niveau Très Satisfaisant — Conforme aux exigences HACCP.", fontSize: 7.5 }
+                { text: isRiskHigh ? "🟠 Niveau à améliorer — Suivi préventif sous contrôle." : "🟢 Niveau Très Satisfaisant — Conforme aux exigences sanitaires HACCP.", fontSize: 7.5 }
               ]
             ]
           },
           layout: 'tableGridCustom',
-          margin: [0, 0, 0, 10]
+          margin: [0, 0, 0, 12]
         },
   
-        // 10. GOUVERNANCE & HOLDING
+        // 10. GOUVERNANCE & ACTIONNARIAT
         { text: "10. GOUVERNANCE, HOLDING ET STRUCTURE D'ACTIONNARIAT", style: 'sectionTitle' },
         {
           table: {
@@ -1303,27 +1324,27 @@ function generatePDFReport() {
               ],
               [
                 { text: "Exploitation Directe", bold: true, fontSize: 7.5 },
-                { text: "Établissement Principal", fontSize: 7.5 },
-                { text: "Gérance Conforme RCS", fontSize: 7.5 }
+                { text: "Établissement Principal Siège", fontSize: 7.5 },
+                { text: "Gérance Conforme RCS Registre", fontSize: 7.5 }
               ]
             ]
           },
           layout: 'tableGridCustom',
-          margin: [0, 0, 0, 10]
+          margin: [0, 0, 0, 12]
         },
   
-        // 11. CHECKLIST DIRECTIVES CREDIT MANAGER
+        // 11. CHECKLIST COMMERCIALE
         { text: "11. CHECKLIST DE SÉCURISATION COMMERCIALE (CREDIT MANAGEMENT)", style: 'sectionTitle' },
         {
           table: {
             widths: ['*'],
             body: [[{
               fillColor: '#fffbe1',
-              margin: [8, 6, 8, 6],
+              margin: [8, 8, 8, 8],
               stack: [
-                { text: "Directives opérationnelles d'engagement :", fontSize: 7.5, bold: true, color: '#b45309', margin: [0, 0, 0, 2] },
-                { text: "1. Authentification RIB : Obligation d'obtenir un relevé d'identité bancaire au nom exact du SIREN auditée.", fontSize: 7, color: '#78350f' },
-                { text: isRiskHigh ? "2. Condition d'octroi : Exigence de paiement comptant à la commande. Aucun encours commercial toléré." : "2. Condition d'octroi : Plafond validé à 15 000 € à 30 jours fin de mois sans garantie additionnelle.", fontSize: 7, color: '#78350f' }
+                { text: "📌 Directives opérationnelles d'engagement pour les équipes commerciales :", fontSize: 8, bold: true, color: '#b45309', margin: [0, 0, 0, 3] },
+                { text: "1. Authentification RIB : Exigence d'obtenir un relevé d'identité bancaire au nom exact du SIREN auditée.", fontSize: 7.5, color: '#78350f' },
+                { text: isRiskHigh ? "2. Condition d'octroi : Exigence de paiement comptant à la commande. Aucun encours commercial toléré." : "2. Condition d'octroi : Plafond validé à 15 000 € à 30 jours fin de mois sans garantie additionnelle.", fontSize: 7.5, color: '#78350f' }
               ]
             }]]
           },
@@ -1332,20 +1353,20 @@ function generatePDFReport() {
         },
   
         // ======================================================================
-        // PAGE 4 : EXPERTISE CADASTRALE DVF, VALUATION & VALIDATION CERTIFIÉE
+        // PAGE 4 : VALUATION DVF IMMOBILIÈRE, COMITÉ DE RISQUE & TAMPON
         // ======================================================================
         { text: '', pageBreak: 'after' },
   
         {
           columns: [
-            { text: "PAGE 4 — EXPERTISE CADASTRALE DVF & CERTIFICATION AUDIT", fontSize: 8, bold: true, color: '#0f172a' },
+            { text: "PAGE 4 — EXPERTISE CADASTRALE DVF & CERTIFICATION AUDIT", fontSize: 8.5, bold: true, color: '#0f172a' },
             { text: `SIREN : ${siren}`, fontSize: 8, bold: true, color: '#475569', alignment: 'right' }
           ],
           margin: [0, 0, 0, 6]
         },
-        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 539, y2: 0, lineWidth: 1, lineColor: '#cbd5e1' }], margin: [0, 0, 0, 8] },
+        { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 543, y2: 0, lineWidth: 1.5, lineColor: '#0284c7' }], margin: [0, 0, 0, 10] },
   
-        // 12. VALUATION IMMOBILIÈRE DVF
+        // 12. EXPERTISE DVF
         { text: "12. EXPERTISE CADASTRALE DVF & VALUATION IMMOBILIÈRE (DGFIP)", style: 'sectionTitle' },
         {
           table: {
@@ -1357,17 +1378,17 @@ function generatePDFReport() {
                 { text: "TRANSACTIONS COMPARABLES DVF", style: 'tableHeaderDark' }
               ],
               [
-                { text: immoValeur, bold: true, fontSize: 9, color: '#0284c7' },
+                { text: immoValeur, bold: true, fontSize: 9.5, color: '#0284c7' },
                 { text: "Emplacement Commercial N°1 (Bail 3/6/9)", fontSize: 7.5 },
                 { text: "3 mutations enregistrées dans un rayon de 500m.", fontSize: 7.5 }
               ]
             ]
           },
           layout: 'tableGridCustom',
-          margin: [0, 0, 0, 10]
+          margin: [0, 0, 0, 14]
         },
   
-        // 13. SYNTHÈSE DES SIGNAUX FAIBLES
+        // 13. SIGNAUX FAIBLES
         { text: "13. SYNTHÈSE DES SIGNAUX FAIBLES ET ALERTES PRÉVENTIVES", style: 'sectionTitle' },
         {
           table: {
@@ -1379,39 +1400,39 @@ function generatePDFReport() {
               ],
               [
                 { text: "Publications au Journal Officiel", bold: true, fontSize: 7.5 },
-                { text: "✓ Annonces légales conformes sans alerte d'associés.", fontSize: 7.5 }
+                { text: "✓ Annonces légales conformes sans alerte des associés.", fontSize: 7.5 }
               ]
             ]
           },
           layout: 'tableGridCustom',
-          margin: [0, 0, 0, 10]
+          margin: [0, 0, 0, 14]
         },
   
-        // 14. CONCLUSION DU COMITÉ
-        { text: "14. PROCÈS-VERBAL DU COMITÉ DE RISQUE ET VALISATION FINALE", style: 'sectionTitle' },
+        // 14. COMITÉ DE RISQUE & VALIDATION
+        { text: "14. PROCÈS-VERBAL DU COMITÉ DE RISQUE ET VALIDATION FINALE", style: 'sectionTitle' },
         {
           table: {
             widths: ['*'],
             body: [[{
               fillColor: '#f8fafc',
-              margin: [8, 6, 8, 6],
+              margin: [10, 8, 10, 8],
               stack: [
-                { text: "AVIS OFFICIEL DU COMITÉ ARBITRAGE B2B :", fontSize: 7.5, bold: true, color: '#0f172a', margin: [0, 0, 0, 2] },
-                { text: `Le présent rapport d'audit B2B pour l'entité ${name} (SIREN ${siren}) atteste de la conformité des données au 2026. Cet avis est révisable sous réserve de modification des inscriptions au BODACC.`, fontSize: 7, color: '#475569' }
+                { text: "AVIS OFFICIEL DU COMITÉ ARBITRAGE B2B :", fontSize: 8, bold: true, color: '#0f172a', margin: [0, 0, 0, 3] },
+                { text: `Le présent rapport d'audit B2B rédigé pour l'entité ${name} (SIREN ${siren}) atteste de la véracité des métriques au ${todayStr}. Cet avis reste révisable de plein droit en cas d'inscription ultérieure au registre officiel du BODACC ou de l'URSSAF.`, fontSize: 7.5, color: '#475569', leadingIndent: 0 }
               ]
             }]]
           },
           layout: 'tableGridCustom',
-          margin: [0, 0, 0, 15]
+          margin: [0, 0, 0, 20]
         },
   
-        // TAMPON ET SIGNATURE
+        // CERTIFICATION & CACHET DIGITAL (EN-BAS DE PAGE 4)
         {
           columns: [
             {
               stack: [
-                { text: "CERTIFICATION DIGITALEMENT HORODATÉE", fontSize: 7, bold: true, color: '#0f172a' },
-                { text: "Document édité par Euro Expert Solvabilité. Reproduction ou falsification strictement interdite sous peine de poursuites.", fontSize: 6.5, color: '#64748b', margin: [0, 2, 0, 0] }
+                { text: "CERTIFICATION DIGITALEMENT HORODATÉE", fontSize: 7.5, bold: true, color: '#0f172a' },
+                { text: "Document certifié et émis par la plateforme Euro Expert Solvabilité. Toute falsification des données présentées expose à des sanctions pénales selon le Code Monétaire et Financier.", fontSize: 6.5, color: '#64748b', margin: [0, 3, 0, 0] }
               ],
               width: '68%'
             },
@@ -1422,9 +1443,9 @@ function generatePDFReport() {
                   fillColor: '#0f172a',
                   margin: [6, 6, 6, 6],
                   stack: [
-                    { text: "TAMPON DIGITAL B2B", fontSize: 6.5, bold: true, color: '#38bdf8', alignment: 'center' },
-                    { text: "CERTIFIÉ CONFORME", fontSize: 6, bold: true, color: '#34d399', alignment: 'center', margin: [0, 2, 0, 0] },
-                    { text: `SIREN : ${siren}`, fontSize: 5.5, color: '#94a3b8', alignment: 'center', margin: [0, 2, 0, 0] }
+                    { text: "TAMPON DIGITAL B2B", fontSize: 7, bold: true, color: '#38bdf8', alignment: 'center' },
+                    { text: "CERTIFIÉ CONFORME", fontSize: 6.5, bold: true, color: '#34d399', alignment: 'center', margin: [0, 2, 0, 0] },
+                    { text: `SIREN : ${siren}`, fontSize: 6, color: '#94a3b8', alignment: 'center', margin: [0, 2, 0, 0] }
                   ]
                 }]]
               },
@@ -1436,13 +1457,13 @@ function generatePDFReport() {
         }
       ],
   
-      // 3. STYLES FORMELS DU DOCUMENT
+      // 3. TABLEAU DE STYLES DU DOCUMENT
       styles: {
         sectionTitle: {
           fontSize: 8.5,
           bold: true,
-          color: '#0f172a',
-          margin: [0, 4, 0, 3]
+          color: '#0284c7', // Bleu néon institutionnel
+          margin: [0, 6, 0, 4]
         },
         tableLabel: {
           bold: true,
@@ -1474,7 +1495,7 @@ function generatePDFReport() {
       }
     };
   
-    // 4. ÉMISSION DU FICHIER PDF
+    // 4. ÉMISSION ET TÉLÉCHARGEMENT DÉFINITIF
     if (window.pdfMake) {
       pdfMake.createPdf(docDefinition).download(`Audit_Solvabilite_${siren}.pdf`);
     } else {
