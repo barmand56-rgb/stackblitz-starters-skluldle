@@ -113,31 +113,6 @@ function initClickOutsideListener() {
     });
 }
 
-// ============================================================================
-// 1. DÉCLARATION GLOBALE ET EXPOSITION SUR WINDOW
-// ============================================================================
-var apiSearchCache = apiSearchCache || new Map();
-var searchDebounceTimeout = null;
-
-// Rapprochement avec le HTML (Expose les fonctions pour onclick/oninput)
-window.handleSearchInput = handleSearchInput;
-window.fetchAutocompleteSuggestions = fetchAutocompleteSuggestions;
-window.selectCompany = selectCompany;
-window.triggerDirectAudit = triggerDirectAudit;
-
-async function fetchGouvAPI(url) {
-  if (apiSearchCache.has(url)) return apiSearchCache.get(url);
-  try {
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    apiSearchCache.set(url, data);
-    return data;
-  } catch (e) {
-    console.error("Erreur API:", e);
-    return null;
-  }
-}
 
 // ============================================================================
 // 2. ÉCOUTE DE LA FRAPPE DANS LE CHAMP DE RECHERCHE
@@ -1979,17 +1954,13 @@ if (typeof apiSearchCache === "undefined") {
     }
   }
   
-  // ============================================================================
-// FIX CIBLÉ : EXECUTION GARANTIE DE L'AUDIT DIRECT ET CAPTURE DU CLIC
 // ============================================================================
-
+// FIX FINAL AUDIT DIRECT & BOUTON VERT (À COLLER À PARTIR DE LA LIGNE 1982)
+// ============================================================================
 window.triggerDirectAudit = async function(query) {
-    // Détection ultra-souple du champ de texte
-    const searchInput = document.getElementById("search-input") || 
-                        document.querySelector("input[type='text']") || 
-                        document.querySelector("input");
+    const searchInput = document.getElementById("search-input") || document.querySelector("input[type='text']");
+    const searchTerm = (typeof query === "string" && query.trim().length > 0) ? query : (searchInput ? searchInput.value : "");
   
-    const searchTerm = query || (searchInput ? searchInput.value : "");
     if (!searchTerm || searchTerm.trim().length < 2) return;
   
     const raw = searchTerm.trim();
@@ -2006,11 +1977,8 @@ window.triggerDirectAudit = async function(query) {
     const data = await fetchGouvAPI(apiUrl);
     if (data && data.results && data.results.length > 0) {
       const results = data.results.sort((a, b) => (b.etat_administratif === "A" ? 1 : 0) - (a.etat_administratif === "A" ? 1 : 0));
+      selectCompany(results[0]);
       
-      if (typeof selectCompany === "function") {
-        selectCompany(results[0]);
-      }
-  
       const container = document.getElementById("autocomplete-results") || document.getElementById("search-dropdown");
       if (container) container.style.display = "none";
     } else {
@@ -2018,21 +1986,21 @@ window.triggerDirectAudit = async function(query) {
     }
   };
   
-  // Écouteur prioritaire (Phase de capture pour intercepter le clic sur les balises <span> / <svg> internes)
-  document.addEventListener("click", function(e) {
-    const btn = e.target.closest("button, a, div[role='button']");
-    if (!btn) return;
+  // Capture globale prioritaire du clic sur "Lancer l'Audit"
+  document.addEventListener("click", (e) => {
+    const target = e.target.closest("button, a, div");
+    if (!target) return;
   
-    const text = (btn.textContent || "").toLowerCase();
-    if (btn.id === "launch-audit-btn" || btn.classList.contains("btn-audit") || text.includes("lancer") || text.includes("audit")) {
+    const txt = (target.textContent || "").toLowerCase();
+    if (target.id === "launch-audit-btn" || target.classList.contains("btn-audit") || txt.includes("lancer")) {
       e.preventDefault();
       e.stopPropagation();
       window.triggerDirectAudit();
     }
-  }, true); // true = Priorité d'exécution absolue
+  }, true);
   
-  // Gestion de la touche Entrée
-  document.addEventListener("keydown", function(e) {
+  // Touche Entrée dans le champ de recherche
+  document.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && e.target.tagName === "INPUT") {
       e.preventDefault();
       window.triggerDirectAudit(e.target.value);
