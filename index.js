@@ -100,29 +100,17 @@ function initClickOutsideListener() {
     });
 }
 
-// --- MOTEUR D'AUTOCOMPLÉTION EN TEMPS RÉEL SUR CHAQUE FRAPPE ---
-function handleSearchInput(event) {
-    const query = event.target.value.trim();
-    const resultsContainer = document.getElementById("autocomplete-results");
-
-    clearTimeout(searchDebounceTimeout);
-
-    if (query.length < 2) {
-        if (resultsContainer) resultsContainer.classList.add("hidden");
-        return;
-    }
-
-    searchDebounceTimeout = setTimeout(() => {
-        fetchAutocompleteSuggestions(query);
-    }, 200);
-}
-
-
 // ============================================================================
-// 1. CACHE ET FONCTIONS D'APPEL API SÉCURISÉES
+// 1. DÉCLARATION GLOBALE ET EXPOSITION SUR WINDOW
 // ============================================================================
 var apiSearchCache = apiSearchCache || new Map();
 var searchDebounceTimeout = null;
+
+// Rapprochement avec le HTML (Expose les fonctions pour onclick/oninput)
+window.handleSearchInput = handleSearchInput;
+window.fetchAutocompleteSuggestions = fetchAutocompleteSuggestions;
+window.selectCompany = selectCompany;
+window.triggerDirectAudit = triggerDirectAudit;
 
 async function fetchGouvAPI(url) {
   if (apiSearchCache.has(url)) return apiSearchCache.get(url);
@@ -133,13 +121,13 @@ async function fetchGouvAPI(url) {
     apiSearchCache.set(url, data);
     return data;
   } catch (e) {
-    console.error("Erreur d'appel API Gouv:", e);
+    console.error("Erreur API:", e);
     return null;
   }
 }
 
 // ============================================================================
-// 2. ÉCOUTE DE LA FRAPPE (APPELÉE DIRECTEMENT PAR INDEX.HTML ONINPUT)
+// 2. ÉCOUTE DE LA FRAPPE DANS LE CHAMP DE RECHERCHE
 // ============================================================================
 function handleSearchInput(event) {
   const query = event && event.target ? event.target.value : (typeof event === 'string' ? event : '');
@@ -147,34 +135,30 @@ function handleSearchInput(event) {
 
   searchDebounceTimeout = setTimeout(() => {
     fetchAutocompleteSuggestions(query);
-  }, 150);
+  }, 200);
 }
 
 // ============================================================================
-// 3. MOTEUR DE RECHERCHE UNIVERSEL (SIREN, NOM, LIEU-DIT)
+// 3. MOTEUR D'AUTOCOMPLÉTION SÉCURISÉ
 // ============================================================================
 async function fetchAutocompleteSuggestions(query) {
   const resultsContainer = document.getElementById("autocomplete-results") || 
-                           document.getElementById("search-dropdown") || 
-                           document.getElementById("search-results");
+                           document.getElementById("search-dropdown") ||
+                           document.querySelector(".autocomplete-results");
 
-  if (!query || query.trim().length < 2) {
+  if (!query || query.trim().length < 3) {
     if (resultsContainer) resultsContainer.style.display = "none";
     return;
   }
 
   const raw = query.trim();
   const numericOnly = raw.replace(/\s+/g, '');
-  let apiUrl = "";
+  let cleanText = raw.replace(/[''-]/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // Cas 1 : SIREN / SIRET (9 à 14 chiffres)
+  let apiUrl = "";
   if (/^\d{9,14}$/.test(numericOnly)) {
-    const siren = numericOnly.substring(0, 9);
-    apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${siren}&per_page=10`;
-  } 
-  // Cas 2 : Recherche textuelle par Nom / Marque / Commune
-  else {
-    const cleanText = raw.replace(/[''-]/g, ' ').replace(/\s+/g, ' ');
+    apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${numericOnly.substring(0, 9)}&per_page=10`;
+  } else {
     apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanText)}&per_page=25`;
   }
 
@@ -182,10 +166,7 @@ async function fetchAutocompleteSuggestions(query) {
 
   if (data && data.results && data.results.length > 0) {
     let results = data.results;
-
-    // Priorité aux entreprises en activité (etat_administratif === "A")
     results.sort((a, b) => (b.etat_administratif === "A" ? 1 : 0) - (a.etat_administratif === "A" ? 1 : 0));
-
     renderAutocompleteResults(results);
   } else if (resultsContainer) {
     resultsContainer.style.display = "none";
@@ -193,15 +174,14 @@ async function fetchAutocompleteSuggestions(query) {
 }
 
 // ============================================================================
-// 4. RENDU ET AFFICHAGE FORCE DU MENU DÉROULANT
+// 4. RENDU DU MENU DÉROULANT
 // ============================================================================
 function renderAutocompleteResults(results) {
   const container = document.getElementById("autocomplete-results") || 
-                    document.getElementById("search-dropdown") || 
-                    document.getElementById("search-results");
+                    document.getElementById("search-dropdown") ||
+                    document.querySelector(".autocomplete-results");
   if (!container) return;
 
-  // Force l'affichage au-dessus de la carte Leaflet (CSS z-index)
   if (container.parentElement) {
     container.parentElement.style.position = "relative";
     container.parentElement.style.zIndex = "999999";
@@ -224,13 +204,12 @@ function renderAutocompleteResults(results) {
     const siege = company.siege || {};
     const nomCommercial = siege.nom_commercial || company.nom_commercial || siege.enseigne;
     const raisonSociale = company.nom_complet || company.nom_raison_sociale || "Entreprise";
-    const name = nomCommercial ? `${nomCommercial} (${raisonSociale})` : raisonSociale;
-    
+
+    const cleanName = (nomCommercial || raisonSociale.split('(')[0]).trim();
     const postal = siege.code_postal || "";
     const ville = siege.libelle_commune || "";
-    const naf = company.activite_principale || "";
     const estActive = company.etat_administratif === "A";
-    const initiale = name.charAt(0).toUpperCase();
+    const initiale = cleanName.charAt(0).toUpperCase();
 
     const item = document.createElement("div");
     item.className = "p-3 hover:bg-slate-800 cursor-pointer transition-all border-b border-slate-700/50 text-left";
@@ -242,7 +221,7 @@ function renderAutocompleteResults(results) {
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex items-center justify-between gap-2">
-            <span class="text-sm font-bold text-white truncate">${name}</span>
+            <span class="text-sm font-bold text-white truncate">${cleanName}</span>
             <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold ${estActive ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
               ${estActive ? 'Active' : 'Fermée'}
             </span>
@@ -250,7 +229,6 @@ function renderAutocompleteResults(results) {
           <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
             <span>SIREN: <strong class="text-slate-200">${siren}</strong></span>
             ${postal || ville ? `<span>📍 ${postal} ${ville}</span>` : ''}
-            ${naf ? `<span class="bg-slate-800 px-1.5 py-0.5 rounded text-[11px] text-slate-300">NAF: ${naf}</span>` : ''}
           </div>
         </div>
       </div>
@@ -259,7 +237,7 @@ function renderAutocompleteResults(results) {
     item.onclick = (e) => {
       e.stopPropagation();
       const searchInput = document.getElementById("search-input") || document.querySelector("input[type='text']");
-      if (searchInput) searchInput.value = name;
+      if (searchInput) searchInput.value = cleanName;
 
       selectCompany(company);
       container.style.display = "none";
@@ -270,7 +248,7 @@ function renderAutocompleteResults(results) {
 }
 
 // ============================================================================
-// 5. INJECTION DE L'ENTREPRISE SELECTIONNÉE DANS LE DASHBOARD (TOLÉRANCE ZERO ERREUR)
+// 5. INJECTION DANS LE DASHBOARD
 // ============================================================================
 function selectCompany(company) {
   if (!company) return;
@@ -281,7 +259,6 @@ function selectCompany(company) {
   const raisonSociale = company.nom_complet || company.nom_raison_sociale || company.nom || "ENTREPRISE";
   const displayName = (nomCommercial || raisonSociale.split('(')[0]).trim().toUpperCase();
 
-  // Mise à jour sécurisée des éléments HTML
   const safeSetText = (id, val) => {
     const el = document.getElementById(id);
     if (el) el.textContent = val;
@@ -293,7 +270,7 @@ function selectCompany(company) {
   safeSetText("company-naf", company.activite_principale || "");
   safeSetText("company-creation", company.date_creation || "");
 
-  // Synchro des encours de crédit (45 000 € / 60 jours)
+  // Uniformisation des encours de crédit (45 000 € / 60 jours)
   safeSetText("credit-limit", "45 000 €");
   safeSetText("encours-recommande", "45 000 €");
   safeSetText("payment-terms", "60 Jours Fin de Mois");
@@ -301,26 +278,29 @@ function selectCompany(company) {
   safeSetText("risk-level", "Faible (3.1%)");
   safeSetText("profil-risque", "Risque Maîtrisé");
 
-  // Carte géographique (si Leaflet est présent)
   if (window.updateMapLocation && siege.latitude && siege.longitude) {
     window.updateMapLocation(siege.latitude, siege.longitude, displayName);
   }
 }
 
 // ============================================================================
-// 6. ACTION DU BOUTON VERTS "LANCER L'AUDIT" ET TOUCHES CLAVIER
+// 6. DÉCLENCHEMENT DE L'AUDIT DIRECT
 // ============================================================================
 async function triggerDirectAudit(query) {
-  if (!query || query.trim().length < 2) return;
-  
-  const raw = query.trim();
+  const searchInput = document.getElementById("search-input") || document.querySelector("input[type='text']");
+  const searchTerm = query || (searchInput ? searchInput.value : "");
+
+  if (!searchTerm || searchTerm.trim().length < 2) return;
+
+  const raw = searchTerm.trim();
   const numericOnly = raw.replace(/\s+/g, '');
   let apiUrl = "";
 
   if (/^\d{9,14}$/.test(numericOnly)) {
     apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${numericOnly.substring(0, 9)}&per_page=5`;
   } else {
-    apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(raw)}&per_page=15`;
+    const cleanText = raw.replace(/[''-]/g, ' ').replace(/\s+/g, ' ').trim();
+    apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanText)}&per_page=15`;
   }
 
   const data = await fetchGouvAPI(apiUrl);
@@ -329,19 +309,59 @@ async function triggerDirectAudit(query) {
     const container = document.getElementById("autocomplete-results") || document.getElementById("search-dropdown");
     if (container) container.style.display = "none";
   } else {
-    alert(`Aucune entreprise trouvée pour : "${query}"`);
+    alert(`Aucune entreprise trouvée pour : "${searchTerm}"`);
   }
 }
 
-// Attachement global immédiat des événements (Clic et Entrée)
-document.addEventListener("click", function(e) {
-  const btn = e.target.closest("button");
-  if (btn && btn.textContent.includes("Lancer l'Audit")) {
-    e.preventDefault();
-    const input = document.getElementById("search-input") || document.querySelector("input[type='text']");
-    if (input) triggerDirectAudit(input.value);
+// ============================================================================
+// 7. ÉCOUTEURS D'ÉVÉNEMENTS UNIVERSELS (INTERCEPTIONS DES CLICS & SOUMISSIONS)
+// ============================================================================
+function bindAuditEvents() {
+  // Empêche le rechargement si le bouton est dans une balise <form>
+  const forms = document.querySelectorAll("form");
+  forms.forEach(form => {
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      triggerDirectAudit();
+    };
+  });
+
+  // Touche Entrée sur le champ de texte
+  const searchInput = document.getElementById("search-input") || document.querySelector("input[type='text']");
+  if (searchInput) {
+    searchInput.onkeydown = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        triggerDirectAudit(searchInput.value);
+      }
+    };
   }
-});
+
+  // Interception universelle du clic sur tout bouton "Lancer l'Audit"
+  document.addEventListener("click", function (e) {
+    const target = e.target.closest("button, a, div.btn");
+    if (!target) return;
+
+    const text = target.textContent || "";
+    const isAuditBtn = target.id === "launch-audit-btn" || 
+                       target.classList.contains("btn-audit") || 
+                       text.toLowerCase().includes("lancer") || 
+                       text.toLowerCase().includes("audit");
+
+    if (isAuditBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      triggerDirectAudit();
+    }
+  });
+}
+
+// Initialisation immédiate et après rechargement
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bindAuditEvents);
+} else {
+  bindAuditEvents();
+}
   
   // ============================================================================
   // APPEL API ET GESTION DU CACHE
