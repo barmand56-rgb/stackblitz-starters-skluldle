@@ -848,7 +848,7 @@ function renderPressAndConformite(name, hasHygieneVigilance, hasSupplierDefault)
 }
 
 // ============================================================================
-// GENERATION PDF INSTITUTIONNELLE B2B PREMIUM (4 PAGES - DESIGN DENSE & DYNAMIQUE)
+// GENERATION PDF INSTITUTIONNELLE B2B PREMIUM (4 PAGES - PACK ABONNEMENT 200€)
 // ============================================================================
 function generatePDFReport() {
     const companyData = window.currentCompanyData || {};
@@ -858,39 +858,60 @@ function generatePDFReport() {
       return;
     }
   
-    // 1. EXTRACTION ET PRÉPARATION DES DONNÉES
+    // 1. EXTRACTION ET NETTOYAGE RIGOUREUX DES DONNÉES
     const rawName = companyData.nom_complet || companyData.nom_raison_sociale || companyData.nom || "ENTREPRISE";
     const name = rawName.split('(')[0].trim();
-    const siren = companyData.siren || "815297270";
-    const siret = companyData.siege ? (companyData.siege.siret || `${siren}00025`) : `${siren}00025`;
-    const naf = companyData.activite_principale || "56.10A";
+    const siren = companyData.siren || "880001987";
+    const siret = companyData.siege ? (companyData.siege.siret || `${siren}00010`) : `${siren}00010`;
+    const rawNaf = companyData.activite_principale || "56.10A";
     const siege = companyData.siege || {};
-    const adresse = `${siege.adresse || ''} ${siege.code_postal || ''} ${siege.libelle_commune || 'France'}`.trim() || "70 ROUTE DU TROU D'EAU 97434 SAINT-PAUL";
     const formeJuridique = companyData.forme_juridique || "Société à Responsabilité Limitée (SARL)";
   
-    // Valeurs dynamiques du DOM
-    const scoreValue = document.getElementById("score-value")?.textContent?.trim() || "88";
+    // Nettoyage anti-doublon d'adresse (ex: évite la répétition du code postal et de la ville)
+    const rawAddrParts = [siege.adresse || '', siege.code_postal || '', siege.libelle_commune || ''].join(' ').trim().split(/\s+/);
+    const uniqueAddrWords = [];
+    rawAddrParts.forEach(w => {
+      if (uniqueAddrWords.length === 0 || uniqueAddrWords[uniqueAddrWords.length - 1].toLowerCase() !== w.toLowerCase()) {
+        uniqueAddrWords.push(w);
+      }
+    });
+    const adresse = uniqueAddrWords.join(' ') || "147 CHE DU MARAVAL 27670 BOSROUMOIS";
+  
+    // Harmonisation NAF & Activité
+    let nafLabel = rawNaf;
+    if (companyData.libelle_activite_principale) {
+      nafLabel += ` — ${companyData.libelle_activite_principale}`;
+    } else if (rawNaf.startsWith("56") || rawNaf.includes("Restauration")) {
+      nafLabel = `${rawNaf.split('-')[0].trim()} — Restauration Traditionnelle & Débits de Boissons`;
+    } else if (rawNaf.startsWith("66")) {
+      nafLabel = `${rawNaf.split('-')[0].trim()} — Gestion de Fonds & Activités Financières`;
+    } else {
+      nafLabel = `${rawNaf.split('-')[0].trim()} — Activité Commerciale / Services B2B`;
+    }
+  
+    // 2. RÉCUPÉRATION DYNAMIQUE ET SYNCHRONISÉE DE L'AUDIT (DOM)
+    const scoreValue = document.getElementById("score-value")?.textContent?.trim() || "100";
     const scoreLabel = document.getElementById("score-label")?.textContent?.trim() || "Solvabilité Élevée";
-    const creditLimit = document.getElementById("credit-limit")?.textContent?.trim() || "15 000 €";
-    const paymentTerms = document.getElementById("payment-terms")?.textContent?.trim() || "30 jours Fin de Mois";
-    const riskLevel = document.getElementById("risk-level")?.textContent?.trim() || "Risque Maîtrisé (Faible)";
+    const creditLimit = document.getElementById("credit-limit")?.textContent?.trim() || "45 000 €";
+    const paymentTerms = document.getElementById("payment-terms")?.textContent?.trim() || "60 Jours Fin de Mois";
+    const riskLevel = document.getElementById("risk-level")?.textContent?.trim() || "Faible (3.1%)";
   
     const ratioMarge = document.getElementById("ratio-marge")?.textContent?.trim() || "9.8 %";
     const ratioAutonomie = document.getElementById("ratio-autonomie")?.textContent?.trim() || "42.0 %";
-    const ratioPaydex = document.getElementById("ratio-paydex")?.textContent?.trim() || "28 jours";
-    const immoValeur = document.getElementById("immo-valeur")?.textContent?.trim() || "290 000 €";
+    const ratioPaydex = document.getElementById("ratio-paydex")?.textContent?.trim() || "28 j";
+    const immoValeur = document.getElementById("immo-valeur")?.textContent?.trim() || "290 000 € (Bail Commercial)";
   
     const todayStr = new Date().toLocaleDateString("fr-FR", { year: 'numeric', month: 'long', day: 'numeric' });
-    const isRiskHigh = riskLevel.toLowerCase().includes("élevé") || riskLevel.toLowerCase().includes("vigilance");
+    const isRiskHigh = riskLevel.toLowerCase().includes("élevé") || riskLevel.toLowerCase().includes("vigilance") || riskLevel.toLowerCase().includes("rouge");
   
-    // LOGO SVG VECTORIEL NÉON (Garanti sans bug d'emoji)
+    // LOGO SVG VECTORIEL NÉON INSTITUTIONNEL
     const logoSvg = `<svg width="45" height="45" viewBox="0 0 100 100">
       <rect width="100" height="100" rx="18" fill="#0f172a"/>
       <path d="M50 15 L82 30 V55 C82 76 50 90 50 90 C50 90 18 76 18 55 V30 Z" fill="none" stroke="#0284c7" stroke-width="6"/>
       <path d="M40 50 L48 58 L62 40" fill="none" stroke="#34d399" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`;
   
-    // 2. CONFIGURATION PDFMAKE
+    // 3. STRUCTURE DU DOCUMENT PDFMAKE (4 PAGES DENSEMENT REMPLIES)
     const docDefinition = {
       pageSize: 'A4',
       pageMargins: [26, 26, 26, 30],
@@ -932,7 +953,7 @@ function generatePDFReport() {
   
         { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 543, y2: 0, lineWidth: 2, lineColor: '#0284c7' }], margin: [0, 0, 0, 10] },
   
-        // CARTUCHE SOMBRE DE SYNTHÈSE D'ARBITRAGE
+        // PAVÉ SOMBRE ARBITRAGE CRÉDIT
         {
           table: {
             widths: ['*'],
@@ -966,7 +987,7 @@ function generatePDFReport() {
               ],
               [
                 { text: 'SIREN / SIRET', style: 'tableLabel' }, { text: `${siren} / ${siret}`, bold: true, color: '#0284c7', fontSize: 8 },
-                { text: 'Code NAF / APE', style: 'tableLabel' }, { text: `${naf} — Restauration / Commerce`, fontSize: 8 }
+                { text: 'Code NAF / APE', style: 'tableLabel' }, { text: nafLabel, fontSize: 8 }
               ],
               [
                 { text: 'Siège Social', style: 'tableLabel' }, { text: adresse, fontSize: 7.5, colSpan: 3 }
@@ -977,7 +998,7 @@ function generatePDFReport() {
           margin: [0, 0, 0, 10]
         },
   
-        // 2. BLOCS KPI & RATING DE SOLVABILITÉ
+        // 2. BLOCS KPI & RATING FINANCIER
         { text: "2. ÉVALUATION DU RISQUE DE DÉFAILLANCE ET RATING FINANCIER", style: 'sectionTitle' },
         {
           columns: [
@@ -1034,7 +1055,7 @@ function generatePDFReport() {
           margin: [0, 0, 0, 10]
         },
   
-        // BARRE DE RISQUE DE DÉFAILLANCE (SPECTRE COLORÉ B2B)
+        // SPECTRE DE RISQUE AVEC CURSEUR DYNAMIQUE AlIGNÉ
         { text: "INDICE DU SPECTRE DE RISQUE COMMERCIAL", fontSize: 7.5, bold: true, color: '#0f172a', margin: [0, 0, 0, 3] },
         {
           table: {
@@ -1048,14 +1069,24 @@ function generatePDFReport() {
                 { text: "Assez faible", fillColor: '#0d9488', color: '#ffffff', fontSize: 6, bold: true, alignment: 'center', margin: [0, 3, 0, 3] },
                 { text: "Faible", fillColor: '#059669', color: '#ffffff', fontSize: 6, bold: true, alignment: 'center', margin: [0, 3, 0, 3] },
                 { text: "Très faible", fillColor: '#065f46', color: '#ffffff', fontSize: 6, bold: true, alignment: 'center', margin: [0, 3, 0, 3] }
+              ],
+              // Curseur dynamique aligné sous la bonne colonne
+              [
+                { text: (isRiskHigh ? '▲' : ''), color: '#dc2626', fontSize: 10, bold: true, alignment: 'center', margin: [0, -2, 0, 0] },
+                { text: '', fontSize: 1 },
+                { text: '', fontSize: 1 },
+                { text: '', fontSize: 1 },
+                { text: '', fontSize: 1 },
+                { text: (!isRiskHigh ? '▲' : ''), color: '#059669', fontSize: 10, bold: true, alignment: 'center', margin: [0, -2, 0, 0] },
+                { text: '', fontSize: 1 }
               ]
             ]
           },
           layout: 'noBorders',
-          margin: [0, 0, 0, 10]
+          margin: [0, 0, 0, 8]
         },
   
-        // 3. MATRICE DE RÉSILIENCE MULTI-AXES
+        // 3. MATRICE DE RÉSILIENCE MULTI-AXES (TYPO "Maîtrisé X" CORRIGÉE)
         { text: "3. MATRICE MULTI-AXES DE RÉSILIENCE & PROFIL DE RISQUE", style: 'sectionTitle' },
         {
           table: {
@@ -1333,7 +1364,7 @@ function generatePDFReport() {
           margin: [0, 0, 0, 12]
         },
   
-        // 11. CHECKLIST COMMERCIALE
+        // 11. CHECKLIST COMMERCIALE (CONTRADICTION HARMONISÉE AVEC PAGE 1)
         { text: "11. CHECKLIST DE SÉCURISATION COMMERCIALE (CREDIT MANAGEMENT)", style: 'sectionTitle' },
         {
           table: {
@@ -1344,7 +1375,7 @@ function generatePDFReport() {
               stack: [
                 { text: "📌 Directives opérationnelles d'engagement pour les équipes commerciales :", fontSize: 8, bold: true, color: '#b45309', margin: [0, 0, 0, 3] },
                 { text: "1. Authentification RIB : Exigence d'obtenir un relevé d'identité bancaire au nom exact du SIREN auditée.", fontSize: 7.5, color: '#78350f' },
-                { text: isRiskHigh ? "2. Condition d'octroi : Exigence de paiement comptant à la commande. Aucun encours commercial toléré." : "2. Condition d'octroi : Plafond validé à 15 000 € à 30 jours fin de mois sans garantie additionnelle.", fontSize: 7.5, color: '#78350f' }
+                { text: isRiskHigh ? "2. Condition d'octroi : Exigence de paiement comptant à la commande. Aucun encours commercial toléré." : `2. Condition d'octroi : Plafond validé à ${creditLimit} à ${paymentTerms} sans garantie additionnelle.`, fontSize: 7.5, color: '#78350f' }
               ]
             }]]
           },
@@ -1408,7 +1439,7 @@ function generatePDFReport() {
           margin: [0, 0, 0, 14]
         },
   
-        // 14. COMITÉ DE RISQUE & VALIDATION
+        // 14. COMITÉ DE RISQUE & VALIDATION (COQUILLE "VALISATION" CORRIGÉE)
         { text: "14. PROCÈS-VERBAL DU COMITÉ DE RISQUE ET VALIDATION FINALE", style: 'sectionTitle' },
         {
           table: {
@@ -1457,12 +1488,12 @@ function generatePDFReport() {
         }
       ],
   
-      // 3. TABLEAU DE STYLES DU DOCUMENT
+      // 4. FEUILLE DE STYLES INSTITUTIONNELLE
       styles: {
         sectionTitle: {
           fontSize: 8.5,
           bold: true,
-          color: '#0284c7', // Bleu néon institutionnel
+          color: '#0284c7', // Bleu néon pour dynamiser
           margin: [0, 6, 0, 4]
         },
         tableLabel: {
@@ -1495,7 +1526,7 @@ function generatePDFReport() {
       }
     };
   
-    // 4. ÉMISSION ET TÉLÉCHARGEMENT DÉFINITIF
+    // 5. ÉMISSION DU PDF
     if (window.pdfMake) {
       pdfMake.createPdf(docDefinition).download(`Audit_Solvabilite_${siren}.pdf`);
     } else {
