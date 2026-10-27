@@ -8,11 +8,8 @@
    - Toutes les données externes sont échappées avant d'être injectées dans le DOM.
    - Aucun secret dans ce fichier : l'accès est vérifié côté serveur (api/verify.js).
 
-   Sections :
-     0. Configuration      4. Recherche & autocomplétion   8. Carte
-     1. Utilitaires        5. Score indicatif              9. Rapport PDF
-     2. Accès / session    6. Modèle de données           10. Initialisation
-     3. API & cache        7. Rendu du tableau de bord
+   Sections : 0 Configuration · 1 Utilitaires · 2 Accès · 3 API · 4 Recherche · 5 Score · 6 Modèle
+               7 Sources externes · 8 Rendu · 9 PDF · 9bis Analyse rédigée · 10 Initialisation
    ============================================================================= */
    'use strict';
 
@@ -25,6 +22,12 @@
      autocompleteDelayMs: 250,
      cacheMaxEntries: 100,
      analysisEndpoint: '/api/analyse',
+     // Sources publiques interrogées depuis le navigateur (OpenDataSoft). Vérifiez-les avec ?diag=1.
+     sources: Object.freeze({
+       bodacc: 'https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records',
+       alim: 'https://dgal.opendatasoft.com/api/explore/v2.1/catalog/datasets/export_alimconfiance/records',
+       timeoutMs: 9000
+     }),
      auth: Object.freeze({
        endpoint: '/api/verify',
        storageKey: 'ees_session',
@@ -63,10 +66,10 @@
    });
    
    const TONES = Object.freeze({
-     emerald: { text: 'text-emerald-400', pill: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30', hex: '#10b981', pdf: '#059669' },
-     amber: { text: 'text-amber-400', pill: 'bg-amber-500/20 text-amber-300 border border-amber-500/30', hex: '#f59e0b', pdf: '#d97706' },
-     red: { text: 'text-red-400', pill: 'bg-red-500/20 text-red-400 border border-red-500/30', hex: '#ef4444', pdf: '#dc2626' },
-     slate: { text: 'text-slate-300', pill: 'bg-slate-500/20 text-slate-300 border border-slate-500/30', hex: '#94a3b8', pdf: '#475569' }
+     emerald: { css: '--ok', pdf: '#0b7f5c' },
+     amber: { css: '--warn', pdf: '#9a6200' },
+     red: { css: '--bad', pdf: '#b3261e' },
+     slate: { css: '--ink-2', pdf: '#475569' }
    });
    
    /* Effectif : bornes (nombre de salariés) par tranche Sirene */
@@ -104,7 +107,6 @@
    
    const state = {
      view: null,
-     chart: null,
      map: null,
      markerLayer: null,
      searchTimer: null,
@@ -156,7 +158,7 @@
    
    function notify(message) {
      const el = document.createElement('div');
-     el.className = 'fixed bottom-4 right-4 z-[2000] max-w-sm px-4 py-3 rounded-xl bg-slate-900 border border-cyan-500/40 text-xs text-slate-100 shadow-2xl';
+     el.className = 'toast';
      el.setAttribute('role', 'status');
      el.textContent = message;
      document.body.appendChild(el);
@@ -185,7 +187,7 @@
    
    function setLocked(locked) {
      const modal = $('auth-modal');
-     if (modal) modal.classList.toggle('hidden', !locked);
+     if (modal) modal.hidden = !locked;
      ['header', 'main', 'footer'].forEach((selector) => {
        const el = document.querySelector(selector);
        if (el) el.inert = locked;
@@ -226,7 +228,7 @@
    function addDevPreviewButton() {
      const form = document.querySelector('#auth-modal form');
      if (!form || $('dev-preview-btn')) return;
-     const btn = h('button', 'w-full py-2.5 text-xs text-slate-400 border border-dashed border-slate-600 rounded-xl hover:text-cyan-300 hover:border-cyan-500/50 transition-all',
+     const btn = h('button', 'btn btn--dashed',
        'Aperçu développeur : continuer sans clé');
      btn.type = 'button';
      btn.id = 'dev-preview-btn';
@@ -266,10 +268,10 @@
      const showError = (message) => {
        if (banner) {
          banner.textContent = message;
-         banner.classList.remove('hidden');
+         banner.hidden = false;
        }
-       input.classList.add('border-red-500');
-       setTimeout(() => input.classList.remove('border-red-500'), 2000);
+       input.classList.add('err');
+       setTimeout(() => input.classList.remove('err'), 2000);
      };
    
      const code = input.value.trim();
@@ -283,7 +285,7 @@
        const { status, data } = await authRequest({ code });
        if (status === 200 && data && data.ok && data.token) {
          writeSession({ token: data.token, exp: data.exp });
-         if (banner) banner.classList.add('hidden');
+         if (banner) banner.hidden = true;
          input.value = '';
          setLocked(false);
        } else if (status === 429) {
@@ -398,16 +400,7 @@
    
    function hideAutocomplete() {
      const box = $('autocomplete-results');
-     if (box) box.classList.add('hidden');
-   }
-   
-   function initSearchUI() {
-     const box = $('autocomplete-results');
-     if (!box) return;
-     if (box.parentElement) {
-       Object.assign(box.parentElement.style, { position: 'relative', overflow: 'visible' });
-     }
-     Object.assign(box.style, { position: 'absolute', top: '100%', left: '0', right: '0', zIndex: '999999', backgroundColor: '#0f172a' });
+     if (box) box.hidden = true;
    }
    
    function handleSearchInput(event) {
@@ -441,32 +434,19 @@
      const box = $('autocomplete-results');
      if (!box) return;
      box.replaceChildren();
-   
      results.forEach((company) => {
        const siege = company.siege || {};
        const name = companyDisplayName(company);
        const active = company.etat_administratif === 'A';
        const place = [siege.code_postal, siege.libelle_commune].filter(Boolean).join(' ');
-   
-       const item = h('div', 'p-3 hover:bg-slate-800 cursor-pointer transition-all border-b border-slate-700/50 text-left');
-       const row = h('div', 'flex items-center gap-3 w-full');
-       row.appendChild(h('div', 'w-8 h-8 min-w-[32px] rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400 flex items-center justify-center font-bold text-sm', name.charAt(0).toUpperCase()));
-   
-       const body = h('div', 'flex-1 min-w-0');
-       const top = h('div', 'flex items-center justify-between gap-2');
-       top.appendChild(h('span', 'text-sm font-bold text-white truncate', name));
-       top.appendChild(h('span', `text-[10px] px-1.5 py-0.5 rounded font-semibold ${active ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}`, active ? 'Active' : 'Fermée'));
-   
-       const meta = h('div', 'flex items-center gap-2 text-xs text-slate-400 mt-0.5');
-       const sirenSpan = h('span', undefined, 'SIREN: ');
-       sirenSpan.appendChild(h('strong', 'text-slate-200', company.siren || NA));
-       meta.appendChild(sirenSpan);
-       if (place) meta.appendChild(h('span', undefined, place));
-   
-       body.append(top, meta);
-       row.appendChild(body);
-       item.appendChild(row);
-   
+       const item = h('div', 'ac__item');
+       item.setAttribute('role', 'option');
+       const left = h('div');
+       left.style.minWidth = '0';
+       left.appendChild(h('span', 'ac__name', name));
+       left.appendChild(h('span', 'ac__meta', `SIREN ${company.siren || NA}${place ? ` · ${place}` : ''}`));
+       item.appendChild(left);
+       item.appendChild(h('span', `chip chip--${active ? 'ok' : 'bad'}`, active ? 'Active' : 'Cessée'));
        item.addEventListener('click', (e) => {
          e.stopPropagation();
          const input = $('search-input');
@@ -476,7 +456,7 @@
        });
        box.appendChild(item);
      });
-     box.classList.remove('hidden');
+     box.hidden = false;
    }
    
    async function executeSearch(options) {
@@ -515,11 +495,12 @@
      const input = $('search-input');
      if (input) input.value = '';
      hideAutocomplete();
-     const dash = $('dashboard-content');
-     if (dash) dash.classList.add('hidden');
-     setMapHeader('Localisation du Siège Social', 'FRANCE',
-       'Sélectionnez une entreprise ou utilisez la barre de recherche ci-dessus pour géolocaliser le siège social.');
+     $('dashboard-content').hidden = true;
+     const hero = $('hero-copy');
+     if (hero) hero.hidden = false;
+     setMapHeader('Localisation du siège social', 'FRANCE', 'Sélectionnez une entreprise pour situer son siège.');
      showHomeMap();
+     window.scrollTo({ top: 0, behavior: 'smooth' });
    }
    
    /* =============================================================================
@@ -535,7 +516,7 @@
       ============================================================================= */
    const EFFECTIF_POINTS = { NN: 2, '00': 2, '01': 6, '02': 8, '03': 10, 11: 12 };
    
-   function computeScore(company, fin, dirigeants) {
+   function computeScore(company, fin, dirigeants, flags = {}) {
      const closed = company.etat_administratif !== 'A';
      const criteria = [];
      const add = (name, pts, max, note) => criteria.push({ name, pts, max, note });
@@ -574,22 +555,27 @@
      add('Établissements ouverts', open !== null && open >= 1 ? 5 : 0, 5,
        open === null ? 'Non renseigné' : `${open} établissement(s) ouvert(s)`);
    
+     const collective = !closed && flags.collective === true;
+     if (collective) add('Procédure collective', 0, 0, 'Annonce de procédure collective au BODACC : note plafonnée à 30');
      let total = criteria.reduce((sum, c) => sum + c.pts, 0);
      if (closed) total = Math.min(total, 20);
+     if (collective) total = Math.min(total, 30);
    
      let grade, label, risk, tone, terms;
      if (closed) {
-       grade = 'D'; label = 'ENTREPRISE CESSÉE'; risk = 'Critique'; tone = 'red'; terms = 'Paiement à la commande conseillé';
+       grade = 'D'; label = 'Entreprise cessée'; risk = 'Critique'; tone = 'red'; terms = 'Paiement à la commande conseillé';
+     } else if (collective) {
+       grade = 'D'; label = 'Procédure collective signalée'; risk = 'Élevé'; tone = 'red'; terms = 'Paiement à la commande conseillé';
      } else if (total >= 75) {
-       grade = 'A'; label = 'PROFIL FAVORABLE'; risk = 'Faible'; tone = 'emerald'; terms = 'Conditions usuelles';
+       grade = 'A'; label = 'Profil favorable'; risk = 'Faible'; tone = 'emerald'; terms = 'Conditions usuelles';
      } else if (total >= 60) {
-       grade = 'B'; label = 'PROFIL CORRECT'; risk = 'Modéré'; tone = 'amber'; terms = 'Conditions usuelles, suivi conseillé';
+       grade = 'B'; label = 'Profil correct'; risk = 'Modéré'; tone = 'amber'; terms = 'Conditions usuelles, suivi conseillé';
      } else if (total >= 45) {
-       grade = 'C'; label = 'VIGILANCE CONSEILLÉE'; risk = 'Élevé'; tone = 'amber'; terms = 'Terme court ou garanties conseillés';
+       grade = 'C'; label = 'Vigilance conseillée'; risk = 'Élevé'; tone = 'amber'; terms = 'Terme court ou garanties conseillés';
      } else {
-       grade = 'D'; label = 'RISQUE ÉLEVÉ'; risk = 'Élevé'; tone = 'red'; terms = 'Paiement à la commande conseillé';
+       grade = 'D'; label = 'Risque élevé'; risk = 'Élevé'; tone = 'red'; terms = 'Paiement à la commande conseillé';
      }
-     return { total, grade, label, risk, tone, terms, criteria, closed };
+     return { total, grade, label, risk, tone, terms, criteria, closed, collective };
    }
    
    /* =============================================================================
@@ -672,6 +658,8 @@
        fin,
        estimate: fin.rows.length ? { available: false, reason: 'Comptes publiés disponibles.' } : estimateRevenue(company),
        analysis: null,
+       sources: newSources(company.activite_principale),
+       manualAlerts: [],
        score: computeScore(company, fin, dirigeants),
        displayName: companyDisplayName(company).toUpperCase(),
        raison: raison.split('(')[0].trim(),
@@ -697,317 +685,507 @@
    }
    
    /* =============================================================================
-      7. RENDU DU TABLEAU DE BORD
+      7. SOURCES EXTERNES (BODACC, Alim'confiance) — chaque source a un statut explicite :
+         loading · ok (résultats) · none (consultée, rien trouvé) · unavailable (injoignable) · na (sans objet)
+      « unavailable » n'est JAMAIS présenté comme « aucun problème ».
       ============================================================================= */
-   const tile = (label, value, tone = 'text-white') =>
-     `<div class="bg-slate-800/80 p-2.5 rounded-lg border border-slate-700/60 text-left">` +
-     `<span class="text-[10px] text-slate-400 block uppercase font-medium">${esc(label)}</span>` +
-     `<span class="text-xs font-bold ${tone}">${esc(value)}</span></div>`;
+   const FOOD_NAF = /^(56|10|47\.1|47\.2|47\.8|46\.3|55)/;
+   const COLLECTIVE_RE = /collective|redressement|liquidation|sauvegarde|r[ée]tablissement professionnel/i;
    
-   const tilesRow = (tiles) => `<div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">${tiles.join('')}</div>`;
+   function newSources(naf) {
+     return {
+       bodacc: { status: 'loading', items: [], attempts: [] },
+       alim: { status: FOOD_NAF.test(naf || '') ? 'loading' : 'na', items: [], attempts: [] }
+     };
+   }
    
-   const bullets = (items) =>
-     `<div class="border-t border-slate-800 pt-2 text-xs text-slate-300 space-y-1.5 text-left">` +
-     items.map(([title, body]) => `<p><strong class="text-white">• ${esc(title)} :</strong> ${esc(body)}</p>`).join('') + '</div>';
+   async function fetchJson(url) {
+     const controller = new AbortController();
+     const timer = setTimeout(() => controller.abort(), CONFIG.sources.timeoutMs);
+     const t0 = Date.now();
+     try {
+       const res = await fetch(url, { signal: controller.signal });
+       let data = null;
+       try { data = await res.json(); } catch (e) { /* réponse non JSON */ }
+       return { ok: res.ok, http: res.status, data, ms: Date.now() - t0 };
+     } catch (e) {
+       return { ok: false, http: 0, data: null, ms: Date.now() - t0, error: e && e.name === 'AbortError' ? 'délai dépassé' : 'réseau ou CORS' };
+     } finally {
+       clearTimeout(timer);
+     }
+   }
    
-   const externalLink = (href, label, icon = 'fa-arrow-up-right-from-square') =>
-     `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer" ` +
-     `class="px-3 py-1.5 bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/40 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1.5">` +
-     `<i class="fa-solid ${icon}"></i> ${esc(label)}</a>`;
+   /** Interroge un jeu de données OpenDataSoft avec plusieurs formulations, puis filtre côté client (le filtre est la garantie d'exactitude). */
+   async function queryOds(base, queries, matches) {
+     const attempts = [];
+     const seen = new Set();
+     const kept = [];
+     let anyOk = false;
+     for (const q of queries) {
+       const url = `${base}?${new URLSearchParams({ limit: '60', q }).toString()}`;
+       const r = await fetchJson(url);
+       const rows = r.ok && r.data && Array.isArray(r.data.results) ? r.data.results : null;
+       if (rows) anyOk = true;
+       let added = 0;
+       (rows || []).forEach((rec) => {
+         const key = JSON.stringify(rec);
+         if (seen.has(key) || !matches(rec)) return;
+         seen.add(key);
+         kept.push(rec);
+         added += 1;
+       });
+       attempts.push({ url, http: r.http, ms: r.ms, error: r.error || null, received: rows ? rows.length : null, kept: added });
+     }
+     return { status: !anyOk ? 'unavailable' : kept.length ? 'ok' : 'none', records: kept, attempts };
+   }
    
+   const spacedSiren = (s) => `${s.slice(0, 3)} ${s.slice(3, 6)} ${s.slice(6)}`;
+   
+   function describeJudgement(rec) {
+     const parts = [];
+     ['jugement', 'depot', 'modificationsgenerales', 'radiationaurcs', 'acte'].forEach((k) => {
+       let val = rec[k];
+       if (!val) return;
+       if (typeof val === 'string') { try { val = JSON.parse(val); } catch (e) { parts.push(val); return; } }
+       if (val && typeof val === 'object') {
+         ['famille', 'nature', 'complementJugement', 'typeDepot', 'dateCloture', 'descriptif', 'dateEffet']
+           .forEach((f) => { if (typeof val[f] === 'string' && val[f]) parts.push(val[f]); });
+       }
+     });
+     return parts.join(' — ').slice(0, 220);
+   }
+   
+   function normalizeBodacc(rec) {
+     return {
+       date: String(rec.dateparution || rec.date_parution || '').slice(0, 10),
+       type: String(rec.typeavis_lib || rec.typeavis || ''),
+       famille: String(rec.familleavis_lib || rec.familleavis || ''),
+       tribunal: String(rec.tribunal || ''),
+       detail: describeJudgement(rec)
+     };
+   }
+   
+   async function loadBodacc(siren) {
+     const matches = (rec) => (rec.registre !== undefined ? digits(JSON.stringify(rec.registre)).includes(siren) : digits(JSON.stringify(rec)).includes(siren));
+     const res = await queryOds(CONFIG.sources.bodacc, [siren, spacedSiren(siren)], matches);
+     const items = res.records.map(normalizeBodacc).sort((a, b) => b.date.localeCompare(a.date));
+     return { status: res.status, items, attempts: res.attempts };
+   }
+   
+   function normalizeAlim(rec) {
+     return {
+       date: String(rec.date_inspection || '').slice(0, 10),
+       name: String(rec.app_libelle_etablissement || rec.nom_etablissement || ''),
+       activity: String(rec.ods_type_activite || rec.type_activite || ''),
+       result: String(rec.synthese_eval_sanit || ''),
+       place: [rec.code_postal, rec.libelle_commune].filter(Boolean).join(' '),
+       siret: digits(rec.siret)
+     };
+   }
+   
+   async function loadAlim(siren) {
+     const matches = (rec) => digits(rec.siret).startsWith(siren);
+     const res = await queryOds(CONFIG.sources.alim, [siren], matches);
+     const items = res.records.map(normalizeAlim).sort((a, b) => b.date.localeCompare(a.date));
+     return { status: res.status, items, attempts: res.attempts };
+   }
+   
+   const alimSeverity = (r) => (/urgent|insuffisant/i.test(r) ? 'bad' : /am[ée]liorer/i.test(r) ? 'warn' : /satisfaisant/i.test(r) ? 'ok' : 'info');
+   const hasCollective = (v) => v.sources.bodacc.status === 'ok' && v.sources.bodacc.items.some((i) => COLLECTIVE_RE.test(`${i.famille} ${i.type} ${i.detail}`));
+   const worstAlim = (v) => {
+     const sev = v.sources.alim.status === 'ok' ? v.sources.alim.items.map((i) => alimSeverity(i.result)) : [];
+     return sev.includes('bad') ? 'bad' : sev.includes('warn') ? 'warn' : sev.length ? 'ok' : null;
+   };
+   
+   async function loadSources(v) {
+     if (!/^\d{9}$/.test(v.siren)) {
+       v.sources.bodacc.status = 'unavailable';
+       if (v.sources.alim.status === 'loading') v.sources.alim.status = 'unavailable';
+       return refreshSourced(v);
+     }
+     const jobs = [loadBodacc(v.siren).then((r) => { v.sources.bodacc = r; })];
+     if (v.sources.alim.status === 'loading') jobs.push(loadAlim(v.siren).then((r) => { v.sources.alim = r; }));
+     await Promise.all(jobs.map((j) => j.catch((e) => { console.error('Source :', e); })));
+     ['bodacc', 'alim'].forEach((k) => { if (v.sources[k].status === 'loading') v.sources[k].status = 'unavailable'; });
+     refreshSourced(v);
+   }
+   
+   /** Recalcule ce qui dépend des sources (note, alertes) puis redessine — uniquement si le dossier est toujours affiché. */
+   function refreshSourced(v) {
+     if (state.view !== v) return;
+     v.score = computeScore(v.company, v.fin, v.dirigeants, { collective: hasCollective(v) });
+     renderVerdict(v);
+     renderAlerts(v);
+     renderSignals(v);
+     renderAlertsTab(v);
+     renderSourcesTab(v);
+     renderDiag(v);
+   }
+   
+   /* ---- Alertes saisies par l'analyste (stockées dans ce navigateur, toujours « non vérifiées ») ---- */
+   const ALERT_TYPES = Object.freeze({
+     fermeture_sanitaire: 'Fermeture administrative (sanitaire)',
+     fermeture_autre: 'Fermeture administrative (autre)',
+     agrement: 'Retrait ou suspension d’agrément',
+     autre: 'Autre signal'
+   });
+   const alertsKey = (siren) => `ees_alerts_${siren}`;
+   
+   function loadManualAlerts(siren) {
+     try {
+       const list = JSON.parse(localStorage.getItem(alertsKey(siren)));
+       return Array.isArray(list) ? list.filter((a) => a && ALERT_TYPES[a.type] && a.source) : [];
+     } catch (e) { return []; }
+   }
+   
+   function saveManualAlerts(v) {
+     try { localStorage.setItem(alertsKey(v.siren), JSON.stringify(v.manualAlerts)); return true; } catch (e) { return false; }
+   }
+   
+   function handleAlertSubmit(event) {
+     event.preventDefault();
+     const v = state.view;
+     if (!v) return;
+     const source = $('alert-source').value.trim().slice(0, 300);
+     if (!source) return notify('Indiquez la source de l’information (arrêté, article, lien) : sans source, l’alerte n’est pas enregistrée.');
+     v.manualAlerts.push({
+       id: String(Date.now()),
+       type: $('alert-type').value in ALERT_TYPES ? $('alert-type').value : 'autre',
+       date: /^\d{4}-\d{2}-\d{2}$/.test($('alert-date').value) ? $('alert-date').value : '',
+       source,
+       note: $('alert-note').value.trim().slice(0, 300)
+     });
+     if (!saveManualAlerts(v)) notify('Alerte ajoutée pour cette session seulement : le stockage du navigateur est indisponible.');
+     $('alert-form').reset();
+     refreshSourced(v);
+   }
+   
+   function removeManualAlert(id) {
+     const v = state.view;
+     if (!v) return;
+     v.manualAlerts = v.manualAlerts.filter((a) => a.id !== id);
+     saveManualAlerts(v);
+     refreshSourced(v);
+   }
+   
+   /* =============================================================================
+      8. RENDU DU DOSSIER
+      ============================================================================= */
+   const chip = (text, tone = '', icon = '') =>
+     `<span class="chip${tone ? ` chip--${tone}` : ''}">${icon ? `<i class="fa-solid ${icon}"></i>` : ''}${esc(text)}</span>`;
+   const dotRow = (label, tone, value) =>
+     `<div class="row"><span class="row__k"><span class="dot dot--${tone}"></span>${esc(label)}</span><span class="row__v">${esc(value)}</span></div>`;
+   const extLink = (href, label, icon = 'fa-arrow-up-right-from-square') =>
+     `<a class="btn btn--small" href="${esc(href)}" target="_blank" rel="noopener noreferrer"><i class="fa-solid ${icon}"></i> ${esc(label)}</a>`;
    const auditButton = (siren) =>
-     `<button type="button" data-audit-siren="${esc(digits(siren))}" ` +
-     `class="px-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-400/40 rounded-lg text-xs font-bold transition-all inline-flex items-center gap-1.5">` +
-     `<i class="fa-solid fa-magnifying-glass"></i> Auditer</button>`;
+     `<button type="button" class="btn btn--small" data-audit-siren="${esc(digits(siren))}"><i class="fa-solid fa-magnifying-glass"></i> Ouvrir le dossier</button>`;
+   const emptyNote = (text) => `<p class="muted">${esc(text)}</p>`;
    
-   const infoCard = (title, text) =>
-     `<div class="p-3.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300 space-y-1">` +
-     `<strong class="text-white block">${esc(title)}</strong><p>${esc(text)}</p></div>`;
+   const fmtCompact = (n) => {
+     if (n === null || n === undefined) return NA;
+     const abs = Math.abs(n);
+     const f = (x, unit) => `${cleanSpaces(new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(x))} ${unit}`;
+     return abs >= 1e6 ? f(n / 1e6, 'M€') : abs >= 1e3 ? f(n / 1e3, 'k€') : f(n, '€');
+   };
+   
+   const SRC_LABEL = Object.freeze({ ok: 'Consultée', none: 'Consultée — aucun résultat', unavailable: 'Injoignable', loading: 'En cours…', na: 'Sans objet' });
+   const SRC_TONE = Object.freeze({ ok: 'ok', none: 'ok', unavailable: 'warn', loading: 'info', na: '' });
    
    function selectCompany(company) {
      if (!company) return;
      const view = buildView(company);
+     view.manualAlerts = loadManualAlerts(view.siren);
      state.view = view;
    
+     const hero = $('hero-copy');
+     if (hero) hero.hidden = true;
      renderHeader(view);
-     renderScore(view);
-     renderLeaders(view);
+     renderVerdict(view);
+     renderRevenue(view);
+     renderAlerts(view);
+     renderSignals(view);
+     renderAnalysis(view);
      renderFinances(view);
      renderGroup(view);
-     renderCompliance(view);
-     renderRealEstate(view);
+     renderAlertsTab(view);
+     renderSourcesTab(view);
      renderCompanyMap(view);
-     renderAnalysis(view);
+     renderDiag(view);
    
-     const dash = $('dashboard-content');
-     if (dash) dash.classList.remove('hidden');
+     $('dashboard-content').hidden = false;
      switchTab('cat-finances');
      hideAutocomplete();
-     if (dash && dash.scrollIntoView) dash.scrollIntoView({ behavior: 'smooth', block: 'start' });
+     const top = $('dashboard-content');
+     if (top && top.scrollIntoView) top.scrollIntoView({ behavior: 'smooth', block: 'start' });
+     loadSources(view);
    }
    
    function renderHeader(v) {
      setText('company-name', v.displayName);
-     setText('company-siren', v.siren || '---');
-     setText('company-naf', v.naf || '---');
-     setText('company-date', fmtDate(v.dateCreation));
+     setText('company-legal', v.raison !== v.displayName ? v.raison : '');
+     const chips = [chip(v.active ? 'Active' : 'Cessée', v.active ? 'ok' : 'bad', v.active ? 'fa-circle-check' : 'fa-circle-xmark'),
+       chip(v.siegeActive ? 'Siège ouvert' : 'Siège fermé', v.siegeActive ? 'ok' : 'bad', 'fa-store')];
+     if (v.forme !== NA) chips.push(chip(v.forme));
+     if (FOOD_NAF.test(v.naf)) chips.push(chip('Activité alimentaire', 'info', 'fa-utensils'));
+     setHTML('company-chips', chips.join(''));
    
-     const pill = (id, tone, html) => {
-       const el = $(id);
-       if (!el) return;
-       el.className = `px-3 py-1 rounded-full text-xs font-bold ${TONES[tone].pill}`;
-       el.innerHTML = html;
-     };
-     pill('badge-status-insee', v.active ? 'emerald' : 'red', esc(v.active ? 'Actif (INSEE)' : 'Cessé (INSEE)'));
-     pill('badge-status-site', v.siegeActive ? 'emerald' : 'red',
-       `<i class="fa-solid fa-store mr-1"></i>${esc(v.siegeActive ? 'SIÈGE OUVERT' : 'SIÈGE FERMÉ')}`);
-   
-     const food = $('badge-daaf-status');
-     if (food) {
-       const isFood = /^(56|10|47\.11|47\.2)/.test(v.naf); // restauration, industrie alimentaire, commerce alimentaire
-       food.classList.toggle('hidden', !isFood);
-       food.className = `px-3 py-1 rounded-lg text-xs font-bold ${TONES.slate.pill}${isFood ? '' : ' hidden'}`;
-       food.innerHTML = '<i class="fa-solid fa-circle-info"></i> CONTRÔLE SANITAIRE : NON INTÉGRÉ';
-     }
-   
-     const banner = $('alert-banner-daaf');
-     if (banner) {
-       banner.classList.toggle('hidden', v.active);
-       if (!v.active) {
-         setHTML('alert-daaf-text',
-           `<strong>Alerte :</strong> cette entreprise est enregistrée comme cessée au répertoire Sirene` +
-           `${v.dateFermeture ? ` (depuis le ${esc(fmtDate(v.dateFermeture))})` : ''}. Toute relation commerciale doit être revue.`);
-       }
-     }
-   
-     setHTML('company-official-links',
-       [externalLink(LINKS.annuaire(v.siren), 'Annuaire Entreprises', 'fa-building-columns'),
-         externalLink(LINKS.inpi(v.siren), 'INPI', 'fa-file-invoice'),
-         externalLink(LINKS.bodacc, 'BODACC', 'fa-newspaper')].join(''));
+     const facts = [['SIREN', v.siren || NA], ['SIRET du siège', v.siret || NA], ['Code NAF', v.naf || NA], ['Création', fmtDate(v.dateCreation)],
+       ['Effectif', v.effectif], ['Commune', [v.postal, v.city].filter(Boolean).join(' ') || NA], ['TVA intracom. (théorique)', vatFromSiren(v.siren)]];
+     setHTML('company-facts', facts.map(([k, val]) => `<div><dt>${esc(k)}</dt><dd>${esc(val)}</dd></div>`).join(''));
+     setHTML('company-official-links', [extLink(LINKS.annuaire(v.siren), 'Annuaire Entreprises', 'fa-building-columns'), extLink(LINKS.inpi(v.siren), 'INPI', 'fa-file-invoice')].join(''));
    }
    
-   function drawScoreGauge(score, color) {
-     const canvas = $('scoreGaugeCanvas');
-     if (!canvas) return;
-     const ctx = canvas.getContext('2d');
-     ctx.clearRect(0, 0, canvas.width, canvas.height);
-     const cx = canvas.width / 2;
-     const cy = canvas.height / 2;
-     const radius = 65;
-   
-     ctx.lineWidth = 12;
-     ctx.beginPath();
-     ctx.arc(cx, cy, radius, 0.8 * Math.PI, 2.2 * Math.PI);
-     ctx.strokeStyle = 'rgba(30, 41, 59, 0.6)';
-     ctx.stroke();
-   
-     ctx.beginPath();
-     ctx.arc(cx, cy, radius, 0.8 * Math.PI, 0.8 * Math.PI + (score / 100) * 1.4 * Math.PI);
-     ctx.strokeStyle = color;
-     ctx.stroke();
-   }
-   
-   function renderScore(v) {
+   function renderVerdict(v) {
      const s = v.score;
      const tone = TONES[s.tone];
-     drawScoreGauge(s.total, tone.hex);
-     setText('score-value', String(s.total));
-   
-     const label = $('score-label');
-     if (label) {
-       label.textContent = `${s.label} (INDICATIF)`;
-       label.className = `text-xs font-bold ${tone.text}`;
+     const valueEl = $('score-value');
+     if (valueEl) {
+       valueEl.textContent = String(s.total);
+       valueEl.parentElement.style.color = `var(${tone.css})`;
      }
-   
-     setText('credit-limit', 'Non chiffré');
+     setText('score-label', s.label);
+     const sub = s.closed ? 'Entreprise cessée au répertoire Sirene.'
+       : s.collective ? 'Une annonce de procédure collective figure au BODACC : lisez-la avant tout engagement.'
+         : `Grade ${s.grade} · ${s.risk === 'Faible' ? 'risque faible' : `risque ${s.risk.toLowerCase()}`}, d’après les données publiques consultées.`;
+     setText('verdict-sub', sub);
+     setText('risk-level', s.risk);
+     setText('credit-rating-grade', `Grade ${s.grade}`);
      setText('payment-terms', s.terms);
+     setText('credit-limit', 'Non chiffré');
    
-     const risk = $('risk-level');
-     if (risk) {
-       risk.textContent = s.risk;
-       risk.className = `text-2xl font-black ${tone.text}`;
-     }
-     const grade = $('credit-rating-grade');
-     if (grade) {
-       grade.textContent = `GRADE ${s.grade}`;
-       grade.className = `text-xs font-bold px-2.5 py-0.5 rounded ${tone.pill}`;
+     const marker = $('scale-marker');
+     if (marker) {
+       setText('scale-tag', String(s.total));
+       const target = `${Math.max(0, Math.min(100, s.total))}%`;
+       if (marker.dataset.siren !== v.siren) { marker.style.left = '0%'; marker.dataset.siren = v.siren; requestAnimationFrame(() => requestAnimationFrame(() => { marker.style.left = target; })); }
+       else marker.style.left = target;
      }
    }
    
-   function renderLeaders(v) {
-     const box = $('leaders-container');
-     if (!box) return;
-     box.replaceChildren();
-     if (v.dirigeants.length === 0) {
-       box.appendChild(h('div', 'p-3 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-300', 'Aucun dirigeant renseigné dans les sources publiques.'));
-       return;
+   function renderRevenue(v) {
+     const { fin, estimate: est } = v;
+     let html;
+     if (fin.latest && fin.latest.ca !== null) {
+       html = `<div class="stack"><div><div class="big">${esc(fmtEuro(fin.latest.ca))}</div><p class="note">Exercice ${esc(fin.latest.year)} · comptes publiés</p></div>` +
+         `<div class="rows">` +
+         `<div class="row"><span class="row__k">Résultat net</span><span class="row__v">${esc(fmtEuro(fin.latest.resultat))}</span></div>` +
+         `<div class="row"><span class="row__k">Marge nette</span><span class="row__v">${esc(fin.margin === null ? NA : fmtPct(fin.margin))}</span></div>` +
+         `<div class="row"><span class="row__k">Évolution du CA</span><span class="row__v">${esc(fin.growth === null ? NA : fmtPct(fin.growth, true))}</span></div></div></div>`;
+     } else if (est.available) {
+       html = `<div class="stack"><div class="estimate"><span class="chip chip--warn">Estimation — non issue de comptes publiés</span>` +
+         `<div class="big">${esc(fmtCompact(est.low))} à ${esc(fmtCompact(est.high))}<small> par an</small></div>` +
+         `<p class="note">${esc(est.basis)}. Fiabilité ${esc(est.confidence.toLowerCase())}.</p></div>` +
+         `<p class="note">Aucun compte n’est publié. Cette fourchette n’entre ni dans la note ni dans les ratios ; ne vous en servez pas pour fixer un encours.</p></div>`;
+     } else {
+       html = `<div class="stack"><div class="big">${esc(NA)}</div><p class="note">Aucun compte publié. ${esc(est.reason || '')}</p></div>`;
      }
-     v.dirigeants.slice(0, 6).forEach((d) => {
-       const legal = d.type_dirigeant === 'personne morale';
-       const name = legal ? (d.denomination || NA) : [d.prenoms, d.nom].filter(Boolean).join(' ') || NA;
-       const row = h('div', 'p-3 bg-slate-900 border border-slate-800 rounded-xl flex justify-between items-center text-xs');
-       const left = h('div');
-       left.appendChild(h('div', 'font-bold text-white', name));
-       left.appendChild(h('div', 'text-slate-400', d.qualite || 'Dirigeant'));
-       row.appendChild(left);
-       row.appendChild(h('span', 'text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full font-mono', legal ? 'Personne morale' : 'Mandat RCS'));
-       box.appendChild(row);
+     setHTML('revenue-block', html);
+   }
+   
+   /** Alertes du dossier : ne montre que ce qui est établi par une source, ou clairement étiqueté « non vérifié ». */
+   function renderAlerts(v) {
+     const out = [];
+     const add = (tone, icon, title, text) => out.push(`<div class="alert alert--${tone}"><i class="fa-solid ${icon}"></i><div><strong>${esc(title)}</strong><p>${esc(text)}</p></div></div>`);
+     if (!v.active) add('bad', 'fa-triangle-exclamation', 'Entreprise cessée', `Enregistrée comme cessée au répertoire Sirene${v.dateFermeture ? ` depuis le ${fmtDate(v.dateFermeture)}` : ''}. Revoyez toute relation commerciale.`);
+     if (hasCollective(v)) {
+       const it = v.sources.bodacc.items.find((i) => COLLECTIVE_RE.test(`${i.famille} ${i.type} ${i.detail}`));
+       add('bad', 'fa-gavel', 'Annonce de procédure collective au BODACC', `${fmtDate(it.date)} · ${it.type || it.famille}${it.tribunal ? ` · ${it.tribunal}` : ''}. Consultez l’annonce complète avant tout engagement.`);
+     }
+     const worst = worstAlim(v);
+     if (worst === 'bad' || worst === 'warn') {
+       const it = v.sources.alim.items.find((i) => alimSeverity(i.result) === worst);
+       add(worst, 'fa-utensils', 'Contrôle sanitaire officiel défavorable', `${fmtDate(it.date)} · « ${it.result} » (Alim’confiance). Ce résultat est une synthèse d’inspection ; il ne dit pas si une fermeture a été prononcée.`);
+     }
+     v.manualAlerts.forEach((a) => add(a.type === 'fermeture_sanitaire' || a.type === 'fermeture_autre' ? 'bad' : 'warn', 'fa-user-pen',
+       `${ALERT_TYPES[a.type]} — signalée par l’analyste, non vérifiée`, `${a.date ? `Décision du ${fmtDate(a.date)}. ` : ''}Source indiquée : ${a.source}`));
+     ['bodacc', 'alim'].forEach((k) => {
+       if (v.sources[k].status === 'unavailable') add('info', 'fa-plug-circle-xmark', `${k === 'bodacc' ? 'BODACC' : 'Alim’confiance'} injoignable`, 'La source n’a pas répondu : l’absence d’alerte ne signifie pas qu’il n’y en a pas. Consultez la source officielle.');
      });
+     setHTML('alerts', out.join(''));
    }
    
-   function emptyFinanceHTML(est) {
-     const base = '<p class="mb-3">Comptes non publiés ou non accessibles via les sources ouvertes : aucun historique financier à afficher.</p>';
-     if (!est || !est.available) {
-       return `<div class="text-center">${base}${est && est.reason ? `<p class="text-slate-500">${esc(est.reason)}</p>` : ''}</div>`;
-     }
-     return `<div class="max-w-md w-full text-left">${base}` +
-       `<div class="border border-dashed border-amber-500/60 bg-amber-500/5 rounded-xl p-4">` +
-       `<span class="text-[10px] font-bold uppercase text-amber-400 block mb-1">Estimation indicative — non issue de comptes publiés</span>` +
-       `<div class="text-lg font-black text-white">${esc(fmtEuro(est.low))} à ${esc(fmtEuro(est.high))}</div>` +
-       `<p class="text-[11px] text-slate-400 mt-1">Chiffre d’affaires annuel possible. Base : ${esc(est.basis)}. ` +
-       `Fiabilité : ${esc(est.confidence.toLowerCase())}. À ne pas utiliser pour fixer un encours.</p></div></div>`;
+   function renderSignals(v) {
+     const s = v.sources;
+     const rows = [
+       dotRow('Statut Sirene', v.active ? 'ok' : 'bad', v.active ? 'Active' : 'Cessée'),
+       dotRow('Ancienneté', ageInYears(v.dateCreation) >= 5 ? 'ok' : 'warn', ageInYears(v.dateCreation) === null ? NA : `${ageInYears(v.dateCreation)} an(s)`),
+       dotRow('Effectif', v.effectif === NA ? 'info' : 'ok', v.effectif),
+       dotRow('Comptes publiés', v.fin.latest ? 'ok' : 'warn', v.fin.latest ? `Jusqu’à ${v.fin.latest.year}` : 'Aucun'),
+       dotRow('Annonces BODACC', s.bodacc.status === 'ok' ? (hasCollective(v) ? 'bad' : 'warn') : SRC_TONE[s.bodacc.status] || 'info',
+         s.bodacc.status === 'ok' ? `${s.bodacc.items.length} annonce(s)` : SRC_LABEL[s.bodacc.status]),
+       dotRow('Contrôles sanitaires', s.alim.status === 'ok' ? (worstAlim(v) || 'info') : SRC_TONE[s.alim.status] || 'info',
+         s.alim.status === 'ok' ? `${s.alim.items.length} contrôle(s)` : SRC_LABEL[s.alim.status]),
+       dotRow('Alertes de l’analyste', v.manualAlerts.length ? 'warn' : 'info', v.manualAlerts.length ? `${v.manualAlerts.length} (non vérifiée${v.manualAlerts.length > 1 ? 's' : ''})` : 'Aucune')
+     ];
+     setHTML('signals-list', rows.join(''));
    }
    
-   function renderChart(rows, estimate) {
-     const canvas = $('financialChart');
-     if (!canvas) return;
-     let empty = $('financial-empty');
-     if (!empty) {
-       empty = h('div', 'h-full flex items-center justify-center text-center text-xs text-slate-400 px-6');
-       empty.id = 'financial-empty';
-       canvas.parentElement.appendChild(empty);
+   function chartSVG(rows) {
+     const W = 600; const H = 270; const L = 58; const R = 12; const T = 22; const B = 34;
+     const vals = rows.flatMap((r) => [r.ca, r.resultat]).filter((x) => x !== null);
+     const max = Math.max(0, ...vals);
+     const min = Math.min(0, ...vals);
+     const span = max - min || 1;
+     const y = (n) => T + ((max - n) / span) * (H - T - B);
+     const gw = (W - L - R) / rows.length;
+     const bw = Math.min(46, gw * 0.26);
+     let out = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Chiffre d’affaires et résultat net par exercice">`;
+     for (let i = 0; i <= 4; i += 1) {
+       const val = min + (span * i) / 4;
+       out += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(val)}" y2="${y(val)}"/><text x="${L - 8}" y="${y(val) + 4}" text-anchor="end">${esc(fmtCompact(val))}</text>`;
      }
-     if (state.chart) { state.chart.destroy(); state.chart = null; }
-   
-     if (rows.length === 0 || typeof Chart === 'undefined') {
-       canvas.classList.add('hidden');
-       empty.classList.remove('hidden');
-       if (rows.length === 0) empty.innerHTML = emptyFinanceHTML(estimate);
-       else empty.textContent = 'Graphique indisponible (bibliothèque Chart.js non chargée).';
-       return;
-     }
-     canvas.classList.remove('hidden');
-     empty.classList.add('hidden');
-   
-     Chart.defaults.color = '#94a3b8';
-     Chart.defaults.borderColor = 'rgba(148, 163, 184, 0.15)';
-     const toK = (n) => (n === null ? null : Math.round(n / 1000));
-     state.chart = new Chart(canvas.getContext('2d'), {
-       type: 'bar',
-       data: {
-         labels: rows.map((r) => r.year),
-         datasets: [
-           { label: "Chiffre d'Affaires (k€)", data: rows.map((r) => toK(r.ca)), backgroundColor: 'rgba(0, 242, 254, 0.6)' },
-           { label: 'Résultat Net (k€)', data: rows.map((r) => toK(r.resultat)), backgroundColor: 'rgba(16, 185, 129, 0.6)' }
-         ]
-       },
-       options: { responsive: true, maintainAspectRatio: false, animation: { duration: 300 } }
+     rows.forEach((r, i) => {
+       const cx = L + gw * i + gw / 2;
+       const bar = (value, x, cls) => {
+         if (value === null) return `<text x="${x + bw / 2}" y="${y(0) - 6}" text-anchor="middle">n.d.</text>`;
+         const top = Math.min(y(value), y(0));
+         const height = Math.max(Math.abs(y(value) - y(0)), 1.5);
+         const labelY = value >= 0 ? top - 5 : top + height + 12;
+         return `<rect class="${value < 0 && cls === 'bar-res' ? 'bar-neg' : cls}" x="${x}" y="${top}" width="${bw}" height="${height}" rx="2"/>` +
+           `<text class="val" x="${x + bw / 2}" y="${labelY}" text-anchor="middle">${esc(fmtCompact(value))}</text>`;
+       };
+       out += bar(r.ca, cx - bw - 3, 'bar-ca') + bar(r.resultat, cx + 3, 'bar-res');
+       out += `<text x="${cx}" y="${H - 12}" text-anchor="middle">${esc(r.year)}</text>`;
      });
+     out += `<line class="axis" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/></svg>` +
+       '<div class="legend"><span><i class="bar-ca" style="background:var(--accent)"></i>Chiffre d’affaires</span><span><i style="background:var(--ok)"></i>Résultat net</span></div>';
+     return out;
    }
    
    function renderFinances(v) {
-     const { fin, score } = v;
-     renderChart(fin.rows, v.estimate);
-   
-     setText('ratio-marge', fin.margin === null ? NA : fmtPct(fin.margin));
-     setText('ratio-autonomie', NA);
-     setText('ratio-paydex', NA);
-   
-     const growth = $('ratio-croissance');
-     if (growth) {
-       growth.textContent = fin.growth === null ? NA : fmtPct(fin.growth, true);
-       const tone = fin.growth === null ? 'text-slate-200' : fin.growth >= 0 ? 'text-emerald-400' : 'text-red-400';
-       growth.className = `${tone} font-mono`;
+     const { fin } = v;
+     if (fin.rows.length === 0) {
+       setHTML('finance-chart', emptyNote('Aucun compte publié n’est accessible via les sources ouvertes pour cette entreprise (comptes non déposés ou confidentiels).'));
+       setHTML('finance-table', emptyNote('Les ratios ne peuvent pas être calculés sans comptes publiés. Autonomie financière, délais de paiement (Paydex, DSO, DPO) et BFR ne figurent pas dans les sources ouvertes.'));
+       return;
      }
-   
-     const tone = TONES[score.tone];
-     const latestText = fin.latest
-       ? `Dernier exercice publié : ${fin.latest.year} — CA ${fmtEuro(fin.latest.ca)}, résultat net ${fmtEuro(fin.latest.resultat)}.`
-       : 'Aucun compte publié n’est accessible : l’analyse financière est limitée aux éléments d’identité et d’ancienneté.';
-   
-     setHTML('ai-synthesis-finances',
-       tilesRow([tile('Niveau de risque indicatif', score.risk, tone.text), tile('Conditions suggérées', score.terms), tile('Note indicative', `${score.total} / 100 (grade ${score.grade})`, tone.text)]) +
-       bullets([
-         ['Données financières', latestText],
-         ...(v.estimate.available ? [['Estimation indicative du CA', `Entre ${fmtEuro(v.estimate.low)} et ${fmtEuro(v.estimate.high)} (fiabilité faible). Ce n’est pas un chiffre publié et il n’entre ni dans la note ni dans les ratios.`]] : []),
-         ['Plafond d’encours', 'Aucun montant n’est calculé automatiquement : il dépend de votre exposition, de vos garanties et de comptes à jour.'],
-         ['Indicateurs non disponibles', 'Autonomie financière, délais de paiement (Paydex), DSO, DPO et BFR ne figurent pas dans les sources ouvertes.']
-       ]) +
-       `<div class="border-t border-slate-800 mt-3 pt-2 text-xs text-slate-300 text-left"><strong class="text-white block mb-1">Détail de la note indicative</strong>` +
-       score.criteria.map((c) => `<p class="flex justify-between gap-3"><span>${esc(c.name)} — <span class="text-slate-400">${esc(c.note)}</span></span><span class="font-mono text-slate-200 whitespace-nowrap">${c.pts}/${c.max}</span></p>`).join('') + '</div>');
+     setHTML('finance-chart', chartSVG(fin.rows));
+     const body = fin.rows.map((r, i) => {
+       const prev = i > 0 ? fin.rows[i - 1] : null;
+       const margin = r.ca && r.resultat !== null ? fmtPct(r.resultat / r.ca) : NA;
+       const growth = prev && prev.ca && r.ca !== null ? fmtPct((r.ca - prev.ca) / Math.abs(prev.ca), true) : '—';
+       return `<tr><td>${esc(r.year)}</td><td class="num">${esc(fmtEuro(r.ca))}</td><td class="num">${esc(fmtEuro(r.resultat))}</td><td class="num">${esc(margin)}</td><td class="num">${esc(growth)}</td></tr>`;
+     }).join('');
+     setHTML('finance-table',
+       `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Exercice</th><th class="num">Chiffre d’affaires</th><th class="num">Résultat net</th><th class="num">Marge nette</th><th class="num">Évolution du CA</th></tr></thead><tbody>${body}</tbody></table></div>` +
+       `<p class="note">Non disponibles dans les sources ouvertes : autonomie financière, délais de paiement (Paydex, DSO, DPO), BFR. Aucun plafond d’encours n’est calculé : il dépend de votre exposition et de vos garanties.</p>`);
    }
    
    function renderGroup(v) {
-     const holding = $('holding-container');
-     if (holding) {
-       holding.replaceChildren();
-       const legalPersons = v.dirigeants.filter((d) => d.type_dirigeant === 'personne morale' && digits(d.siren).length === 9);
-       if (legalPersons.length === 0) {
-         holding.innerHTML = `<div class="p-3 text-xs text-slate-400 font-mono">Aucune personne morale dirigeante déclarée dans les sources publiques.</div>`;
-       } else {
-         holding.innerHTML = legalPersons.map((d) => {
-           const siren = digits(d.siren);
-           return `<div class="p-4 bg-slate-900/90 border border-indigo-500/40 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-2">` +
-             `<div><div class="flex flex-wrap items-center gap-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/30 text-indigo-300 font-mono">PERSONNE MORALE DIRIGEANTE</span>` +
-             `<strong class="text-white text-sm font-bold">${esc(d.denomination || NA)}</strong></div>` +
-             `<div class="text-xs text-slate-400 mt-1 font-mono">SIREN: <strong class="text-slate-200">${esc(siren)}</strong> | ${esc(d.qualite || 'Dirigeant')}</div></div>` +
-             `<div class="flex flex-wrap items-center gap-2">${externalLink(LINKS.annuaire(siren), 'Annuaire', 'fa-building-columns')}${auditButton(siren)}</div></div>`;
-         }).join('');
-       }
+     const leaders = $('leaders-container');
+     if (leaders) {
+       leaders.innerHTML = v.dirigeants.length === 0 ? emptyNote('Aucun dirigeant renseigné dans les sources publiques.')
+         : `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nom</th><th>Qualité</th><th>Nature</th></tr></thead><tbody>${
+           v.dirigeants.slice(0, 8).map((d) => {
+             const legal = d.type_dirigeant === 'personne morale';
+             const name = legal ? (d.denomination || NA) : [d.prenoms, d.nom].filter(Boolean).join(' ') || NA;
+             return `<tr><td>${esc(name)}</td><td>${esc(d.qualite || 'Dirigeant')}</td><td>${esc(legal ? 'Personne morale' : 'Personne physique')}</td></tr>`;
+           }).join('')}</tbody></table></div>`;
      }
+     const legalPersons = v.dirigeants.filter((d) => d.type_dirigeant === 'personne morale' && digits(d.siren).length === 9);
+     setHTML('holding-container', legalPersons.length === 0 ? emptyNote('Aucune personne morale dirigeante déclarée.')
+       : `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Dénomination</th><th>SIREN</th><th>Qualité</th><th></th></tr></thead><tbody>${
+         legalPersons.map((d) => `<tr><td>${esc(d.denomination || NA)}</td><td>${esc(digits(d.siren))}</td><td>${esc(d.qualite || 'Dirigeant')}</td><td class="num">${auditButton(d.siren)}</td></tr>`).join('')}</tbody></table></div>`);
    
-     const assoc = $('associated-restaurants-container');
-     if (assoc) {
-       const etab = v.nbEtab === null ? NA : `${v.nbEtab} établissement(s), dont ${v.nbEtabOpen === null ? NA : v.nbEtabOpen} ouvert(s)`;
-       assoc.innerHTML =
-         infoCard('Siège social', `${v.address} — ${v.siegeActive ? 'ouvert' : 'fermé'}`) +
-         infoCard('Établissements de l’entreprise', etab);
-     }
-   
-     setHTML('ai-synthesis-kyc',
-       tilesRow([tile('Établissements', v.nbEtab === null ? NA : String(v.nbEtab), 'text-sky-400'), tile('Registre RBO', 'Non consulté', 'text-slate-300'), tile('Sanctions / PPE', 'Non consulté', 'text-slate-300')]) +
-       bullets([
-         ['Périmètre', 'Les liens de groupe ne sont affichés que lorsqu’une personne morale est déclarée dirigeante au registre.'],
-         ['Conformité LCB-FT', 'Cette plateforme ne consulte ni le registre des bénéficiaires effectifs ni les listes de gel des avoirs : à vérifier avant tout engagement significatif.']
-       ]) +
-       `<div class="flex flex-wrap gap-2 mt-3">${externalLink(LINKS.gelAvoirs, 'Registre des gels des avoirs')}${externalLink(LINKS.inpi(v.siren), 'Registre INPI')}</div>`);
+     const closed = v.nbEtab !== null && v.nbEtabOpen !== null ? Math.max(v.nbEtab - v.nbEtabOpen, 0) : null;
+     const matching = Array.isArray(v.company.matching_etablissements) ? v.company.matching_etablissements.filter((e) => e && e.siret) : [];
+     const siegeRow = `<tr><td>${esc(v.siret || NA)}</td><td>${esc(v.address)}</td><td>${esc(v.siegeActive ? 'Ouvert' : 'Fermé')}</td><td>Siège</td></tr>`;
+     const others = matching.filter((e) => digits(e.siret) !== v.siret).slice(0, 10).map((e) =>
+       `<tr><td>${esc(digits(e.siret))}</td><td>${esc([e.adresse, e.code_postal, e.libelle_commune].filter(Boolean).join(' ') || NA)}</td><td>${esc(e.etat_administratif === 'A' ? 'Ouvert' : e.etat_administratif ? 'Fermé' : NA)}</td><td></td></tr>`).join('');
+     setHTML('etablissements-container',
+       `<div class="rows"><div class="row"><span class="row__k">Établissements</span><span class="row__v">${esc(v.nbEtab === null ? NA : v.nbEtab)}</span></div>` +
+       `<div class="row"><span class="row__k">Ouverts</span><span class="row__v">${esc(v.nbEtabOpen === null ? NA : v.nbEtabOpen)}</span></div>` +
+       `<div class="row"><span class="row__k">Fermés</span><span class="row__v">${esc(closed === null ? NA : closed)}</span></div></div>` +
+       `<div class="tbl-wrap" style="margin-top:14px"><table class="tbl"><thead><tr><th>SIRET</th><th>Adresse</th><th>État</th><th></th></tr></thead><tbody>${siegeRow}${others}</tbody></table></div>` +
+       `<p class="note">La liste complète des établissements est consultable sur l’Annuaire des Entreprises.</p>`);
    }
    
-   function renderCompliance(v) {
-     setHTML('press-sanitary-container',
-       infoCard('Statut administratif (INSEE / Sirene)',
-         v.active ? 'Entreprise active au répertoire Sirene.' : `Entreprise cessée${v.dateFermeture ? ` depuis le ${fmtDate(v.dateFermeture)}` : ''}.`) +
-       `<div class="mt-2">${infoCard('Contrôles sanitaires officiels', 'Les résultats de contrôle (Alim’confiance) ne sont pas intégrés à cette plateforme.')}</div>`);
-   
-     setHTML('ai-synthesis-conformite',
-       tilesRow([tile('Statut administratif', v.active ? 'Entreprise active' : 'Entreprise cessée', v.active ? 'text-emerald-400' : 'text-red-400'),
-         tile('Contrôle sanitaire', 'Non intégré', 'text-slate-300'), tile('Annonces BODACC', 'Non intégré', 'text-slate-300')]) +
-       bullets([
-         ['Annonces légales', 'Procédures collectives et publications au BODACC : consultez la source officielle pour une vérification à jour.'],
-         ['Hygiène alimentaire', 'Pour les activités concernées, consultez les résultats de contrôle officiels publiés sur Alim’confiance.']
-       ]) +
-       `<div class="flex flex-wrap gap-2 mt-3">${externalLink(LINKS.bodacc, 'BODACC')}${externalLink(LINKS.alimconfiance, 'Alim’confiance')}</div>`);
+   function sourceCard(title, status, bodyHTML) {
+     return `<div class="stack"><div>${chip(SRC_LABEL[status], SRC_TONE[status])} <span class="faint small">${esc(title)}</span></div>${bodyHTML}</div>`;
    }
    
-   function renderRealEstate(v) {
-     setText('immo-valeur', NA);
-     setHTML('ai-synthesis-legal',
-       tilesRow([tile('Estimation immobilière', NA, 'text-slate-300'), tile('Données DVF', 'Non intégré', 'text-slate-300'), tile('Adresse du siège', v.city || NA)]) +
-       bullets([['Valorisation', 'Aucune estimation n’est produite : les valeurs foncières (DVF) ne sont pas intégrées et un bail commercial ne se déduit pas de données publiques.']]) +
-       `<div class="flex flex-wrap gap-2 mt-3">${externalLink(LINKS.dvf, 'Explorateur DVF (DGFiP / Etalab)')}</div>`);
+   function renderAlertsTab(v) {
+     const b = v.sources.bodacc;
+     let bodacc;
+     if (b.status === 'ok') {
+       bodacc = `<ul class="tl">${b.items.slice(0, 15).map((i) =>
+         `<li><span class="tl__date">${esc(fmtDate(i.date))}</span><div><div class="tl__title">${esc(i.type || i.famille || 'Annonce')}</div>` +
+         `<div class="tl__meta">${esc([i.famille !== i.type ? i.famille : '', i.tribunal, i.detail].filter(Boolean).join(' · '))}</div></div></li>`).join('')}</ul>`;
+     } else {
+       bodacc = emptyNote({ none: 'Aucune annonce trouvée pour ce SIREN lors de cette consultation.', unavailable: 'Le BODACC n’a pas répondu : ne concluez rien de cette absence.', loading: 'Consultation en cours…' }[b.status] || '');
+     }
+     setHTML('bodacc-container', sourceCard('BODACC — annonces légales', b.status, bodacc) + `<div style="margin-top:14px">${extLink(LINKS.bodacc, 'Ouvrir le BODACC')}</div>`);
+   
+     const a = v.sources.alim;
+     let alim;
+     if (a.status === 'ok') {
+       alim = `<ul class="tl">${a.items.slice(0, 10).map((i) =>
+         `<li><span class="tl__date">${esc(fmtDate(i.date))}</span><div><div class="tl__title">${chip(i.result || NA, { bad: 'bad', warn: 'warn', ok: 'ok', info: 'info' }[alimSeverity(i.result)])}</div>` +
+         `<div class="tl__meta">${esc([i.name, i.activity, i.place].filter(Boolean).join(' · '))}</div></div></li>`).join('')}</ul>`;
+     } else {
+       alim = emptyNote({
+         none: 'Aucun résultat de contrôle trouvé pour ce SIREN.',
+         unavailable: 'Alim’confiance n’a pas répondu.',
+         loading: 'Consultation en cours…',
+         na: 'Cette activité n’est pas une activité alimentaire : source sans objet.'
+       }[a.status] || '');
+     }
+     setHTML('sanitary-container', sourceCard('Alim’confiance — résultats d’inspection', a.status, alim) +
+       `<p class="note">Alim’confiance publie le résultat des inspections sanitaires. Elle ne publie pas les arrêtés de fermeture : si vous avez connaissance d’une fermeture préfectorale, saisissez-la ci-dessous avec sa source.</p>` +
+       `<div style="margin-top:10px">${extLink(LINKS.alimconfiance, 'Ouvrir Alim’confiance')}</div>`);
+   
+     setHTML('manual-alerts', v.manualAlerts.length === 0 ? emptyNote('Aucune alerte saisie pour cette entreprise.')
+       : `<ul class="tl">${v.manualAlerts.map((m) =>
+         `<li><span class="tl__date">${esc(m.date ? fmtDate(m.date) : 'Sans date')}</span><div><div class="tl__title">${esc(ALERT_TYPES[m.type])} ${chip('Non vérifiée', 'warn')}</div>` +
+         `<div class="tl__meta">Source : ${esc(m.source)}${m.note ? ` · ${esc(m.note)}` : ''}</div>` +
+         `<button type="button" class="btn btn--ghost btn--small" data-remove-alert="${esc(m.id)}"><i class="fa-solid fa-trash"></i> Retirer</button></div></li>`).join('')}</ul>`);
+   }
+   
+   function renderSourcesTab(v) {
+     const s = v.sources;
+     const row = (name, status, detail) => `<tr><td>${esc(name)}</td><td>${chip(SRC_LABEL[status] || status, SRC_TONE[status] || '')}</td><td>${esc(detail)}</td></tr>`;
+     setHTML('sources-container',
+       `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Source</th><th>Statut</th><th>Ce qu’elle apporte</th></tr></thead><tbody>` +
+       row('Sirene (INSEE) via API Recherche d’entreprises', 'ok', 'Identité, statut, effectif, dirigeants, comptes publiés') +
+       row('BODACC', s.bodacc.status, 'Annonces légales, procédures collectives, dépôts de comptes') +
+       row('Alim’confiance', s.alim.status, 'Résultats des inspections sanitaires (activités alimentaires)') +
+       row('Alertes de l’analyste', v.manualAlerts.length ? 'ok' : 'none', 'Saisies manuelles, non vérifiées') +
+       row('Registre des bénéficiaires effectifs', 'unavailable', 'Non consulté — à vérifier sur data.inpi.fr') +
+       row('Gel des avoirs / sanctions', 'unavailable', 'Non consulté — à vérifier sur le site de la DG Trésor') +
+       row('Valeurs foncières (DVF)', 'unavailable', 'Non consulté') +
+       `</tbody></table></div><p class="note">« Injoignable » signifie que la source n’a pas été interrogée avec succès. Cela ne veut jamais dire « rien à signaler ».</p>`);
+   
+     const crit = v.score.criteria.map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.note)}</td><td class="num">${c.pts} / ${c.max}</td></tr>`).join('');
+     setHTML('method-container',
+       `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Critère</th><th>Observation</th><th class="num">Points</th></tr></thead><tbody>${crit}` +
+       `<tr><td><strong>Total</strong></td><td>${esc(v.score.closed ? 'Plafonné à 20 : entreprise cessée.' : v.score.collective ? 'Plafonné à 30 : procédure collective mentionnée au BODACC.' : '')}</td><td class="num"><strong>${v.score.total} / 100</strong></td></tr></tbody></table></div>` +
+       `<p class="note">La note est indicative, calculée sur des données publiques. Ce n’est ni une notation réglementée, ni un conseil, ni une garantie de solvabilité.</p>`);
+   }
+   
+   function renderDiag(v) {
+     const panel = $('diag-panel');
+     if (!panel) return;
+     if (!new URLSearchParams(location.search).has('diag')) { panel.hidden = true; return; }
+     const dump = { siren: v.siren, siret: v.siret, naf: v.naf, nbEtab: v.nbEtab, nbEtabOpen: v.nbEtabOpen, bodacc: { status: v.sources.bodacc.status, items: v.sources.bodacc.items.length, attempts: v.sources.bodacc.attempts },
+       alim: { status: v.sources.alim.status, items: v.sources.alim.items.length, attempts: v.sources.alim.attempts }, champs_sirene: Object.keys(v.company).sort() };
+     panel.hidden = false;
+     panel.innerHTML = '<strong>Diagnostic (?diag=1)</strong><pre></pre>';
+     panel.querySelector('pre').textContent = JSON.stringify(dump, null, 1);
    }
    
    function switchTab(tabId) {
-     document.querySelectorAll('.tab-content').forEach((el) => el.classList.add('hidden'));
-     document.querySelectorAll('.tab-btn').forEach((el) => el.classList.remove('active'));
-     const panel = $(tabId);
-     const button = $(`tab-btn-${tabId}`);
-     if (panel) panel.classList.remove('hidden');
-     if (button) button.classList.add('active');
+     document.querySelectorAll('.tab-content').forEach((el) => { el.hidden = el.id !== tabId; });
+     document.querySelectorAll('.tab').forEach((el) => el.setAttribute('aria-selected', String(el.dataset.tab === tabId)));
+   }
+   
+   function toggleTheme() {
+     const next = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+     document.documentElement.setAttribute('data-theme', next);
+     try { localStorage.setItem('ees_theme', next); } catch (e) { /* stockage indisponible */ }
    }
    
    /* =============================================================================
-      8. CARTE (Leaflet)
+      8 bis. CARTE (Leaflet)
       ============================================================================= */
    function ensureMap() {
      const el = $('map');
@@ -1025,19 +1203,17 @@
      const map = ensureMap();
      if (!map) return;
      state.markerLayer.clearLayers();
-     map.setView([48.8566, 12.3522], 4);
-     [['Paris', 48.8566, 2.3522], ['Bruxelles', 50.8503, 4.3517], ['Berne', 46.948, 7.4474], ['Francfort', 50.1109, 8.6821]]
-       .forEach(([name, lat, lon]) => L.marker([lat, lon]).addTo(state.markerLayer).bindPopup(name));
+     map.setView([46.6, 2.5], 5);
    }
    
    function setMapHeader(title, postal, address) {
-     setHTML('map-section-title', `<i class="fa-solid fa-location-dot text-cyan-400 mr-2"></i>${esc(title)}`);
+     setText('map-section-title', title);
      setText('map-postal-code', postal);
      setText('map-address-text', address);
    }
    
    function renderCompanyMap(v) {
-     setMapHeader(`Siège social — ${v.displayName}`, [v.postal, v.city].filter(Boolean).join(' ') || 'FRANCE', v.address);
+     setMapHeader('Localisation du siège social', [v.postal, v.city].filter(Boolean).join(' ') || 'FRANCE', v.address);
      const map = ensureMap();
      if (!map) return;
      if (!Number.isFinite(v.lat) || !Number.isFinite(v.lon)) {
@@ -1054,19 +1230,20 @@
      map.setView([v.lat, v.lon], 15);
    }
    
+   
    /* =============================================================================
       9. RAPPORT PDF (pdfMake) — document d'information, jamais « certifié »
       ============================================================================= */
    const LEGAL_NOTICE =
      'Ce rapport est établi par Euro Expert Solvabilité à partir de sources publiques (répertoire Sirene de l’INSEE et ' +
-     'comptes publiés, via l’API Recherche d’entreprises). Il est fourni à titre d’information, sans valeur contractuelle ' +
+     'comptes publiés via l’API Recherche d’entreprises, BODACC et Alim’confiance lorsqu’ils ont répondu). Il est fourni à titre d’information, sans valeur contractuelle ' +
      'ni garantie. La note est indicative : elle ne constitue ni une notation de crédit réglementée, ni un conseil, ni une ' +
      'certification. Les éléments non consultés sont signalés comme tels et doivent être vérifiés auprès des sources officielles. ' +
      'Les estimations et l’analyse rédigée, lorsqu’elles figurent dans ce rapport, sont signalées comme telles et ne constituent pas des données publiées.';
    
    const LOGO_SVG =
-     '<svg width="45" height="45" viewBox="0 0 100 100"><rect width="100" height="100" rx="16" fill="#0f172a"/>' +
-     '<path d="M50 15 L82 30 V55 C82 76 50 90 50 90 C50 90 18 76 18 55 V30 Z" fill="none" stroke="#0284c7" stroke-width="6"/>' +
+     '<svg width="45" height="45" viewBox="0 0 100 100"><rect width="100" height="100" rx="16" fill="#0b1322"/>' +
+     '<path d="M50 15 L82 30 V55 C82 76 50 90 50 90 C50 90 18 76 18 55 V30 Z" fill="none" stroke="#0b7d92" stroke-width="6"/>' +
      '<path d="M40 50 L48 58 L62 40" fill="none" stroke="#34d399" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
    
    function buildReportDefinition(v) {
@@ -1085,10 +1262,10 @@
      const label = (text) => ({ text, style: 'tableLabel' });
      const cell = (text, extra = {}) => ({ text: String(text ?? NA), fontSize: 7.5, ...extra });
      const head = (text, style = 'tableHeaderDark') => ({ text, style });
-     const rule = { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 543, y2: 0, lineWidth: 1.5, lineColor: '#0284c7' }], margin: [0, 0, 0, 10] };
+     const rule = { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 543, y2: 0, lineWidth: 1.5, lineColor: '#0b7d92' }], margin: [0, 0, 0, 10] };
      const pageHeader = (title) => ({
        columns: [
-         { text: title, fontSize: 8.5, bold: true, color: '#0f172a' },
+         { text: title, fontSize: 8.5, bold: true, color: '#0b1322' },
          { text: `SIREN : ${v.siren}`, fontSize: 8, bold: true, color: '#475569', alignment: 'right' }
        ],
        margin: [0, 0, 0, 6]
@@ -1119,7 +1296,7 @@
    
      /* ---- Spectre de risque ---- */
      const spectrum = [['Très élevé', '#991b1b', '#ffffff'], ['Élevé', '#c2410c', '#ffffff'], ['Assez élevé', '#d97706', '#ffffff'],
-       ['Moyen', '#eab308', '#0f172a'], ['Assez faible', '#0d9488', '#ffffff'], ['Faible', '#059669', '#ffffff'], ['Très faible', '#065f46', '#ffffff']];
+       ['Moyen', '#eab308', '#0b1322'], ['Assez faible', '#0d9488', '#ffffff'], ['Faible', '#059669', '#ffffff'], ['Très faible', '#065f46', '#ffffff']];
      const activeIndex = Math.min(6, Math.floor(s.total / (100 / 7)));
      const spectrumHead = spectrum.map(([text, fill, txt]) => ({ text, fillColor: fill, color: txt, fontSize: 6, bold: true, alignment: 'center', margin: [0, 3, 0, 3] }));
      const spectrumPointer = spectrum.map((_, i) => (i === activeIndex
@@ -1132,7 +1309,7 @@
      const financeBody = [[head('EXERCICE'), head('CHIFFRE D’AFFAIRES', 'tableHeaderDarkRight'), head('RÉSULTAT NET', 'tableHeaderDarkRight'), head('VARIATION DU CA', 'tableHeaderDarkCenter')]];
      rows.forEach((r, i) => financeBody.push([
        cell(r.year, { bold: true }), cell(fmtEuro(r.ca), { alignment: 'right' }),
-       cell(fmtEuro(r.resultat), { alignment: 'right', color: r.resultat !== null && r.resultat < 0 ? '#dc2626' : '#0f172a' }),
+       cell(fmtEuro(r.resultat), { alignment: 'right', color: r.resultat !== null && r.resultat < 0 ? '#dc2626' : '#0b1322' }),
        cell(i === 0 ? '—' : variation(r.ca, rows[i - 1].ca), { alignment: 'center' })
      ]));
      const dashedLayout = {
@@ -1144,7 +1321,7 @@
      const estimateBlock = est.available
        ? { table: { widths: ['*'], body: [[{ fillColor: '#fffbeb', margin: [8, 8, 8, 8], stack: [
          { text: 'ESTIMATION INDICATIVE — NON ISSUE DE COMPTES PUBLIÉS', fontSize: 7, bold: true, color: '#b45309', margin: [0, 0, 0, 3] },
-         { text: `Chiffre d’affaires annuel possible : ${fmtEuro(est.low)} à ${fmtEuro(est.high)}`, fontSize: 9.5, bold: true, color: '#0f172a', margin: [0, 0, 0, 3] },
+         { text: `Chiffre d’affaires annuel possible : ${fmtEuro(est.low)} à ${fmtEuro(est.high)}`, fontSize: 9.5, bold: true, color: '#0b1322', margin: [0, 0, 0, 3] },
          { text: `Base de calcul : ${est.basis}. Fiabilité : ${est.confidence.toLowerCase()}. Cette fourchette n’entre ni dans la note ni dans les ratios et ne doit pas servir à fixer un encours.`, fontSize: 7, color: '#78350f' }] }]] },
          layout: dashedLayout, margin: [0, 0, 0, 10] }
        : { text: est.reason || '', fontSize: 7, color: '#64748b', margin: [0, 0, 0, 10] };
@@ -1179,11 +1356,11 @@
        analysisBlocks.push(
          nextSection('ANALYSE RÉDIGÉE'),
          { text: a.source === 'ia' ? 'Texte rédigé par une IA à partir des seules données de ce rapport. À relire avant diffusion.' : 'Synthèse générée automatiquement, sans IA, à partir des données de ce rapport.', fontSize: 6.5, italics: true, color: '#64748b', margin: [0, 0, 0, 4] },
-         { text: a.resume, fontSize: 7.5, color: '#0f172a', margin: [0, 0, 0, 6] },
+         { text: a.resume, fontSize: 7.5, color: '#0b1322', margin: [0, 0, 0, 6] },
          ...listPdf('Points forts', a.points_forts, '#059669'),
          ...listPdf('Points de vigilance', a.points_vigilance, '#d97706'),
-         { text: [{ text: 'Recommandation : ', bold: true }, a.recommandation], fontSize: 7.5, color: '#0f172a', margin: [0, 2, 0, 4] },
-         ...listPdf('À vérifier', a.verifications, '#0284c7'),
+         { text: [{ text: 'Recommandation : ', bold: true }, a.recommandation], fontSize: 7.5, color: '#0b1322', margin: [0, 2, 0, 4] },
+         ...listPdf('À vérifier', a.verifications, '#0b7d92'),
          { text: '', margin: [0, 0, 0, 6] }
        );
      }
@@ -1203,17 +1380,28 @@
        : noticeBox('#f8fafc', '#475569', 'DIRIGEANTS NON RENSEIGNÉS', 'Aucun dirigeant n’est déclaré dans les sources publiques consultées.');
    
      /* ---- Contrôles ---- */
-     const checkRow = (name, status, source, ok = false) => [
-       cell(name, { bold: true }), cell(status, { bold: true, color: ok ? '#059669' : '#475569', alignment: 'center' }), cell(source)];
+     const checkRow = (name, status, source, tone = '#475569') => [
+       cell(name, { bold: true }), cell(status, { bold: true, color: tone, alignment: 'center' }), cell(source)];
+     const srcText = (src, countLabel) => (src.status === 'ok' ? countLabel(src.items.length)
+       : { none: 'Consulté : aucun résultat', unavailable: 'Source injoignable', loading: 'Non consulté', na: 'Sans objet' }[src.status]);
+     const bodaccTone = hasCollective(v) ? '#b3261e' : v.sources.bodacc.status === 'ok' ? '#9a6200' : v.sources.bodacc.status === 'none' ? '#0b7f5c' : '#475569';
+     const alimWorst = worstAlim(v);
+     const alimTone = alimWorst === 'bad' ? '#b3261e' : alimWorst === 'warn' ? '#9a6200' : v.sources.alim.status === 'ok' || v.sources.alim.status === 'none' ? '#0b7f5c' : '#475569';
      const checks = [
-       [head('CONTRÔLE'), head('STATUT', 'tableHeaderDarkCenter'), head('SOURCE OFFICIELLE À CONSULTER')],
-       checkRow('Statut administratif', v.active ? 'Vérifié : actif' : 'Vérifié : cessé', 'Répertoire Sirene (INSEE)', v.active),
-       checkRow('Annonces légales / procédures collectives', 'Non consulté', 'BODACC — bodacc.fr'),
+       [head('CONTRÔLE'), head('STATUT', 'tableHeaderDarkCenter'), head('SOURCE')],
+       checkRow('Statut administratif', v.active ? 'Vérifié : actif' : 'Vérifié : cessé', 'Répertoire Sirene (INSEE)', v.active ? '#0b7f5c' : '#b3261e'),
+       checkRow('Annonces légales / procédures collectives', srcText(v.sources.bodacc, (n) => `${n} annonce(s)${hasCollective(v) ? ', procédure collective' : ''}`), 'BODACC', bodaccTone),
+       checkRow('Contrôles sanitaires', srcText(v.sources.alim, (n) => `${n} contrôle(s)`), 'Alim’confiance (résultats d’inspection, hors arrêtés de fermeture)', alimTone),
        checkRow('Bénéficiaires effectifs (RBE)', 'Non consulté', 'Registre INPI — data.inpi.fr'),
        checkRow('Gel des avoirs / sanctions', 'Non consulté', 'DG Trésor — gels-avoirs.dgtresor.gouv.fr'),
-       checkRow('Contrôles sanitaires (si concerné)', 'Non consulté', 'Alim’confiance — alim-confiance.gouv.fr'),
        checkRow('Valeurs foncières', 'Non consulté', 'DVF — app.dvf.etalab.gouv.fr')
      ];
+     const bodaccRows = v.sources.bodacc.status === 'ok'
+       ? [{ text: 'Dernières annonces BODACC', fontSize: 7.5, bold: true, margin: [0, 0, 0, 2] },
+         { ul: v.sources.bodacc.items.slice(0, 5).map((i) => ({ text: `${fmtDate(i.date)} — ${i.type || i.famille}${i.tribunal ? ` (${i.tribunal})` : ''}`, fontSize: 7.5 })), margin: [0, 0, 0, 6] }] : [];
+     const alertBlocks = v.manualAlerts.length
+       ? [{ text: 'Alertes saisies par l’analyste — NON VÉRIFIÉES', fontSize: 7.5, bold: true, color: '#9a6200', margin: [0, 0, 0, 2] },
+         { ul: v.manualAlerts.map((m) => ({ text: `${ALERT_TYPES[m.type]}${m.date ? ` (décision du ${fmtDate(m.date)})` : ''} — source indiquée : ${m.source}`, fontSize: 7.5 })), margin: [0, 0, 0, 6] }] : [];
    
      return {
        pageSize: 'A4',
@@ -1221,7 +1409,7 @@
        info: { title: `Rapport d’analyse ${v.raison}`, author: 'Euro Expert Solvabilité', subject: `SIREN ${v.siren}` },
        footer: (currentPage, pageCount) => ({
          columns: [
-           { text: '© 2026 Euro Expert Solvabilité • Source : Sirene (INSEE) via API Recherche d’entreprises • Document d’information non contractuel', style: 'footerText' },
+           { text: '© 2026 Euro Expert Solvabilité • Sources publiques : Sirene, BODACC, Alim’confiance • Document d’information non contractuel', style: 'footerText' },
            { text: `Page ${currentPage} sur ${pageCount}`, alignment: 'right', style: 'footerText' }
          ],
          margin: [26, 6, 26, 0]
@@ -1232,18 +1420,18 @@
            columns: [
              { svg: LOGO_SVG, width: 36, height: 36 },
              { stack: [
-               { text: 'EURO EXPERT SOLVABILITÉ', fontSize: 13.5, bold: true, color: '#0f172a' },
-               { text: 'RAPPORT D’ANALYSE B2B — DONNÉES PUBLIQUES', fontSize: 7, bold: true, color: '#0284c7', margin: [0, 2, 0, 0] }], margin: [8, 0, 0, 0] },
+               { text: 'EURO EXPERT SOLVABILITÉ', fontSize: 13.5, bold: true, color: '#0b1322' },
+               { text: 'RAPPORT D’ANALYSE B2B — DONNÉES PUBLIQUES', fontSize: 7, bold: true, color: '#0b7d92', margin: [0, 2, 0, 0] }], margin: [8, 0, 0, 0] },
              { stack: [
                { text: `Édition : ${dateLong}`, fontSize: 7, color: '#475569', alignment: 'right' },
-               { text: `Réf. : ${reference}`, fontSize: 7.5, bold: true, color: '#0f172a', alignment: 'right', margin: [0, 1, 0, 0] },
-               { text: 'Rapport établi par Euro Expert Solvabilité', fontSize: 6.5, color: '#0284c7', alignment: 'right', margin: [0, 1, 0, 0] }] }
+               { text: `Réf. : ${reference}`, fontSize: 7.5, bold: true, color: '#0b1322', alignment: 'right', margin: [0, 1, 0, 0] },
+               { text: 'Rapport établi par Euro Expert Solvabilité', fontSize: 6.5, color: '#0b7d92', alignment: 'right', margin: [0, 1, 0, 0] }] }
            ],
            margin: [0, 0, 0, 8]
          },
          rule,
          {
-           table: { widths: ['*'], body: [[{ fillColor: '#0f172a', margin: [10, 8, 10, 8], stack: [
+           table: { widths: ['*'], body: [[{ fillColor: '#0b1322', margin: [10, 8, 10, 8], stack: [
              { text: 'SYNTHÈSE DE L’ANALYSE', fontSize: 9.5, bold: true, color: '#38bdf8', margin: [0, 0, 0, 4] },
              { text: summaryText, fontSize: 7.5, color: '#f8fafc' }] }]] },
            layout: 'noBorders',
@@ -1253,7 +1441,7 @@
          section('1. IDENTITÉ LÉGALE (RÉPERTOIRE SIRENE)'),
          { table: { widths: ['22%', '28%', '22%', '28%'], body: [
            [label('Raison sociale'), cell(v.raison, { bold: true, fontSize: 8 }), label('Forme juridique'), cell(v.forme)],
-           [label('SIREN / SIRET'), cell(`${v.siren || NA} / ${v.siret || NA}`, { bold: true, color: '#0284c7' }), label('Code NAF / APE'), cell(v.naf || NA)],
+           [label('SIREN / SIRET'), cell(`${v.siren || NA} / ${v.siret || NA}`, { bold: true, color: '#0b7d92' }), label('Code NAF / APE'), cell(v.naf || NA)],
            [label('TVA intracom. (théorique)'), cell(vatFromSiren(v.siren)), label('Date de création'), cell(fmtDate(v.dateCreation), { bold: true })],
            [label('Effectif (tranche)'), cell(v.effectif), label('Catégorie'), cell(v.categorie)],
            [label('Statut administratif'), cell(v.active ? 'Active' : `Cessée${v.dateFermeture ? ` (${fmtDate(v.dateFermeture)})` : ''}`, { bold: true, color: v.active ? '#059669' : '#dc2626' }), label('Établissements'), cell(v.nbEtab === null ? NA : `${v.nbEtab} (dont ${v.nbEtabOpen === null ? NA : v.nbEtabOpen} ouvert(s))`)],
@@ -1264,9 +1452,9 @@
          { columns: [
            statBox('NOTE INDICATIVE', `${s.total} / 100`, `Grade ${s.grade}`, color, '32%'),
            statBox('NIVEAU DE RISQUE INDICATIF', s.risk, s.label, color, '34%'),
-           statBox('CONDITIONS SUGGÉRÉES', s.terms, 'Aucun plafond chiffré', '#0284c7', '34%')
+           statBox('CONDITIONS SUGGÉRÉES', s.terms, 'Aucun plafond chiffré', '#0b7d92', '34%')
          ], columnGap: 6, margin: [0, 0, 0, 8] },
-         { text: 'POSITION SUR LE SPECTRE DE RISQUE COMMERCIAL', fontSize: 7.5, bold: true, color: '#0f172a', margin: [0, 0, 0, 3] },
+         { text: 'POSITION SUR LE SPECTRE DE RISQUE COMMERCIAL', fontSize: 7.5, bold: true, color: '#0b1322', margin: [0, 0, 0, 3] },
          { table: { widths: Array(7).fill('14.28%'), body: [spectrumHead, spectrumPointer] }, layout: 'noBorders', margin: [0, 0, 0, 8] },
    
          section('3. DÉTAIL DE LA NOTE INDICATIVE'),
@@ -1295,16 +1483,18 @@
          nextSection('DIRIGEANTS DÉCLARÉS'),
          governanceBlock,
          nextSection('CONTRÔLES ET VÉRIFICATIONS COMPLÉMENTAIRES'),
-         { table: { widths: ['32%', '18%', '50%'], body: checks }, layout, margin: [0, 0, 0, 10] },
+         { table: { widths: ['32%', '22%', '46%'], body: checks }, layout, margin: [0, 0, 0, 8] },
+         ...bodaccRows,
+         ...alertBlocks,
          noticeBox('#fffbe1', '#b45309', 'À VÉRIFIER AVANT TOUT ENGAGEMENT SIGNIFICATIF',
-           'Les contrôles marqués « Non consulté » ne sont pas couverts par ce rapport. Demandez un RIB au nom exact de l’entité (SIREN ci-dessus) et rapprochez ces données de vos propres informations (historique de paiement, garanties, assurance-crédit).'),
+           'Les contrôles marqués « Non consulté » ou « Source injoignable » ne sont pas couverts par ce rapport : l’absence de résultat n’y vaut pas absence de problème. Demandez un RIB au nom exact de l’entité (SIREN ci-dessus) et rapprochez ces données de vos propres informations (historique de paiement, garanties, assurance-crédit).'),
          nextSection('MENTIONS ET LIMITES'),
          { text: LEGAL_NOTICE, fontSize: 7, color: '#475569', margin: [0, 0, 0, 14] },
          { columns: [
            { stack: [
-             { text: 'DOCUMENT ÉMIS PAR EURO EXPERT SOLVABILITÉ', fontSize: 7.5, bold: true, color: '#0f172a' },
+             { text: 'DOCUMENT ÉMIS PAR EURO EXPERT SOLVABILITÉ', fontSize: 7.5, bold: true, color: '#0b1322' },
              { text: `Édité le ${dateLong} à partir des sources publiques citées. Les données peuvent évoluer après cette date.`, fontSize: 6.5, color: '#64748b', margin: [0, 3, 0, 0] }], width: '66%' },
-           { table: { widths: ['*'], body: [[{ fillColor: '#0f172a', margin: [6, 6, 6, 6], stack: [
+           { table: { widths: ['*'], body: [[{ fillColor: '#0b1322', margin: [6, 6, 6, 6], stack: [
              { text: 'EURO EXPERT', fontSize: 8, bold: true, color: '#38bdf8', alignment: 'center' },
              { text: 'SOLVABILITÉ', fontSize: 8, bold: true, color: '#34d399', alignment: 'center', margin: [0, 1, 0, 0] },
              { text: reference, fontSize: 5.5, color: '#94a3b8', alignment: 'center', margin: [0, 3, 0, 0] }] }]] },
@@ -1312,11 +1502,11 @@
          ], columnGap: 10 }
        ],
        styles: {
-         sectionTitle: { fontSize: 8.5, bold: true, color: '#0284c7', margin: [0, 5, 0, 3] },
+         sectionTitle: { fontSize: 8.5, bold: true, color: '#0b7d92', margin: [0, 5, 0, 3] },
          tableLabel: { bold: true, fontSize: 7.5, color: '#475569', fillColor: '#f8fafc' },
-         tableHeaderDark: { fontSize: 7, bold: true, color: '#ffffff', fillColor: '#0f172a' },
-         tableHeaderDarkCenter: { fontSize: 7, bold: true, color: '#ffffff', fillColor: '#0f172a', alignment: 'center' },
-         tableHeaderDarkRight: { fontSize: 7, bold: true, color: '#ffffff', fillColor: '#0f172a', alignment: 'right' },
+         tableHeaderDark: { fontSize: 7, bold: true, color: '#ffffff', fillColor: '#0b1322' },
+         tableHeaderDarkCenter: { fontSize: 7, bold: true, color: '#ffffff', fillColor: '#0b1322', alignment: 'center' },
+         tableHeaderDarkRight: { fontSize: 7, bold: true, color: '#ffffff', fillColor: '#0b1322', alignment: 'right' },
          footerText: { fontSize: 6.5, color: '#94a3b8' }
        },
        defaultStyle: { font: 'Roboto' }
@@ -1341,9 +1531,11 @@
       ============================================================================= */
    const isLegalPerson = (d) => d.type_dirigeant === 'personne morale';
    
-   /** Faits transmis au serveur : pas de nom de dirigeant personne physique (minimisation des données). */
+   /** Faits transmis au serveur : pas de nom de dirigeant personne physique, pas de texte libre saisi par l'analyste. */
    function buildAIFacts(v) {
      const s = v.score;
+     const b = v.sources.bodacc;
+     const a = v.sources.alim;
      return {
        identite: {
          raison_sociale: v.raison, siren: v.siren, code_naf: v.naf, forme_juridique: v.forme,
@@ -1362,7 +1554,18 @@
          nombre: v.dirigeants.length,
          fonctions: v.dirigeants.map((d) => d.qualite).filter(Boolean),
          personnes_morales: v.dirigeants.filter(isLegalPerson).map((d) => d.denomination).filter(Boolean)
-       }
+       },
+       sources_externes: {
+         bodacc: {
+           statut: b.status, nombre: b.items.length, procedure_collective: hasCollective(v),
+           recentes: b.items.slice(0, 5).map((i) => ({ date: i.date, type: i.type, famille: i.famille }))
+         },
+         alim_confiance: {
+           statut: a.status, nombre: a.items.length,
+           recentes: a.items.slice(0, 3).map((i) => ({ date: i.date, resultat: i.result }))
+         }
+       },
+       alertes_analyste: v.manualAlerts.map((m) => ({ type: ALERT_TYPES[m.type], date: m.date }))
      };
    }
    
@@ -1379,14 +1582,17 @@
          ? `Les derniers comptes publiés (exercice ${latest.year}) indiquent${latest.ca !== null ? ` un chiffre d’affaires de ${fmtEuro(latest.ca)}` : ''}` +
            `${latest.ca !== null && latest.resultat !== null ? ' et' : ''}${latest.resultat !== null ? ` un résultat net de ${fmtEuro(latest.resultat)}` : ''}.`
          : 'Aucun compte publié n’est accessible : l’appréciation financière reste limitée.',
+       hasCollective(v) ? 'Une annonce de procédure collective figure au BODACC.' : '',
        `La note indicative ressort à ${s.total}/100 (grade ${s.grade}, risque ${s.risk.toLowerCase()}).`
-     ];
+     ].filter(Boolean);
+     const vigilance = s.criteria.filter((c) => c.pts < c.max * 0.5).map((c) => `${c.name} : ${c.note}.`);
+     if (v.manualAlerts.length) vigilance.unshift('Alerte saisie par l’analyste, non vérifiée : à confirmer auprès de la source indiquée.');
      return {
        resume: sentences.join(' '),
        points_forts: s.criteria.filter((c) => c.pts > 0 && c.pts >= c.max * 0.8).map((c) => `${c.name} : ${c.note}.`).slice(0, 4),
-       points_vigilance: s.criteria.filter((c) => c.pts < c.max * 0.5).map((c) => `${c.name} : ${c.note}.`).slice(0, 4),
+       points_vigilance: vigilance.slice(0, 4),
        recommandation: `${s.terms}. Cette appréciation repose uniquement sur des données publiques et doit être complétée par vos propres informations.`,
-       verifications: ['Annonces et procédures collectives (BODACC)', 'Bénéficiaires effectifs et gel des avoirs', 'Historique de paiement et garanties disponibles']
+       verifications: ['Registre des bénéficiaires effectifs et gel des avoirs', 'Historique de paiement et garanties disponibles', 'Annonces légales à jour sur le BODACC']
      };
    }
    
@@ -1395,7 +1601,7 @@
      if (!v) return notify('Sélectionnez d’abord une entreprise.');
      const btn = $('ai-generate-btn');
      if (btn) btn.disabled = true;
-     setHTML('ai-analysis', '<p class="text-slate-400"><i class="fa-solid fa-spinner animate-spin text-violet-400 mr-2"></i>Rédaction de l’analyse en cours…</p>');
+     setHTML('ai-analysis', '<p class="muted"><i class="fa-solid fa-spinner spin" style="color:var(--ai)"></i> Rédaction de l’analyse en cours…</p>');
    
      let analysis = null;
      let source = 'local';
@@ -1412,7 +1618,7 @@
          else if (res.status === 401) { notify('Session expirée : reconnectez-vous.'); lockSession(); }
        } catch (e) { /* service d'analyse indisponible */ }
      }
-     if (state.view !== v) return; // une autre entreprise a été sélectionnée entre-temps
+     if (state.view !== v) return;
    
      if (!analysis) {
        analysis = buildFallbackAnalysis(v);
@@ -1427,42 +1633,62 @@
      if (btn) btn.disabled = false;
      const a = v.analysis;
      if (!a) {
-       setHTML('ai-analysis', '<p class="text-slate-400">Cliquez sur « Générer l’analyse » pour obtenir une synthèse rédigée à partir des données ci-dessus.</p>');
+       setHTML('ai-analysis', '<p class="muted">Générez une synthèse rédigée à partir des données de ce dossier : résumé, points forts, points de vigilance et recommandation.</p>');
        if (btn) btn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Générer l’analyse';
        return;
      }
      if (btn) btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Régénérer';
-   
      const isAI = a.source === 'ia';
-     const chip = `<span class="inline-block mb-3 px-2.5 py-1 rounded-full text-[10px] font-bold ${isAI ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30' : 'bg-slate-500/20 text-slate-300 border border-slate-500/30'}">` +
-       `${isAI ? 'Rédigée par IA à partir des données de ce rapport — à relire avant diffusion' : 'Synthèse automatique (sans IA)'}</span>`;
-     const list = (title, items, tone) => (items && items.length
-       ? `<div><strong class="${tone} block mb-1">${esc(title)}</strong><ul class="space-y-1">${items.map((i) => `<li class="flex gap-2"><span class="text-slate-500">•</span><span>${esc(i)}</span></li>`).join('')}</ul></div>`
-       : '');
+     const list = (title, items) => (items && items.length ? `<div><h3>${esc(title)}</h3><ul>${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul></div>` : '');
      setHTML('ai-analysis',
-       `${chip}<p class="mb-3 text-slate-200">${esc(a.resume)}</p>` +
-       `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">${list('Points forts', a.points_forts, 'text-emerald-400')}${list('Points de vigilance', a.points_vigilance, 'text-amber-400')}</div>` +
-       `<p class="border-t border-slate-800 pt-2 mb-3"><strong class="text-white">Recommandation :</strong> ${esc(a.recommandation)}</p>` +
-       list('À vérifier', a.verifications, 'text-sky-400'));
+       `<p style="margin-bottom:14px">${chip(isAI ? 'Rédigée par IA — à relire avant diffusion' : 'Synthèse automatique, sans IA', isAI ? 'ai' : '', isAI ? 'fa-wand-magic-sparkles' : 'fa-gears')}</p>` +
+       `<p>${esc(a.resume)}</p>` +
+       `<div class="cols">${list('Points forts', a.points_forts)}${list('Points de vigilance', a.points_vigilance)}</div>` +
+       `<p><strong>Recommandation.</strong> ${esc(a.recommandation)}</p>` +
+       `<div class="cols">${list('À vérifier', a.verifications)}</div>`);
    }
    
    /* =============================================================================
       10. INITIALISATION (une seule fois, chaque écouteur attaché une seule fois)
       ============================================================================= */
+   const ACTIONS = {
+     home: resetToHome,
+     theme: toggleTheme,
+     lock: lockSession,
+     search: () => executeSearch(),
+     pdf: generatePDFReport,
+     ai: generateAIAnalysis
+   };
+   
    function init() {
      initAuth();
-     initSearchUI();
      showHomeMap();
    
+     const authForm = $('auth-form');
+     if (authForm) authForm.addEventListener('submit', validateAccessCode);
+     const alertForm = $('alert-form');
+     if (alertForm) alertForm.addEventListener('submit', handleAlertSubmit);
+     const input = $('search-input');
+     if (input) {
+       input.addEventListener('input', handleSearchInput);
+       input.addEventListener('keyup', handleSearchKeyup);
+     }
+   
      document.addEventListener('click', (e) => {
-       const auditBtn = e.target.closest('[data-audit-siren]');
-       if (auditBtn) {
-         triggerSearchBySiren(auditBtn.getAttribute('data-audit-siren'));
-         return;
-       }
-       const input = $('search-input');
+       const t = e.target;
+       if (!t.closest) return;
+       const audit = t.closest('[data-audit-siren]');
+       if (audit) return triggerSearchBySiren(audit.getAttribute('data-audit-siren'));
+       const quick = t.closest('[data-quick]');
+       if (quick) return triggerSearchBySiren(quick.getAttribute('data-quick'));
+       const tab = t.closest('[data-tab]');
+       if (tab) return switchTab(tab.dataset.tab);
+       const rm = t.closest('[data-remove-alert]');
+       if (rm) return removeManualAlert(rm.getAttribute('data-remove-alert'));
+       const act = t.closest('[data-action]');
+       if (act && ACTIONS[act.dataset.action]) return ACTIONS[act.dataset.action]();
        const box = $('autocomplete-results');
-       if (input && box && !input.contains(e.target) && !box.contains(e.target)) hideAutocomplete();
+       if (input && box && !input.contains(t) && !box.contains(t)) hideAutocomplete();
      });
    
      document.addEventListener('keydown', (e) => {
