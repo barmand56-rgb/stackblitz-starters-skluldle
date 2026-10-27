@@ -2006,3 +2006,90 @@ window.triggerDirectAudit = async function(query) {
       window.triggerDirectAudit(e.target.value);
     }
   });
+
+  // ============================================================================
+// CORRECTIF ULTIME POUR LE BOUTON "LANCER L'AUDIT"
+// ============================================================================
+
+async function forceExecuteAudit() {
+    // 1. Récupère la saisie dans n'importe quel input de type texte
+    const allInputs = Array.from(document.querySelectorAll("input"));
+    const textInput = allInputs.find(i => i.type === "text" || i.type === "" || !i.type) || document.getElementById("search-input");
+    
+    const query = textInput ? textInput.value.trim() : "";
+    if (!query || query.length < 2) {
+      alert("Veuillez saisir un nom d'entreprise ou un SIREN.");
+      return;
+    }
+  
+    console.log("🚀 Lancement de l'audit pour :", query);
+  
+    const numericOnly = query.replace(/\s+/g, '');
+    let apiUrl = "";
+  
+    if (/^\d{9,14}$/.test(numericOnly)) {
+      apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${numericOnly.substring(0, 9)}&per_page=5`;
+    } else {
+      const cleanText = query.replace(/[''-]/g, ' ').replace(/\b[a-zA-Z]\b/g, '').replace(/\s+/g, ' ').trim();
+      apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanText || query)}&per_page=15`;
+    }
+  
+    try {
+      const res = await fetch(apiUrl);
+      if (!res.ok) throw new Error(`Erreur API: ${res.status}`);
+      const data = await res.json();
+  
+      if (data && data.results && data.results.length > 0) {
+        const results = data.results.sort((a, b) => (b.etat_administratif === "A" ? 1 : 0) - (a.etat_administratif === "A" ? 1 : 0));
+        const company = results[0];
+        
+        console.log(" Entreprise trouvée :", company.nom_complet);
+  
+        if (typeof selectCompany === "function") {
+          selectCompany(company);
+        }
+  
+        // Masque la liste si elle est affichée
+        const dropdown = document.getElementById("autocomplete-results") || document.getElementById("search-dropdown");
+        if (dropdown) dropdown.style.display = "none";
+      } else {
+        alert(`Aucune entreprise trouvée pour : "${query}"`);
+      }
+    } catch (err) {
+      console.error("Erreur d'audit :", err);
+      alert("Erreur lors de la connexion au registre national.");
+    }
+  }
+  
+  // Interception globale prioritaire de TOUS les clics sur la zone du bouton
+  document.addEventListener("click", function (e) {
+    // Vérifie si le clic ou un de ses parents contient "Lancer" ou "Audit"
+    const path = e.composedPath ? e.composedPath() : [e.target];
+    const isTargetBtn = path.some(el => {
+      if (!el || !el.textContent) return false;
+      const txt = el.textContent.toLowerCase();
+      return (
+        el.id === "launch-audit-btn" ||
+        (el.classList && el.classList.contains("btn-audit")) ||
+        txt.includes("lancer l'audit") ||
+        txt.includes("lancer l audit")
+      );
+    });
+  
+    if (isTargetBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      forceExecuteAudit();
+    }
+  }, true);
+  
+  // Déclenchement au clavier (Touche Entrée)
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      const activeEl = document.activeElement;
+      if (activeEl && activeEl.tagName === "INPUT") {
+        e.preventDefault();
+        forceExecuteAudit();
+      }
+    }
+  });
