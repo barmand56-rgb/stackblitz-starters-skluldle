@@ -2012,13 +2012,16 @@ window.triggerDirectAudit = async function(query) {
 // ============================================================================
 
 async function forceExecuteAudit() {
-    // 1. Récupère la saisie dans n'importe quel input de type texte
-    const allInputs = Array.from(document.querySelectorAll("input"));
-    const textInput = allInputs.find(i => i.type === "text" || i.type === "" || !i.type) || document.getElementById("search-input");
+    // Ciblage ultra-précis du champ de recherche de la page
+    const searchInput = document.getElementById("search-input") || 
+                        document.querySelector("input[placeholder*='SIREN']") || 
+                        document.querySelector("input[placeholder*='entreprise']") ||
+                        document.querySelector("input[type='text']");
     
-    const query = textInput ? textInput.value.trim() : "";
+    const query = searchInput ? searchInput.value.trim() : "";
+  
     if (!query || query.length < 2) {
-      alert("Veuillez saisir un nom d'entreprise ou un SIREN.");
+      alert("Veuillez saisir un nom d'entreprise ou un SIREN dans le champ de recherche.");
       return;
     }
   
@@ -2049,7 +2052,6 @@ async function forceExecuteAudit() {
           selectCompany(company);
         }
   
-        // Masque la liste si elle est affichée
         const dropdown = document.getElementById("autocomplete-results") || document.getElementById("search-dropdown");
         if (dropdown) dropdown.style.display = "none";
       } else {
@@ -2060,36 +2062,3 @@ async function forceExecuteAudit() {
       alert("Erreur lors de la connexion au registre national.");
     }
   }
-  
-  // Interception globale prioritaire de TOUS les clics sur la zone du bouton
-  document.addEventListener("click", function (e) {
-    // Vérifie si le clic ou un de ses parents contient "Lancer" ou "Audit"
-    const path = e.composedPath ? e.composedPath() : [e.target];
-    const isTargetBtn = path.some(el => {
-      if (!el || !el.textContent) return false;
-      const txt = el.textContent.toLowerCase();
-      return (
-        el.id === "launch-audit-btn" ||
-        (el.classList && el.classList.contains("btn-audit")) ||
-        txt.includes("lancer l'audit") ||
-        txt.includes("lancer l audit")
-      );
-    });
-  
-    if (isTargetBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-      forceExecuteAudit();
-    }
-  }, true);
-  
-  // Déclenchement au clavier (Touche Entrée)
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Enter") {
-      const activeEl = document.activeElement;
-      if (activeEl && activeEl.tagName === "INPUT") {
-        e.preventDefault();
-        forceExecuteAudit();
-      }
-    }
-  });
