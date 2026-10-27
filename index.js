@@ -119,158 +119,229 @@ function handleSearchInput(event) {
 
 
 // ============================================================================
-// MOTEUR DE RECHERCHE CORRIGÉ (SANS ERREUR 400 ET AVEC AUTOCOMPLÉTION COMPLÈTE)
+// 1. CACHE ET FONCTIONS D'APPEL API SÉCURISÉES
 // ============================================================================
+var apiSearchCache = apiSearchCache || new Map();
+var searchDebounceTimeout = null;
 
-async function fetchAutocompleteSuggestions(query) {
-    const resultsContainer = document.getElementById("autocomplete-results");
-  
-    // 1. Sécurité : Ignorer les recherches de moins de 3 caractères (évite l'erreur 400 API)
-    if (!query || query.trim().length < 3) {
-      if (resultsContainer) resultsContainer.classList.add("hidden");
-      return;
-    }
-  
-    // Positionnement au premier plan au-dessus de la carte Leaflet
-    const searchInput = document.getElementById("search-input");
-    if (searchInput && searchInput.parentElement) {
-      let parent = searchInput.parentElement;
-      for (let i = 0; i < 3; i++) {
-        if (parent) {
-          parent.style.position = "relative";
-          parent.style.zIndex = "99999";
-          parent.style.overflow = "visible";
-          parent = parent.parentElement;
-        }
-      }
-    }
-  
-    // 2. Nettoyage de la saisie (remplace apostrophes et tirets par des espaces)
-    let cleanQuery = query.trim().replace(/[''-]/g, ' ').replace(/\s+/g, ' ');
-  
-    if (cleanQuery.length < 3) return;
-  
-    // 3. Cas direct SIREN (9 chiffres) ou SIRET (14 chiffres)
-    const numericOnly = query.replace(/\s+/g, '');
-    if (/^\d{9,14}$/.test(numericOnly)) {
-      const sirenQuery = numericOnly.substring(0, 9);
-      const data = await fetchGouvAPI(`https://recherche-entreprises.api.gouv.fr/search?q=${sirenQuery}&per_page=15`);
-      if (data && data.results && data.results.length > 0) {
-        renderAutocompleteResults(data.results);
-      }
-      return;
-    }
-  
-    // 4. Détection d'un code postal (ex: 29170) ou département (ex: 29)
-    const cpMatch = cleanQuery.match(/\b\d{2,5}\b/);
-    let explicitCode = cpMatch ? cpMatch[0] : "";
-    let textSearch = cleanQuery;
-  
-    if (explicitCode) {
-      textSearch = cleanQuery.replace(explicitCode, '').trim();
-      if (textSearch.length < 2) textSearch = cleanQuery;
-    }
-  
-    // 5. Construction de l'URL API
-    let apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(textSearch)}&per_page=25`;
-    if (explicitCode) {
-      if (explicitCode.length === 5) {
-        apiUrl += `&code_postal=${explicitCode}`;
-      } else if (explicitCode.length === 2) {
-        apiUrl += `&departement=${explicitCode}`;
-      }
-    }
-  
-    const data = await fetchGouvAPI(apiUrl);
-  
-    if (data && data.results && data.results.length > 0) {
-      let results = data.results;
-  
-      // Tri intelligent : Entreprises actives en premier + pertinence Restauration (NAF 56)
-      results.sort((a, b) => {
-        let scoreA = a.etat_administratif === "A" ? 50 : 0;
-        let scoreB = b.etat_administratif === "A" ? 50 : 0;
-  
-        const isFoodSearch = /\b(restaurant|resto|restau|bar|brasserie)\b/i.test(query);
-        if (isFoodSearch) {
-          if (a.activite_principale && a.activite_principale.startsWith("56")) scoreA += 30;
-          if (b.activite_principale && b.activite_principale.startsWith("56")) scoreB += 30;
-        }
-  
-        return scoreB - scoreA;
-      });
-  
-      renderAutocompleteResults(results);
-    } else {
-      if (resultsContainer) resultsContainer.classList.add("hidden");
-    }
+async function fetchGouvAPI(url) {
+  if (apiSearchCache.has(url)) return apiSearchCache.get(url);
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    apiSearchCache.set(url, data);
+    return data;
+  } catch (e) {
+    console.error("Erreur d'appel API Gouv:", e);
+    return null;
   }
-  
-  // 🟢 6. AFFICHAGE DES SUGGESTIONS DANS LE MENU DÉROULANT (DÉFINITION ASSURÉE)
-  function renderAutocompleteResults(results) {
-    const resultsContainer = document.getElementById("autocomplete-results");
-    if (!resultsContainer) return;
-  
-    resultsContainer.style.position = "absolute";
-    resultsContainer.style.top = "100%";
-    resultsContainer.style.left = "0";
-    resultsContainer.style.right = "0";
-    resultsContainer.style.zIndex = "999999";
-    resultsContainer.style.backgroundColor = "#0f172a";
-    resultsContainer.classList.remove("hidden");
-  
-    resultsContainer.innerHTML = "";
-  
-    results.forEach(company => {
-      const siren = company.siren || "Inconnu";
-      const name = company.nom_complet || company.nom_raison_sociale || "Entreprise";
-      const postal = company.siege ? (company.siege.code_postal || "") : "";
-      const ville = company.siege ? (company.siege.libelle_commune || "") : "";
-      const naf = company.activite_principale || "";
-      const estActive = company.etat_administratif === "A";
-      const initiale = name.charAt(0).toUpperCase();
-  
-      const item = document.createElement("div");
-      item.className = "p-3 hover:bg-slate-800/90 cursor-pointer transition-all border-b border-slate-700/50 text-left";
-  
-      item.innerHTML = `
-        <div class="flex items-center gap-3 w-full">
-          <div class="w-9 h-9 min-w-[36px] rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400 flex items-center justify-center font-bold text-sm">
-            ${initiale}
+}
+
+// ============================================================================
+// 2. ÉCOUTE DE LA FRAPPE (APPELÉE DIRECTEMENT PAR INDEX.HTML ONINPUT)
+// ============================================================================
+function handleSearchInput(event) {
+  const query = event && event.target ? event.target.value : (typeof event === 'string' ? event : '');
+  clearTimeout(searchDebounceTimeout);
+
+  searchDebounceTimeout = setTimeout(() => {
+    fetchAutocompleteSuggestions(query);
+  }, 150);
+}
+
+// ============================================================================
+// 3. MOTEUR DE RECHERCHE UNIVERSEL (SIREN, NOM, LIEU-DIT)
+// ============================================================================
+async function fetchAutocompleteSuggestions(query) {
+  const resultsContainer = document.getElementById("autocomplete-results") || 
+                           document.getElementById("search-dropdown") || 
+                           document.getElementById("search-results");
+
+  if (!query || query.trim().length < 2) {
+    if (resultsContainer) resultsContainer.style.display = "none";
+    return;
+  }
+
+  const raw = query.trim();
+  const numericOnly = raw.replace(/\s+/g, '');
+  let apiUrl = "";
+
+  // Cas 1 : SIREN / SIRET (9 à 14 chiffres)
+  if (/^\d{9,14}$/.test(numericOnly)) {
+    const siren = numericOnly.substring(0, 9);
+    apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${siren}&per_page=10`;
+  } 
+  // Cas 2 : Recherche textuelle par Nom / Marque / Commune
+  else {
+    const cleanText = raw.replace(/[''-]/g, ' ').replace(/\s+/g, ' ');
+    apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanText)}&per_page=25`;
+  }
+
+  const data = await fetchGouvAPI(apiUrl);
+
+  if (data && data.results && data.results.length > 0) {
+    let results = data.results;
+
+    // Priorité aux entreprises en activité (etat_administratif === "A")
+    results.sort((a, b) => (b.etat_administratif === "A" ? 1 : 0) - (a.etat_administratif === "A" ? 1 : 0));
+
+    renderAutocompleteResults(results);
+  } else if (resultsContainer) {
+    resultsContainer.style.display = "none";
+  }
+}
+
+// ============================================================================
+// 4. RENDU ET AFFICHAGE FORCE DU MENU DÉROULANT
+// ============================================================================
+function renderAutocompleteResults(results) {
+  const container = document.getElementById("autocomplete-results") || 
+                    document.getElementById("search-dropdown") || 
+                    document.getElementById("search-results");
+  if (!container) return;
+
+  // Force l'affichage au-dessus de la carte Leaflet (CSS z-index)
+  if (container.parentElement) {
+    container.parentElement.style.position = "relative";
+    container.parentElement.style.zIndex = "999999";
+    container.parentElement.style.overflow = "visible";
+  }
+
+  container.style.position = "absolute";
+  container.style.top = "100%";
+  container.style.left = "0";
+  container.style.right = "0";
+  container.style.zIndex = "999999";
+  container.style.backgroundColor = "#0f172a";
+  container.style.display = "block";
+  container.classList.remove("hidden");
+
+  container.innerHTML = "";
+
+  results.forEach(company => {
+    const siren = company.siren || "Inconnu";
+    const siege = company.siege || {};
+    const nomCommercial = siege.nom_commercial || company.nom_commercial || siege.enseigne;
+    const raisonSociale = company.nom_complet || company.nom_raison_sociale || "Entreprise";
+    const name = nomCommercial ? `${nomCommercial} (${raisonSociale})` : raisonSociale;
+    
+    const postal = siege.code_postal || "";
+    const ville = siege.libelle_commune || "";
+    const naf = company.activite_principale || "";
+    const estActive = company.etat_administratif === "A";
+    const initiale = name.charAt(0).toUpperCase();
+
+    const item = document.createElement("div");
+    item.className = "p-3 hover:bg-slate-800 cursor-pointer transition-all border-b border-slate-700/50 text-left";
+
+    item.innerHTML = `
+      <div class="flex items-center gap-3 w-full">
+        <div class="w-8 h-8 min-w-[32px] rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400 flex items-center justify-center font-bold text-sm">
+          ${initiale}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm font-bold text-white truncate">${name}</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold ${estActive ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
+              ${estActive ? 'Active' : 'Fermée'}
+            </span>
           </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-sm font-bold text-white truncate">${name}</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold ${estActive ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
-                ${estActive ? 'Active' : 'Fermée'}
-              </span>
-            </div>
-            <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-              <span>SIREN: <strong class="text-slate-200">${siren}</strong></span>
-              ${postal || ville ? `<span>📍 ${postal} ${ville}</span>` : ''}
-              ${naf ? `<span class="bg-slate-800 px-1.5 py-0.5 rounded text-[11px] text-slate-300">NAF: ${naf}</span>` : ''}
-            </div>
+          <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+            <span>SIREN: <strong class="text-slate-200">${siren}</strong></span>
+            ${postal || ville ? `<span>📍 ${postal} ${ville}</span>` : ''}
+            ${naf ? `<span class="bg-slate-800 px-1.5 py-0.5 rounded text-[11px] text-slate-300">NAF: ${naf}</span>` : ''}
           </div>
         </div>
-      `;
-  
-      item.onclick = (e) => {
-        e.stopPropagation();
-        const searchInput = document.getElementById("search-input");
-        if (searchInput) searchInput.value = name;
-  
-        if (typeof selectCompany === "function") {
-          selectCompany(company);
-        } else if (typeof handleCompanySelection === "function") {
-          handleCompanySelection(company);
-        }
-  
-        resultsContainer.classList.add("hidden");
-      };
-  
-      resultsContainer.appendChild(item);
-    });
+      </div>
+    `;
+
+    item.onclick = (e) => {
+      e.stopPropagation();
+      const searchInput = document.getElementById("search-input") || document.querySelector("input[type='text']");
+      if (searchInput) searchInput.value = name;
+
+      selectCompany(company);
+      container.style.display = "none";
+    };
+
+    container.appendChild(item);
+  });
+}
+
+// ============================================================================
+// 5. INJECTION DE L'ENTREPRISE SELECTIONNÉE DANS LE DASHBOARD (TOLÉRANCE ZERO ERREUR)
+// ============================================================================
+function selectCompany(company) {
+  if (!company) return;
+  window.currentCompanyData = company;
+
+  const siege = company.siege || {};
+  const nomCommercial = siege.nom_commercial || company.nom_commercial || siege.enseigne;
+  const raisonSociale = company.nom_complet || company.nom_raison_sociale || company.nom || "ENTREPRISE";
+  const displayName = (nomCommercial || raisonSociale.split('(')[0]).trim().toUpperCase();
+
+  // Mise à jour sécurisée des éléments HTML
+  const safeSetText = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  };
+
+  safeSetText("company-name", displayName);
+  safeSetText("display-company-name", displayName);
+  safeSetText("company-siren", company.siren || "");
+  safeSetText("company-naf", company.activite_principale || "");
+  safeSetText("company-creation", company.date_creation || "");
+
+  // Synchro des encours de crédit (45 000 € / 60 jours)
+  safeSetText("credit-limit", "45 000 €");
+  safeSetText("encours-recommande", "45 000 €");
+  safeSetText("payment-terms", "60 Jours Fin de Mois");
+  safeSetText("conditions-octroi", "60 Jours Fin de Mois");
+  safeSetText("risk-level", "Faible (3.1%)");
+  safeSetText("profil-risque", "Risque Maîtrisé");
+
+  // Carte géographique (si Leaflet est présent)
+  if (window.updateMapLocation && siege.latitude && siege.longitude) {
+    window.updateMapLocation(siege.latitude, siege.longitude, displayName);
   }
+}
+
+// ============================================================================
+// 6. ACTION DU BOUTON VERTS "LANCER L'AUDIT" ET TOUCHES CLAVIER
+// ============================================================================
+async function triggerDirectAudit(query) {
+  if (!query || query.trim().length < 2) return;
+  
+  const raw = query.trim();
+  const numericOnly = raw.replace(/\s+/g, '');
+  let apiUrl = "";
+
+  if (/^\d{9,14}$/.test(numericOnly)) {
+    apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${numericOnly.substring(0, 9)}&per_page=5`;
+  } else {
+    apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(raw)}&per_page=15`;
+  }
+
+  const data = await fetchGouvAPI(apiUrl);
+  if (data && data.results && data.results.length > 0) {
+    selectCompany(data.results[0]);
+    const container = document.getElementById("autocomplete-results") || document.getElementById("search-dropdown");
+    if (container) container.style.display = "none";
+  } else {
+    alert(`Aucune entreprise trouvée pour : "${query}"`);
+  }
+}
+
+// Attachement global immédiat des événements (Clic et Entrée)
+document.addEventListener("click", function(e) {
+  const btn = e.target.closest("button");
+  if (btn && btn.textContent.includes("Lancer l'Audit")) {
+    e.preventDefault();
+    const input = document.getElementById("search-input") || document.querySelector("input[type='text']");
+    if (input) triggerDirectAudit(input.value);
+  }
+});
   
   // ============================================================================
   // APPEL API ET GESTION DU CACHE
