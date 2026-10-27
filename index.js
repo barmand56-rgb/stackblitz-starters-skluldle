@@ -1793,3 +1793,70 @@ function generatePDFReport() {
       alert("La bibliothèque pdfMake n'est pas chargée dans l'application.");
     }
   }
+
+  // ============================================================================
+// INITIALISATION DES ÉCOUTEURS D'ÉVÉNEMENTS (BOUTON ET FRAPPE)
+// ============================================================================
+
+document.addEventListener("DOMContentLoaded", () => {
+    const searchInput = document.getElementById("search-input");
+    const auditBtn = document.querySelector("button:has(span), .btn-audit") || document.getElementById("launch-audit-btn");
+  
+    // 1. Écoute de la frappe en temps réel
+    if (searchInput) {
+      searchInput.addEventListener("input", (e) => {
+        if (typeof handleSearchInput === "function") {
+          handleSearchInput(e);
+        } else if (typeof fetchAutocompleteSuggestions === "function") {
+          fetchAutocompleteSuggestions(e.target.value);
+        }
+      });
+  
+      // 2. Touche Entrée pour valider directement
+      searchInput.addEventListener("keydown", async (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          await triggerDirectAudit(searchInput.value);
+        }
+      });
+    }
+  
+    // 3. Clic sur le bouton vert "Lancer l'Audit ->"
+    const allButtons = Array.from(document.querySelectorAll("button"));
+    const launchBtn = allButtons.find(b => b.textContent.includes("Lancer l'Audit")) || auditBtn;
+  
+    if (launchBtn) {
+      launchBtn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const val = searchInput ? searchInput.value : "";
+        await triggerDirectAudit(val);
+      });
+    }
+  });
+  
+  // Fonction d'exécution directe de l'audit depuis le champ de saisie
+  async function triggerDirectAudit(query) {
+    if (!query || query.trim().length < 2) return;
+    
+    const clean = query.trim().replace(/\s+/g, '');
+  
+    // Si c'est un SIREN (9 chiffres) ou SIRET (14 chiffres)
+    let url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(clean)}&per_page=1`;
+    
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data && data.results && data.results.length > 0) {
+        const company = data.results[0];
+        if (typeof selectCompany === "function") {
+          selectCompany(company);
+        }
+        const container = document.getElementById("autocomplete-results");
+        if (container) container.classList.add("hidden");
+      } else {
+        alert("Aucune entreprise trouvée pour la référence saisie.");
+      }
+    } catch (err) {
+      console.error("Erreur lors du lancement de l'audit direct:", err);
+    }
+  }
