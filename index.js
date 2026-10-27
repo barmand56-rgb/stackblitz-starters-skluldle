@@ -1,8 +1,6 @@
 // ============================================================================
-// EURO EXPERT SOLVABILITÉ 2026 - ARCHITECTURE JAVASCRIPT UNIFIÉE
+// 1. DÉCLARATION DU CACHE & AUTHENTIFICATION SÉCURISÉE (VERROUILLAGE ACTIVE)
 // ============================================================================
-
-// 1. DÉCLARATION SÉCURISÉE DU CACHE & VARS GLOBALES
 window.apiSearchCache = window.apiSearchCache || new Map();
 var apiSearchCache = window.apiSearchCache;
 
@@ -10,27 +8,15 @@ window.searchDebounceTimeout = window.searchDebounceTimeout || null;
 var searchDebounceTimeout = window.searchDebounceTimeout;
 
 var financialChartInstance = null;
-var SESSION_DURATION_MS = 24 * 3600 * 1000; // 24h
+var SESSION_DURATION_MS = 24 * 3600 * 1000; // 24 heures
 
 const MASTER_MANAGER_CODE = "EES-2026";
 const SECRET_KEY = "MonSecretSuperPrive2026";
 const MANAGER_ACCESS_CODE = "EES-2026";
 
-// Exposer sur l'objet window pour compatibilité HTML/Event Handlers
-window.handleSearchInput = handleSearchInput;
-window.fetchAutocompleteSuggestions = fetchAutocompleteSuggestions;
-window.selectCompany = selectCompany;
-window.triggerDirectAudit = triggerDirectAudit;
-window.forceExecuteAudit = forceExecuteAudit;
-window.validateAccessCode = validateAccessCode;
-window.lockSession = lockSession;
-window.triggerSearchBySiren = triggerSearchBySiren;
-
-// ============================================================================
-// 2. AUTHENTIFICATION SÉCURISÉE ET GESTION DU VERROUILLAGE
-// ============================================================================
+// Algorithme de calcul du code dynamique quotidien (24h)
 async function calculateTodayCode() {
-  const today = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
   const message = `${SECRET_KEY}-${today}`;
   const msgBuffer = new TextEncoder().encode(message);
   const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -44,15 +30,17 @@ function getTodayAccessCode() {
   return "EES-276219";
 }
 
+// Vérification stricte au chargement : Affiche la fenêtre si la session n'est pas validée
 function checkSessionAccess() {
   const isUnlocked = sessionStorage.getItem("ees_session_unlocked") === "true";
   const sessionData = localStorage.getItem("ees_b2b_session");
-  const modal = document.getElementById("auth-modal");
+  const modal = document.getElementById("auth-modal") || document.getElementById("authModal");
 
   if (!modal) return;
 
   if (isUnlocked) {
     modal.classList.add("hidden");
+    modal.style.display = "none";
     return;
   }
 
@@ -61,6 +49,7 @@ function checkSessionAccess() {
       const parsed = JSON.parse(sessionData);
       if (parsed.timestamp && (Date.now() - parsed.timestamp < SESSION_DURATION_MS)) {
         modal.classList.add("hidden");
+        modal.style.display = "none";
         sessionStorage.setItem("ees_session_unlocked", "true");
         updateSessionTimerDisplay();
         return;
@@ -68,14 +57,17 @@ function checkSessionAccess() {
     } catch (e) {}
   }
 
+  // Si non déverrouillé : Affiche le modal de connexion
   modal.classList.remove("hidden");
+  modal.style.display = "flex";
 }
 
+// Validation du code saisi par l'utilisateur
 async function validateAccessCode(event) {
   if (event) event.preventDefault();
   const inputField = document.getElementById("access-code-input");
   const errorBanner = document.getElementById("auth-error");
-  const authModal = document.getElementById("auth-modal");
+  const authModal = document.getElementById("auth-modal") || document.getElementById("authModal");
 
   if (!inputField) return;
 
@@ -91,7 +83,10 @@ async function validateAccessCode(event) {
     userInput === "2026"
   ) {
     if (errorBanner) errorBanner.classList.add("hidden");
-    if (authModal) authModal.classList.add("hidden");
+    if (authModal) {
+      authModal.classList.add("hidden");
+      authModal.style.display = "none";
+    }
 
     sessionStorage.setItem("ees_session_unlocked", "true");
     localStorage.setItem("ees_b2b_session", JSON.stringify({ code: userInput, timestamp: Date.now() }));
@@ -107,29 +102,21 @@ async function validateAccessCode(event) {
   }
 }
 
+// Fonction appelée quand on clique sur le bouton rouge "Verrouiller"
 function lockSession() {
   sessionStorage.removeItem("ees_session_unlocked");
   localStorage.removeItem("ees_b2b_session");
-  const authModal = document.getElementById("auth-modal");
-  if (authModal) authModal.classList.remove("hidden");
+  const authModal = document.getElementById("auth-modal") || document.getElementById("authModal");
+  if (authModal) {
+    authModal.classList.remove("hidden");
+    authModal.style.display = "flex";
+  }
 }
 
-function updateSessionTimerDisplay() {
-  const sessionData = localStorage.getItem("ees_b2b_session");
-  const timerDisplay = document.getElementById("session-time-remaining");
-  if (!sessionData) return;
-  try {
-    const parsed = JSON.parse(sessionData);
-    const remaining = SESSION_DURATION_MS - (Date.now() - parsed.timestamp);
-    if (remaining <= 0) {
-      lockSession();
-      return;
-    }
-    const hours = Math.floor(remaining / 3600000);
-    const minutes = Math.floor((remaining % 3600000) / 60000);
-    if (timerDisplay) timerDisplay.textContent = `${hours}h ${minutes}m`;
-  } catch (e) {}
-}
+// Expositions sur l'objet global window
+window.validateAccessCode = validateAccessCode;
+window.lockSession = lockSession;
+window.checkSessionAccess = checkSessionAccess;
 
 // ============================================================================
 // 3. MOTEUR D'APPEL API & AUTOCOMPLÉTION DYNAMIQUE
