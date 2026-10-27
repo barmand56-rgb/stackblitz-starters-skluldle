@@ -1979,55 +1979,62 @@ if (typeof apiSearchCache === "undefined") {
     }
   }
   
-  // Exécution immédiate pour StackBlitz + secours DOMContentLoaded
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initSearchEvents);
-  } else {
-    initSearchEvents();
-  }
-  
   // ============================================================================
-  // 3. FONCTION D'AUDIT DIRECT
-  // ============================================================================
-  async function triggerDirectAudit(query) {
-    if (!query || query.trim().length < 2) return;
+// FIX CIBLÉ : EXECUTION GARANTIE DE L'AUDIT DIRECT ET CAPTURE DU CLIC
+// ============================================================================
+
+window.triggerDirectAudit = async function(query) {
+    // Détection ultra-souple du champ de texte
+    const searchInput = document.getElementById("search-input") || 
+                        document.querySelector("input[type='text']") || 
+                        document.querySelector("input");
   
-    const raw = query.trim();
+    const searchTerm = query || (searchInput ? searchInput.value : "");
+    if (!searchTerm || searchTerm.trim().length < 2) return;
+  
+    const raw = searchTerm.trim();
     const numericOnly = raw.replace(/\s+/g, '');
     let apiUrl = "";
   
-    // Cas 1 : SIREN (9 chiffres) ou SIRET (14 chiffres)
     if (/^\d{9,14}$/.test(numericOnly)) {
-      const siren = numericOnly.substring(0, 9);
-      apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${siren}&per_page=5`;
-    } 
-    // Cas 2 : Nom ou raison sociale
-    else {
-      const cleanText = raw.replace(/[''-]/g, ' ').replace(/\s+/g, ' ');
-      apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanText)}&per_page=15`;
+      apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${numericOnly.substring(0, 9)}&per_page=5`;
+    } else {
+      const cleanText = raw.replace(/[''-]/g, ' ').replace(/\b[a-zA-Z]\b/g, '').replace(/\s+/g, ' ').trim();
+      apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanText || raw)}&per_page=15`;
     }
   
-    try {
-      const data = await fetchGouvAPI(apiUrl);
-  
-      if (data && data.results && data.results.length > 0) {
-        const results = data.results;
-  
-        // Priorité aux établissements actifs
-        results.sort((a, b) => (b.etat_administratif === "A" ? 1 : 0) - (a.etat_administratif === "A" ? 1 : 0));
-  
-        const company = results[0];
-  
-        if (typeof selectCompany === "function") {
-          selectCompany(company);
-        }
-  
-        const container = document.getElementById("autocomplete-results");
-        if (container) container.classList.add("hidden");
-      } else {
-        alert(`Aucune entreprise trouvée pour : "${query}"`);
+    const data = await fetchGouvAPI(apiUrl);
+    if (data && data.results && data.results.length > 0) {
+      const results = data.results.sort((a, b) => (b.etat_administratif === "A" ? 1 : 0) - (a.etat_administratif === "A" ? 1 : 0));
+      
+      if (typeof selectCompany === "function") {
+        selectCompany(results[0]);
       }
-    } catch (err) {
-      console.error("Erreur lors de l'audit direct :", err);
+  
+      const container = document.getElementById("autocomplete-results") || document.getElementById("search-dropdown");
+      if (container) container.style.display = "none";
+    } else {
+      alert(`Aucune entreprise trouvée pour : "${searchTerm}"`);
     }
-  }
+  };
+  
+  // Écouteur prioritaire (Phase de capture pour intercepter le clic sur les balises <span> / <svg> internes)
+  document.addEventListener("click", function(e) {
+    const btn = e.target.closest("button, a, div[role='button']");
+    if (!btn) return;
+  
+    const text = (btn.textContent || "").toLowerCase();
+    if (btn.id === "launch-audit-btn" || btn.classList.contains("btn-audit") || text.includes("lancer") || text.includes("audit")) {
+      e.preventDefault();
+      e.stopPropagation();
+      window.triggerDirectAudit();
+    }
+  }, true); // true = Priorité d'exécution absolue
+  
+  // Gestion de la touche Entrée
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "Enter" && e.target.tagName === "INPUT") {
+      e.preventDefault();
+      window.triggerDirectAudit(e.target.value);
+    }
+  });
