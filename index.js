@@ -118,134 +118,162 @@ function handleSearchInput(event) {
 }
 
 
-// 🟢 Fonction d'autocomplétion correctement structurée
-// 🟢 1. RECHERCHE OPTIMISÉE (GÈRE LES PME, APOSTROPHES & VILLES/CODE POSTAL)
-async function fetchAutocompleteSuggestions(query) {
+// ============================================================================
+// MOTEUR DE RECHERCHE UNIVERSEL PME & GRANDES ENSEIGNES (FRANCE ENTIÈRE)
+// ============================================================================
+
+// 1. DÉTECTION ET TRADUCTION DES LIEUX-DITS PAR L'API NATIONALE D'ADRESSE (BAN)
+async function resolveLocation(locationQuery) {
+    if (!locationQuery || locationQuery.length < 3) return null;
+    try {
+      const url = `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(locationQuery)}&type=locality&limit=1`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data && data.features && data.features.length > 0) {
+        const props = data.features[0].properties;
+        return {
+          codePostal: props.postcode,
+          city: props.city,
+          context: props.context
+        };
+      }
+    } catch (e) {
+      console.warn("Impossible de résoudre le lieu-dit via BAN:", e);
+    }
+    return null;
+  }
+  
+  // 2. MOTEUR PRINCIPAL D'AUTOCOMPLÉTION
+  async function fetchAutocompleteSuggestions(query) {
     const resultsContainer = document.getElementById("autocomplete-results");
   
-    // Sécurité : bloquer si moins de 3 caractères
-    if (!query || query.trim().length < 3) {
+    if (!query || query.trim().length < 2) {
       if (resultsContainer) resultsContainer.classList.add("hidden");
       return;
     }
   
-    if (!resultsContainer) return;
-  
-    // Nettoyage de la saisie (remplace les apostrophes et tirets par des espaces)
-    let cleanQuery = query.trim().replace(/'/g, ' ').replace(/-/g, ' ');
-  
-    // Détection d'un code postal à 5 chiffres (ex: "29170" ou "29")
-    const cpMatch = cleanQuery.match(/\b\d{5}\b/);
-    let url = "";
-  
-    if (cpMatch) {
-      const codePostal = cpMatch[0];
-      const searchTerm = cleanQuery.replace(codePostal, '').trim();
-      url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(searchTerm)}&code_postal=${codePostal}&per_page=25`;
-    } else {
-      // Augmenté à 25 résultats pour ne pas noyer les PME locales sous les grands groupes
-      url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanQuery)}&per_page=25`;
+    // Positionnement au premier plan au-dessus des cartes CSS
+    const searchInput = document.getElementById("search-input");
+    if (searchInput && searchInput.parentElement) {
+      let parent = searchInput.parentElement;
+      for (let i = 0; i < 3; i++) {
+        if (parent) {
+          parent.style.position = "relative";
+          parent.style.zIndex = "99999";
+          parent.style.overflow = "visible";
+          parent = parent.parentElement;
+        }
+      }
     }
   
-    const data = await fetchGouvAPI(url);
+    const cleanRaw = query.trim().replace(/'/g, ' ').replace(/-/g, ' ');
+    
+    // A. Cas d'une saisie directe de SIREN (9 chiffres) ou SIRET (14 chiffres)
+    const numericOnly = query.replace(/\s+/g, '');
+    if (/^\d{9}$/.test(numericOnly) || /^\d{14}$/.test(numericOnly)) {
+      const sirenQuery = numericOnly.substring(0, 9);
+      const data = await fetchGouvAPI(`https://recherche-entreprises.api.gouv.fr/search?q=${sirenQuery}&per_page=10`);
+      if (data && data.results) renderAutocompleteResults(data.results);
+      return;
+    }
+  
+    // B. Traitement des termes de recherche et détection des termes génériques
+    const stopwords = [
+      "restaurant", "restau", "resto", "hotel", "bar", "brasserie", "boulangerie", 
+      "boucherie", "coiffure", "garage", "ambulance", "pharmacie", "sarl", "sas", "eurl"
+    ];
+  
+    const tokens = cleanRaw.split(/\s+/).filter(t => t.length > 0);
+    let detectedActivity = "";
+    let locationTerm = "";
+    let brandTerms = [];
+  
+    // Isoler le code postal direct (5 chiffres) ou le département (2 chiffres)
+    const cpMatch = query.match(/\b\d{2,5}\b/);
+    let explicitCodePostal = cpMatch ? cpMatch[0] : "";
+  
+    tokens.forEach(token => {
+      if (stopwords.includes(token.toLowerCase())) {
+        detectedActivity = token.toLowerCase();
+      } else if (!/^\d+$/.test(token)) {
+        brandTerms.push(token);
+      }
+    });
+  
+    // Nom de la marque/enseigne isolée
+    let brandQuery = brandTerms.join(' ');
+    if (!brandQuery && detectedActivity) {
+      brandQuery = detectedActivity; // Secours si l'utilisateur n'a tapé que "restaurant"
+    }
+  
+    // C. Résolution automatique des lieux-dits / communes complémentaires
+    let resolvedGeo = null;
+    if (brandTerms.length > 1 && !explicitCodePostal) {
+      const potentialLocation = brandTerms[brandTerms.length - 1];
+      resolvedGeo = await resolveLocation(potentialLocation);
+      if (resolvedGeo) {
+        // Retirer le terme de lieu de la marque pour isoler la vraie enseigne
+        brandQuery = brandTerms.slice(0, -1).join(' ');
+      }
+    }
+  
+    // D. Construction de la requête API optimisée
+    let apiUrl = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(brandQuery)}`;
+  
+    if (explicitCodePostal) {
+      if (explicitCodePostal.length === 5) {
+        apiUrl += `&code_postal=${explicitCodePostal}`;
+      } else if (explicitCodePostal.length === 2) {
+        apiUrl += `&departement=${explicitCodePostal}`;
+      }
+    } else if (resolvedGeo && resolvedGeo.codePostal) {
+      apiUrl += `&code_postal=${resolvedGeo.codePostal}`;
+    }
+  
+    apiUrl += `&per_page=35`;
+  
+    // E. Exécution et tri par pertinence
+    const data = await fetchGouvAPI(apiUrl);
   
     if (data && data.results && data.results.length > 0) {
       let results = data.results;
   
-      // Tri intelligent : prioriser la commune ou le lieu si saisi dans la recherche (ex: Beg-Meil / Fouesnant)
-      const searchWords = cleanQuery.toLowerCase().split(/\s+/);
+      // Algorithme de tri multicritères (Rank Scoring)
       results.sort((a, b) => {
-        const addrA = `${a.siege?.adresse || ''} ${a.siege?.libelle_commune || ''}`.toLowerCase();
-        const addrB = `${b.siege?.adresse || ''} ${b.siege?.libelle_commune || ''}`.toLowerCase();
-        
-        const matchA = searchWords.some(w => w.length > 2 && addrA.includes(w));
-        const matchB = searchWords.some(w => w.length > 2 && addrB.includes(w));
+        let scoreA = 0;
+        let scoreB = 0;
   
-        if (matchA && !matchB) return -1;
-        if (!matchA && matchB) return 1;
-        return 0;
+        // Bonus : Établissement actif
+        if (a.etat_administratif === "A") scoreA += 50;
+        if (b.etat_administratif === "A") scoreB += 50;
+  
+        // Bonus : Correspondance NAF si une activité était précisée ("restaurant")
+        if (detectedActivity && (detectedActivity.includes("restau") || detectedActivity.includes("resto") || detectedActivity.includes("bar"))) {
+          if (a.activite_principale && a.activite_principale.startsWith("56")) scoreA += 40;
+          if (b.activite_principale && b.activite_principale.startsWith("56")) scoreB += 40;
+        }
+  
+        // Bonus : Si la commune correspond à la géolocalisation résolue
+        if (resolvedGeo) {
+          const cityA = (a.siege?.libelle_commune || '').toLowerCase();
+          const cityB = (b.siege?.libelle_commune || '').toLowerCase();
+          if (cityA.includes(resolvedGeo.city.toLowerCase())) scoreA += 60;
+          if (cityB.includes(resolvedGeo.city.toLowerCase())) scoreB += 60;
+        }
+  
+        return scoreB - scoreA;
       });
   
       renderAutocompleteResults(results);
     } else {
-      resultsContainer.classList.add("hidden");
-    }
-  }
-  
-  // 🟢 2. AFFICHAGE DES RÉSULTATS DANS LE MENU DÉROULANT
-  function renderAutocompleteResults(results) {
-    const resultsContainer = document.getElementById("autocomplete-results");
-    if (!resultsContainer) return;
-  
-    // FIX : Passer le menu au premier plan au-dessus des cartes
-    if (resultsContainer.parentElement) {
-      resultsContainer.parentElement.style.position = "relative";
-      resultsContainer.parentElement.style.zIndex = "9999";
-      resultsContainer.parentElement.style.overflow = "visible";
-    }
-  
-    resultsContainer.style.position = "absolute";
-    resultsContainer.style.top = "100%";
-    resultsContainer.style.left = "0";
-    resultsContainer.style.right = "0";
-    resultsContainer.style.zIndex = "99999";
-    resultsContainer.classList.remove("hidden");
-  
-    resultsContainer.innerHTML = "";
-  
-    results.forEach(company => {
-      const siren = company.siren || "Inconnu";
-      const name = company.nom_complet || company.nom_raison_sociale || "Entreprise";
-      const postal = company.siege ? (company.siege.code_postal || "") : "";
-      const ville = company.siege ? (company.siege.libelle_commune || "") : "";
-      const naf = company.activite_principale || "";
-      const estActive = company.etat_administratif === "A";
-      const initiale = name.charAt(0).toUpperCase();
-  
-      const item = document.createElement("div");
-      item.className = "p-3 hover:bg-slate-800/90 cursor-pointer transition-all border-b border-slate-700/50 text-left";
-  
-      item.innerHTML = `
-        <div class="flex items-center gap-3 w-full">
-          <div class="w-9 h-9 min-w-[36px] rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-400 flex items-center justify-center font-bold text-sm">
-            ${initiale}
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between gap-2">
-              <span class="text-sm font-bold text-white truncate">${name}</span>
-              <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold ${estActive ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
-                ${estActive ? 'Active' : 'Fermée'}
-              </span>
-            </div>
-            <div class="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-              <span>SIREN: <strong class="text-slate-200">${siren}</strong></span>
-              ${postal || ville ? `<span>📍 ${postal} ${ville}</span>` : ''}
-              ${naf ? `<span class="bg-slate-800 px-1.5 py-0.5 rounded text-[11px] text-slate-300">NAF: ${naf}</span>` : ''}
-            </div>
-          </div>
-        </div>
-      `;
-  
-      // Clic sur un résultat du menu déroulant
-    item.onclick = (e) => {
-        e.stopPropagation();
-        const searchInput = document.getElementById("search-input");
-        if (searchInput) searchInput.value = name;
-  
-        if (typeof selectCompany === "function") {
-          selectCompany(company);
-        } else if (typeof handleCompanySelection === "function") {
-          handleCompanySelection(company);
-        }
-  
+      // FALLBACK : Si la recherche ciblée échoue, relancer avec la requête brute
+      const fallbackData = await fetchGouvAPI(`https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(cleanRaw)}&per_page=25`);
+      if (fallbackData && fallbackData.results && fallbackData.results.length > 0) {
+        renderAutocompleteResults(fallbackData.results);
+      } else if (resultsContainer) {
         resultsContainer.classList.add("hidden");
-      };
-  
-      resultsContainer.appendChild(item);
-    });
-  
-    // Affiche le conteneur une fois tous les éléments ajoutés
-    resultsContainer.classList.remove("hidden");
+      }
+    }
   }
   
   // ============================================================================
