@@ -294,6 +294,13 @@
         .footer__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px 40px; }
         .footer__brand { font: 600 17px var(--serif); color: var(--ink); }
         .footer__h { font-weight: 600; color: var(--ink-2); }
+        .footer__links { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; }
+        .footer__links a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
+        .footer__links a:hover { color: var(--accent); }
+        .auth__main { position: relative; }
+        .auth__lang { position: absolute; top: 16px; right: 16px; display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink-2); font: 600 13px var(--sans, inherit); letter-spacing: .04em; cursor: pointer; }
+        .auth__lang:hover, .auth__lang:focus-visible { color: var(--ink); border-color: var(--accent); }
+        .btn--lang .lang-code { font-weight: 700; letter-spacing: .04em; }
         .footer__copy { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
 
         /* ===== Accès ===== */
@@ -528,6 +535,7 @@
                 <p class="auth__reserved">Espace réservé aux abonnés</p>
             </aside>
             <div class="auth__main">
+                <button type="button" class="auth__lang" data-action="lang" aria-label="English version" title="English version"><i class="fa-solid fa-globe"></i> <span class="lang-code">EN</span></button>
                 <h2 id="auth-title">Connexion</h2>
                 <p class="auth__lead">Saisissez le code d’accès du jour transmis par votre conseiller.</p>
                 <form id="auth-form" autocomplete="off" novalidate>
@@ -582,6 +590,7 @@
             <div class="topbar__actions">
                 <span id="role-badge" class="chip chip--ai" hidden><i class="fa-solid fa-user-tie"></i><span class="lbl">Gérant</span></span>
                 <button id="manager-btn" class="btn btn--ghost" data-action="manager" hidden><i class="fa-solid fa-key"></i> <span class="lbl">Espace gérant</span></button>
+                <button class="btn btn--ghost btn--lang" data-action="lang" aria-label="English version" title="English version"><i class="fa-solid fa-globe"></i> <span class="lang-code">EN</span></button>
                 <button class="btn btn--ghost" data-action="theme" aria-label="Changer de thème"><i class="fa-solid fa-circle-half-stroke"></i></button>
                 <button class="btn btn--ghost" data-action="lock" aria-label="Verrouiller"><i class="fa-solid fa-lock"></i> <span class="lbl">Verrouiller</span></button>
             </div>
@@ -892,6 +901,7 @@
             <div>
                 <p class="footer__h">Mentions</p>
                 <p>Les notes sont indicatives et fournies à titre d’information : elles ne constituent ni une notation réglementée, ni un conseil, ni une garantie de solvabilité.</p>
+                <p class="footer__links"><a href="legal.html#mentions">Mentions légales</a> <a href="legal.html#conditions">Conditions générales</a> <a href="legal.html#confidentialite">Confidentialité</a></p>
             </div>
         </div>
         <div class="wrap"><p class="footer__copy">© 2026 Euro Expert Solvabilité. Tous droits réservés.</p></div>

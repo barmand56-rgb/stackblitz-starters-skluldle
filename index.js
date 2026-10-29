@@ -195,6 +195,503 @@
    };
    
    /* =============================================================================
+      LANGUE (FR / EN)
+      Le site est écrit en français ; en anglais, chaque texte affiché (page et PDF) est traduit
+      par le dictionnaire ci-dessous (phrases exactes, puis modèles avec valeurs variables).
+      L'analyse rédigée est, elle, produite directement dans la langue choisie.
+      Changer de langue recharge la page et rouvre le dossier en cours.
+      ============================================================================= */
+   const LANG = (() => {
+     try { const l = localStorage.getItem('ees_lang'); if (l === 'en' || l === 'fr') return l; } catch (e) { /* stockage indisponible */ }
+     return /^fr\b/i.test(navigator.language || 'fr') ? 'fr' : 'en';
+   })();
+   const LOCALE = LANG === 'en' ? 'en-GB' : 'fr-FR';
+   const lx = (fr, en) => (LANG === 'en' ? en : fr);
+   
+   const EN_EXACT = {
+     // --- Marque, navigation, accueil
+     'Dossier de crédit B2B': 'B2B credit file', 'Retour à l\'accueil': 'Back to home', 'Changer de thème': 'Switch theme', 'Verrouiller': 'Lock',
+     'Gérant': 'Manager', 'Espace gérant': 'Manager area', 'Données officielles, France et Outre-mer': 'Official data, France and overseas territories',
+     'Savoir à qui vous vendez, avant de livrer.': 'Know who you sell to, before you deliver.',
+     'Identité légale, comptes publiés, annonces au BODACC, contrôles sanitaires et fermetures administratives : tout ce qu’il faut savoir sur un client professionnel, réuni dans un dossier clair que vous pouvez transmettre.': 'Legal identity, published accounts, official BODACC notices, health inspections and administrative closures: everything you need to know about a French business customer, in one clear file you can share.',
+     'Rechercher une entreprise': 'Search for a company', 'Nom, SIREN ou SIRET — ajoutez un code postal pour affiner': 'Name, SIREN or SIRET number — add a postcode to narrow down',
+     'Analyser': 'Analyse', 'Exemples': 'Examples', 'Récents': 'Recent', 'Aperçu d\'un dossier': 'File preview', 'Aperçu d’un dossier · exemple fictif': 'File preview · fictitious example',
+     'Société Exemple SAS': 'Example Company SAS', 'Profil favorable · grade A · conditions usuelles': 'Favourable profile · grade A · standard terms',
+     'Procédure collective': 'Insolvency proceedings', 'Contrôle sanitaire': 'Health inspection', 'Fermeture administrative': 'Administrative closure', 'Rien de relevé': 'Nothing found',
+     'Satisfaisant': 'Satisfactory', 'Très satisfaisant': 'Very satisfactory', 'A améliorer': 'Needs improvement', 'A corriger de manière urgente': 'Requires urgent correction',
+     'Rapport PDF': 'PDF report', 'Analyse rédigée': 'Written analysis', 'Vos clients suivis': 'Your monitored customers',
+     'Statut, annonces légales, contrôles sanitaires, veille et bilans : les changements depuis la dernière vérification.': 'Status, legal notices, health inspections, watch list and balance sheets: changes since the last check.',
+     'Vérifier tous mes clients': 'Check all my customers', 'Exporter': 'Export', 'Client': 'Customer', 'Note': 'Score', 'Changements détectés': 'Changes detected', 'Vérifié le': 'Checked on',
+     'Aucun': 'None', 'Aucune': 'None', 'Ouvrir': 'Open', 'Retirer du suivi': 'Stop monitoring', 'Les sources consultées pour chaque dossier': 'Sources checked for every file',
+     'Chaque information est rattachée à sa source. Quand une source ne répond pas, le dossier le dit : l’absence d’alerte n’est jamais présentée comme une absence de risque.': 'Every piece of information is linked to its source. When a source does not respond, the file says so: no alert is never presented as no risk.',
+     'Répertoire Sirene (INSEE)': 'Sirene register (INSEE)', 'Identité, statut, effectif, établissements, dirigeants.': 'Identity, status, headcount, establishments, directors.',
+     'Comptes publiés': 'Published accounts', 'Chiffre d’affaires et résultat des derniers exercices.': 'Revenue and net income for recent financial years.',
+     'BODACC': 'BODACC (official gazette)', 'Annonces légales, procédures collectives, dépôts de comptes.': 'Legal notices, insolvency proceedings, account filings.',
+     'Alim’confiance (DGAL)': 'Alim’confiance (food safety authority)', 'Résultats des contrôles sanitaires officiels.': 'Official health inspection results.',
+     'Veille Euro Expert Solvabilité': 'Euro Expert Solvabilité watch list', 'Fermetures administratives et incidents, avec leurs sources.': 'Administrative closures and incidents, with their sources.',
+     'Registres complémentaires': 'Additional registers', 'Liens directs vers l’INPI et l’Annuaire des Entreprises.': 'Direct links to INPI and the official company directory.',
+     'Ce que contient un dossier': 'What a file contains', 'Un verdict lisible': 'A clear verdict',
+     'Note sur 100, grade, niveau de risque et conditions de paiement suggérées, avec le détail de chaque critère.': 'Score out of 100, grade, risk level and suggested payment terms, with each criterion explained.',
+     'Les comptes et leurs ratios': 'Accounts and ratios', 'Chiffre d’affaires, résultat, marge et évolution sur trois exercices. Une estimation signalée comme telle quand rien n’est publié.': 'Revenue, net income, margin and trend over three years. A clearly labelled estimate when nothing is published.',
+     'Les annonces légales': 'Legal notices', 'Procédures collectives, dépôts de comptes et modifications publiés au BODACC, en frise chronologique.': 'Insolvency proceedings, account filings and changes published in the BODACC, on a timeline.',
+     'Contrôles et fermetures': 'Inspections and closures', 'Résultats d’inspection sanitaire et fermetures administratives relevées par notre veille, sources à l’appui.': 'Health inspection results and administrative closures found by our watch, with sources.',
+     'Une analyse rédigée': 'A written analysis', 'Profil, finances, signaux de risque, points forts et de vigilance, recommandation et vérifications à mener.': 'Profile, finances, risk signals, strengths and concerns, recommendation and checks to carry out.',
+     'Un rapport à transmettre': 'A report to share', 'Un PDF daté et référencé, prêt à joindre à une demande d’ouverture de compte.': 'A dated, referenced PDF, ready to attach to an account opening request.',
+     'Des outils pour ne jamais livrer à perte': 'Tools so you never deliver at a loss', 'Au-delà du dossier, les gestes qui évitent réellement les impayés et les fraudes.': 'Beyond the file, the steps that actually prevent unpaid invoices and fraud.',
+     'Suivi de vos clients': 'Customer monitoring', 'Suivez votre portefeuille : procédure collective, nouvelle annonce, contrôle sanitaire, fermeture ou bilan dégradé vous sont signalés à chaque vérification.': 'Monitor your portfolio: insolvency, new notices, health inspections, closures or weaker balance sheets are flagged at every check.',
+     'Simulateur de commande': 'Order simulator', 'Acompte et délai conseillés, exposition, chiffre d’affaires à réaliser pour compenser un impayé, pénalités légales, TVA des Outre-mer et obligation de vigilance URSSAF.': 'Recommended deposit and payment term, exposure, revenue needed to offset an unpaid invoice, statutory late-payment penalties, overseas VAT and French subcontracting due-diligence rules.',
+     'Contrôle anti-fraude des RIB': 'Bank details fraud check', 'Vérification de l’IBAN et de la clé RIB, alerte sur un compte étranger ou un changement de coordonnées bancaires par rapport au RIB de référence.': 'IBAN and French bank key validation, alerts on foreign accounts or on changes compared with the reference bank details.',
+     'Relances et mises en demeure': 'Reminders and formal notices', 'Courriers prêts à envoyer, avec les pénalités de retard et l’indemnité de 40 € calculées selon le taux légal en vigueur.': 'Ready-to-send letters in French, with late-payment interest and the €40 recovery fee calculated at the current statutory rate.',
+     'Trois étapes': 'Three steps', 'Recherchez l’entreprise': 'Search for the company', 'Par nom, SIREN ou SIRET. Ajoutez un code postal pour départager les homonymes.': 'By name, SIREN or SIRET. Add a postcode to tell namesakes apart.',
+     'Lisez le verdict': 'Read the verdict', 'Note, alertes et analyse s’affichent en quelques secondes, sources consultées à l’appui.': 'Score, alerts and analysis appear within seconds, with the sources checked.',
+     'Décidez et transmettez': 'Decide and share', 'Fixez vos conditions de paiement et joignez le rapport PDF au dossier client.': 'Set your payment terms and attach the PDF report to the customer file.',
+     'Un nouveau client à vérifier ?': 'A new customer to check?', 'Lancez la recherche : le dossier est prêt en quelques secondes.': 'Start a search: the file is ready within seconds.',
+     'Localisation du siège social': 'Registered office location', 'Sélectionnez une entreprise pour situer son siège.': 'Select a company to locate its registered office.',
+     'Dossiers de crédit B2B à partir de données publiques officielles.': 'B2B credit files built from official public data.', 'Sources': 'Sources', 'Mentions': 'Legal',
+     'Sirene (INSEE), API Recherche d’entreprises, BODACC, Alim’confiance, veille presse et autorités.': 'Sirene (INSEE), French company search API, BODACC, Alim’confiance, press and authority watch.',
+     'Les notes sont indicatives et fournies à titre d’information : elles ne constituent ni une notation réglementée, ni un conseil, ni une garantie de solvabilité.': 'Scores are indicative and provided for information only: they are not a regulated credit rating, advice or a guarantee of solvency.',
+     '© 2026 Euro Expert Solvabilité. Tous droits réservés.': '© 2026 Euro Expert Solvabilité. All rights reserved.',
+     'Mentions légales': 'Legal notice', 'Conditions générales': 'Terms and conditions', 'Confidentialité': 'Privacy policy',
+   
+     'Chiffre d’affaires estimé': 'Estimated revenue', 'Chiffre d’affaires et résultat net par exercice': 'Revenue and net income by financial year', 'Chiffre d’affaires publié': 'Published revenue',
+     'Estimation Euro Expert Solvabilité (moyenne sectorielle INSEE), non issue des comptes': 'Euro Expert Solvabilité estimate (INSEE sector average), not from the accounts',
+     'L’analyse rédigée est établie automatiquement à partir des seules données de ce dossier, puis présentée sous la responsabilité d’Euro Expert Solvabilité. « Injoignable » signifie que la source n’a pas été interrogée avec succès. Cela ne veut jamais dire « rien à signaler ».': 'The written analysis is produced automatically from the data in this file only, then presented under the responsibility of Euro Expert Solvabilité. “Unreachable” means the source could not be queried successfully. It never means “nothing to report”.',
+     'Jugement d\'ouverture de redressement judiciaire': 'Judgment opening receivership proceedings (redressement judiciaire)', 'Jugement d\'ouverture de liquidation judiciaire': 'Judgment opening compulsory liquidation (liquidation judiciaire)',
+     'Jugement d\'ouverture de procédure de sauvegarde': 'Judgment opening safeguard proceedings (sauvegarde)', 'Jugement de clôture pour insuffisance d\'actif': 'Judgment closing proceedings for insufficient assets',
+     'Jugement arrêtant le plan de redressement': 'Judgment approving the recovery plan', 'Jugement prononçant la liquidation judiciaire': 'Judgment ordering compulsory liquidation', 'Jugement de conversion en liquidation judiciaire': 'Judgment converting to compulsory liquidation',
+     'ANALYSE DU DOSSIER': 'FILE ANALYSIS', 'DIRIGEANTS DÉCLARÉS': 'DECLARED DIRECTORS', 'CONTRÔLES ET VÉRIFICATIONS COMPLÉMENTAIRES': 'ADDITIONAL CHECKS AND VERIFICATIONS', 'MENTIONS ET LIMITES': 'DISCLAIMERS AND LIMITATIONS',
+     'Rondavelle L’Uni Vert, La Saline-les-Bains (Saint-Paul)': 'Rondavelle L’Uni Vert, La Saline-les-Bains (Saint-Paul)',
+     // --- Connexion et espace gérant
+     'Le dossier de crédit de vos clients professionnels, à partir des sources officielles.': 'The credit file of your business customers, from official sources.',
+     'Sirene, BODACC, bilans, contrôles sanitaires': 'Sirene, BODACC, balance sheets, health inspections', 'Veille des fermetures administratives': 'Administrative closure watch',
+     'Outils anti-impayés et anti-fraude': 'Anti-default and anti-fraud tools', 'Espace réservé aux abonnés': 'Subscribers only', 'Connexion': 'Sign in',
+     'Saisissez le code d’accès du jour transmis par votre conseiller.': 'Enter today’s access code sent by your account manager.', 'Code d’accès': 'Access code',
+     'Afficher le code': 'Show code', 'Masquer le code': 'Hide code', 'Ouvrir mon espace': 'Open my workspace', 'Vérification…': 'Checking…', 'Accès autorisé': 'Access granted', 'Accès autorisé.': 'Access granted.',
+     'Le code est vérifié dans votre navigateur, sans être transmis. Après 5 erreurs, la saisie est bloquée quelques minutes.': 'Your code is checked in your browser and never sent. After 5 errors, input is blocked for a few minutes.',
+     'Saisissez votre code d’accès complet.': 'Enter your full access code.', 'Code incorrect.': 'Incorrect code.',
+     'Code incorrect ou expiré. Vérifiez le code du jour transmis par votre conseiller.': 'Incorrect or expired code. Check today’s code sent by your account manager.',
+     'Code incorrect ou expiré.': 'Incorrect or expired code.', 'Service d’accès indisponible. Contactez Euro Expert Solvabilité.': 'Access service unavailable. Please contact Euro Expert Solvabilité.',
+     'Service d’authentification indisponible. Réessayez plus tard.': 'Authentication service unavailable. Please try again later.', 'Trop de tentatives. Réessayez dans quelques minutes.': 'Too many attempts. Please try again in a few minutes.',
+     'Votre code du jour a expiré : saisissez le nouveau code.': 'Your daily code has expired: please enter the new code.', 'Votre session a expiré : reconnectez-vous.': 'Your session has expired: please sign in again.',
+     'Les codes d’accès ne sont plus configurés pour aujourd’hui : contactez Euro Expert Solvabilité.': 'Access codes are no longer configured for today: please contact Euro Expert Solvabilité.',
+     'Ce navigateur ne permet pas la vérification sécurisée : ouvrez le site en https:// avec un navigateur récent.': 'This browser cannot perform secure verification: open the site over https:// with a recent browser.',
+     'Reconnectez-vous avec le code gérant pour afficher les codes.': 'Sign in again with the manager code to display the codes.',
+     'Fermer': 'Close', 'Copier': 'Copy', 'Message prêt à envoyer': 'Ready-to-send message', 'Copier le message': 'Copy message', 'À transmettre à partir de minuit': 'To send from midnight',
+     'Votre code gérant est permanent et ouvre cet espace : ne le communiquez à personne.': 'Your manager code is permanent and opens this area: never share it.',
+     // --- Dossier : en-tête, verdict
+     'Active': 'Active', 'Cessée': 'Ceased', 'Siège ouvert': 'Head office open', 'Siège fermé': 'Head office closed', 'Activité alimentaire': 'Food business',
+     'Fermeture administrative relevée': 'Administrative closure found', 'Sanction administrative relevée': 'Administrative sanction found', 'Annuaire Entreprises': 'Company directory', 'Suivre ce client': 'Monitor this customer', 'Client suivi': 'Monitored customer',
+     'Dirigeant': 'Director', 'Holding': 'Holding company', 'SIRET du siège': 'Head office SIRET', 'Activité': 'Activity', 'Création': 'Incorporated', 'Effectif': 'Headcount', 'Catégorie': 'Size category',
+     'Établissements': 'Establishments', 'Siège': 'Head office', 'TVA intracom. (théorique)': 'EU VAT no. (computed)', 'Sociétés liées au dirigeant': 'Companies linked to the director',
+     'toutes actives': 'all active', 'Convention collective': 'Collective agreement', 'Données Sirene à jour au': 'Sirene data as of',
+     'Verdict de solvabilité': 'Solvency verdict', 'sur 100': 'out of 100', 'Note indicative, calculée sur données publiques': 'Indicative score, computed from public data',
+     'Risque très élevé': 'Very high risk', 'Risque très faible': 'Very low risk', 'Niveau de risque': 'Risk level', 'Grade indicatif': 'Indicative grade', 'Conditions suggérées': 'Suggested terms',
+     'Acompte et délai conseillés': 'Recommended deposit and term', 'Simuler →': 'Simulate →', 'Sans acompte': 'No deposit', 'comptant': 'cash on order',
+     'Entreprise cessée': 'Company ceased', 'Procédure collective signalée': 'Insolvency proceedings reported', 'Fermeture administrative récente': 'Recent administrative closure',
+     'Sanction administrative récente': 'Recent administrative sanction', 'Profil favorable': 'Favourable profile', 'Profil correct': 'Fair profile', 'Vigilance conseillée': 'Caution advised',
+     'Risque élevé': 'High risk', 'Contrôle sanitaire défavorable': 'Unfavourable health inspection',
+     'Critique': 'Critical', 'Très élevé': 'Very high', 'Élevé': 'High', 'Modéré': 'Moderate', 'Faible': 'Low', 'Très faible': 'Very low', 'Moyen': 'Medium', 'Assez faible': 'Fairly low', 'Assez élevé': 'Fairly high',
+     'Paiement à la commande conseillé': 'Payment on order advised', 'Terme court ou garanties conseillés': 'Short term or guarantees advised', 'Conditions usuelles': 'Standard terms',
+     'Conditions usuelles, suivi conseillé': 'Standard terms, monitoring advised', 'Entreprise cessée au répertoire Sirene.': 'Company recorded as ceased in the Sirene register.',
+     'Une annonce de procédure collective figure au BODACC : lisez-la avant tout engagement.': 'An insolvency notice appears in the BODACC: read it before any commitment.',
+     // --- Indicateurs, CA, signaux
+     'Chiffre d\'affaires': 'Revenue', 'Chiffre d’affaires': 'Revenue', 'Résultat net': 'Net income', 'Ancienneté': 'Age', 'Marge nette': 'Net margin', 'Marge nette estimée': 'Estimated net margin',
+     'Évolution du CA': 'Revenue growth', 'Base de l’estimation': 'Estimate basis', 'Estimation — non issue de comptes publiés': 'Estimate — not from published accounts',
+     'Signaux': 'Signals', 'Statut Sirene': 'Sirene status', 'Annonces BODACC': 'BODACC notices', 'Contrôles sanitaires': 'Health inspections', 'Solidité du bilan': 'Balance sheet strength',
+     'Bilan publié': 'Balance sheet published', 'Bilan non publié': 'Balance sheet not published', 'Réseau des dirigeants': 'Directors’ network', 'Sans objet': 'Not applicable', 'Presse en ligne': 'Online press',
+     'Veille (fermetures, incidents)': 'Watch list (closures, incidents)', 'Vos notes privées': 'Your private notes', 'Consultée': 'Checked', 'Consultée — aucun résultat': 'Checked — no result',
+     'Injoignable': 'Unreachable', 'En cours…': 'In progress…', 'Aucun compte': 'No accounts',
+     // --- Analyse
+     'Analyse Euro Expert Solvabilité': 'Euro Expert Solvabilité analysis', 'Actualiser': 'Refresh', 'Profil de l’entreprise': 'Company profile', 'Analyse financière': 'Financial analysis',
+     'Signaux de risque': 'Risk signals', 'Points forts': 'Strengths', 'Points de vigilance': 'Points of concern', 'Notre recommandation': 'Our recommendation', 'Paiement': 'Payment',
+     'Garanties': 'Guarantees', 'Suivi': 'Monitoring', 'Vérifications à mener': 'Checks to carry out',
+     // --- Onglets et blocs
+     'Finances': 'Finances', 'Dirigeants et établissements': 'Directors and establishments', 'Alertes et conformité': 'Alerts and compliance', 'Outils de protection': 'Protection tools',
+     'Sources et méthode': 'Sources and method', 'Compte de résultat': 'Income statement', 'Ratios de bilan': 'Balance sheet ratios', 'Excédent brut d’exploitation': 'EBITDA (gross operating surplus)',
+     'Ce que l’activité dégage avant amortissements': 'What the business generates before depreciation', 'Résultat net / chiffre d’affaires': 'Net income / revenue', 'Évolution du chiffre d’affaires': 'Revenue growth',
+     'Non publié': 'Not published', 'Indicateur': 'Indicator', 'Valeur': 'Value', 'Repère': 'Benchmark', 'Appréciation': 'Assessment', 'Repère du secteur': 'Sector benchmark',
+     'Marge d’EBE': 'EBITDA margin', 'Autonomie financière': 'Equity ratio', 'Capitaux propres / total du bilan': 'Equity / total assets', 'Taux d’endettement': 'Gearing',
+     'Dettes financières / capitaux propres': 'Financial debt / equity', 'Liquidité générale': 'Current ratio', 'Actif court terme / dettes court terme': 'Current assets / current liabilities',
+     'Délai de paiement des clients': 'Customer payment period (DSO)', 'Délai de paiement des fournisseurs': 'Supplier payment period (DPO)', 'Comment ce client paie ses propres fournisseurs': 'How this customer pays its own suppliers',
+     'Couverture des intérêts': 'Interest cover', 'Capacité de remboursement': 'Debt repayment capacity', 'Années de CAF pour rembourser les dettes financières': 'Years of cash flow needed to repay financial debt',
+     'Solide': 'Strong', 'Correct': 'Fair', 'À surveiller': 'Watch', 'Fragile': 'Weak', 'Positif': 'Positive', 'Négatif': 'Negative', 'Restauration (médiane 2022)': 'Restaurants (2022 median)',
+     'Délai de paiement des clients ': 'Customer payment period (DSO)', 'Consultation des bilans publiés…': 'Checking published balance sheets…',
+     'Aucun bilan détaillé publié (comptes confidentiels ou non déposés).': 'No detailed balance sheet published (confidential or not filed).',
+     'La base des ratios financiers (BCE / INPI) n’a pas répondu.': 'The financial ratios database (BCE / INPI) did not respond.', 'Bilan publié, mais sans ratio exploitable.': 'Balance sheet published, but no usable ratio.',
+     'Aucun compte publié n’est accessible via les sources ouvertes pour cette entreprise (comptes non déposés ou confidentiels).': 'No published accounts are available from open sources for this company (not filed or confidential).',
+     'Les ratios ne peuvent pas être calculés sans comptes publiés.': 'Ratios cannot be computed without published accounts.', 'Chiffre d’affaires annuel': 'Annual revenue', 'Fourchette': 'Range',
+     'Gérant et dirigeants': 'Manager and directors', 'Holdings et personnes morales dirigeantes': 'Holding companies and corporate directors', 'Autres entreprises des dirigeants': 'Directors’ other companies',
+     'Holding': 'Holding company', 'Statut': 'Status', 'Dernier chiffre publié': 'Latest published figure', 'Entreprise': 'Company', 'Ouvrir le dossier': 'Open file',
+     'Aucun dirigeant renseigné dans les sources publiques.': 'No director listed in public sources.', 'Aucune holding ni personne morale dirigeante déclarée : l’entreprise est dirigée en direct.': 'No holding or corporate director declared: the company is managed directly.',
+     'Aucun dirigeant personne physique : pas de recherche d’entreprises associées.': 'No individual director: no search for associated companies.', 'Recherche des autres entreprises des dirigeants…': 'Searching the directors’ other companies…',
+     'La recherche des entreprises associées n’a pas abouti. Consultez l’Annuaire des Entreprises.': 'The associated companies search did not succeed. Check the official company directory.',
+     'Aucune autre entreprise trouvée pour ces dirigeants.': 'No other company found for these directors.', 'Ouvert': 'Open', 'Fermé': 'Closed', 'Ouverts': 'Open', 'Fermés': 'Closed',
+     'SIRET': 'SIRET', 'Adresse': 'Address', 'État': 'Status', 'La liste complète des établissements est consultable sur l’Annuaire des Entreprises.': 'The full list of establishments is available in the official company directory.',
+     'Annonces légales (BODACC)': 'Legal notices (BODACC)', 'BODACC — annonces légales': 'BODACC — legal notices', 'Ouvrir le BODACC': 'Open the BODACC',
+     'Aucune annonce trouvée pour ce SIREN lors de cette consultation.': 'No notice found for this SIREN during this check.', 'Le BODACC n’a pas répondu : ne concluez rien de cette absence.': 'The BODACC did not respond: draw no conclusion from this.',
+     'Contrôles sanitaires officiels': 'Official health inspections', 'Alim’confiance — résultats d’inspection': 'Alim’confiance — inspection results', 'Ouvrir Alim’confiance': 'Open Alim’confiance',
+     'Aucun résultat de contrôle publié trouvé pour cette entreprise. Alim’confiance ne publie que les contrôles récents.': 'No published inspection result found for this company. Alim’confiance only publishes recent inspections.',
+     'Alim’confiance n’a pas répondu.': 'Alim’confiance did not respond.', 'Cette activité n’est pas une activité alimentaire : source sans objet.': 'This is not a food business: source not applicable.',
+     'Alim’confiance publie le résultat des inspections sanitaires. Elle ne publie pas les arrêtés de fermeture : si vous avez connaissance d’une fermeture préfectorale, saisissez-la ci-dessous avec sa source.': 'Alim’confiance publishes health inspection results, not closure orders: if you know of a prefectoral closure, record it below with its source.',
+     'Presse': 'Press', 'Presse en ligne (base GDELT)': 'Online press (GDELT database)', 'Rechercher dans Google Actualités': 'Search Google News',
+     'Articles repérés automatiquement par le nom de l’entreprise : vérifiez qu’ils concernent bien cette société (homonymes possibles). La presse locale est mieux couverte par la recherche ci-dessous.': 'Articles found automatically by company name: check they concern this company (namesakes possible). Local press is better covered by the search below.',
+     'Aucun article en ligne trouvé sur les 12 derniers mois pour ce nom.': 'No online article found in the last 12 months for this name.', 'La base de presse n’a pas répondu.': 'The press database did not respond.',
+     'Recherche d’articles…': 'Searching articles…', 'Recherche de presse sans objet.': 'Press search not applicable.', 'Source publique': 'Public source',
+     'Aucune fermeture administrative ni incident relevé par notre veille pour cette entreprise.': 'No administrative closure or incident found by our watch for this company.',
+     'Aucune alerte saisie pour cette entreprise.': 'No alert recorded for this company.', 'Non vérifiée': 'Unverified', 'Sans date': 'Undated', 'Retirer': 'Remove',
+     'Type': 'Type', 'Fermeture administrative (sanitaire)': 'Administrative closure (health)', 'Fermeture administrative (autre)': 'Administrative closure (other)', 'Retrait ou suspension d\'agrément': 'Licence withdrawn or suspended',
+     'Retrait ou suspension d’agrément': 'Licence withdrawn or suspended', 'Autre signal': 'Other signal', 'Date de la décision': 'Decision date', 'Source (obligatoire)': 'Source (required)',
+     'Ex. arrêté préfectoral n° …, article de presse, lien': 'E.g. prefectoral order no. …, press article, link', 'Précision': 'Details', 'Ajouter la note': 'Add note',
+     'Vos notes restent dans ce navigateur. Elles apparaissent dans le dossier et le PDF avec la mention « non vérifiée » et ne modifient pas la note.': 'Your notes stay in this browser. They appear in the file and PDF marked “unverified” and do not change the score.',
+     'Indiquez la source de l’information (arrêté, article, lien) : sans source, l’alerte n’est pas enregistrée.': 'Please give the source (order, article, link): without a source, the alert is not saved.',
+     // --- Outils
+     'Simuler une commande': 'Simulate an order', 'Montant HT (€)': 'Amount excl. VAT (€)', 'Délai de paiement demandé (jours)': 'Requested payment term (days)', 'Votre marge brute (%)': 'Your gross margin (%)',
+     'TVA (%)': 'VAT (%)', '20 % (métropole)': '20 % (mainland France)', '8,5 % (Réunion, Guadeloupe, Martinique)': '8.5 % (Réunion, Guadeloupe, Martinique)', '0 % (Guyane, Mayotte, export)': '0 % (French Guiana, Mayotte, export)',
+     'Nature': 'Type', 'Vente de biens': 'Sale of goods', 'Prestation ou sous-traitance': 'Services or subcontracting', 'Retard simulé (jours)': 'Simulated delay (days)', 'Calculer les conditions': 'Calculate terms',
+     'Ex. 12 000': 'E.g. 12000', 'Ex. 25': 'E.g. 25', 'Montant TTC': 'Amount incl. VAT', 'Exposition après acompte': 'Exposure after deposit', 'Ce que vous perdez si le client ne paie pas': 'What you lose if the customer does not pay',
+     'Chiffre d’affaires à réaliser pour compenser un impayé': 'Revenue needed to offset an unpaid invoice', 'Poids de la commande dans son CA annuel': 'Order as a share of the customer’s annual revenue',
+     'Au vu du profil, n’accordez aucun délai : paiement à la commande.': 'Given the profile, grant no payment term: payment on order.', 'Procédure collective publiée : ne livrez qu’au comptant.': 'Insolvency proceedings published: deliver on cash terms only.',
+     'Simulation reprise dans le rapport PDF. Les conditions suivent une politique de crédit standard selon le grade ; adaptez-les à vos propres règles.': 'Simulation included in the PDF report. Terms follow a standard credit policy by grade; adapt them to your own rules.',
+     'Conditions usuelles, sans acompte.': 'Standard terms, no deposit.', 'Acompte de 20 % conseillé au-delà de 10 000 € HT ; suivi des échéances.': '20 % deposit advised above €10,000 excl. VAT; monitor due dates.',
+     'Acompte d’au moins 30 % et délai court.': 'Deposit of at least 30 % and a short term.', 'Paiement intégral à la commande.': 'Full payment on order.',
+     'Contrôler un RIB (fraude au changement de coordonnées bancaires)': 'Check bank details (change-of-bank-details fraud)', 'IBAN reçu': 'IBAN received', 'Contrôler': 'Check',
+     'Enregistrer comme IBAN de référence': 'Save as reference IBAN', 'Aucun IBAN de référence enregistré pour ce client.': 'No reference IBAN saved for this customer.', 'Format d’IBAN invalide.': 'Invalid IBAN format.',
+     'Clé de contrôle IBAN valide.': 'IBAN check digits valid.', 'Clé de contrôle IBAN invalide : numéro erroné ou falsifié.': 'IBAN check digits invalid: wrong or forged number.', 'Clé RIB invalide.': 'French bank key (clé RIB) invalid.',
+     'Aucun IBAN de référence pour ce client : après vérification, enregistrez celui-ci pour détecter tout changement futur.': 'No reference IBAN for this customer: once verified, save this one to detect any future change.',
+     'Enregistrez uniquement un IBAN valide et vérifié.': 'Only save a valid, verified IBAN.', 'IBAN de référence enregistré dans ce navigateur.': 'Reference IBAN saved in this browser.',
+     'Préparer une relance ou une mise en demeure': 'Prepare a reminder or a formal notice (in French)', 'Votre société (expéditeur)': 'Your company (sender)', 'Raison sociale, adresse': 'Company name, address',
+     'N° de facture': 'Invoice no.', 'Date de facture': 'Invoice date', 'Échéance': 'Due date', 'Montant TTC (€)': 'Amount incl. VAT (€)', 'Relance amiable': 'Friendly reminder', 'Mise en demeure': 'Formal notice',
+     'Le courrier s’affichera ici, avec les pénalités de retard calculées.': 'The letter (in French, the debtor’s language) will appear here, with late-payment interest calculated.', 'Télécharger': 'Download',
+     'Relisez et adaptez le courrier avant envoi. Vérifiez le taux de pénalité prévu dans vos conditions générales de vente.': 'Review and adapt the letter before sending. The letter is in French for a French debtor; check the penalty rate in your terms of sale.',
+     'Renseignez votre société, le numéro de facture, l’échéance et le montant TTC.': 'Fill in your company, the invoice number, the due date and the amount incl. VAT.', 'Indiquez le montant de la commande hors taxes.': 'Enter the order amount excluding VAT.',
+     'Courrier copié.': 'Letter copied.',
+     // --- Sources et méthode
+     'Couverture des sources': 'Source coverage', 'Source': 'Source', 'Ce qu’elle apporte': 'What it provides', 'Sirene (INSEE) via API Recherche d’entreprises': 'Sirene (INSEE) via the French company search API',
+     'Identité, statut, effectif, dirigeants, comptes publiés': 'Identity, status, headcount, directors, published accounts', 'Annonces légales, procédures collectives, dépôts de comptes': 'Legal notices, insolvency proceedings, account filings',
+     'Alim’confiance': 'Alim’confiance', 'Résultats des inspections sanitaires (activités alimentaires)': 'Health inspection results (food businesses)', 'Ratios financiers BCE / INPI': 'BCE / INPI financial ratios',
+     'Bilans déposés : EBE, autonomie, endettement, liquidité, délais': 'Filed balance sheets: EBITDA, equity, gearing, liquidity, payment periods', 'Réseau des dirigeants (Sirene)': 'Directors’ network (Sirene)',
+     'Holdings et autres sociétés des dirigeants': 'Holding companies and the directors’ other companies', 'Presse en ligne (GDELT)': 'Online press (GDELT)', 'Articles en ligne citant l’entreprise': 'Online articles citing the company',
+     'Fermetures administratives et incidents relevés, avec leurs sources': 'Administrative closures and incidents found, with their sources', 'Saisies dans ce navigateur, non vérifiées': 'Recorded in this browser, unverified',
+     'Registre des bénéficiaires effectifs': 'Register of beneficial owners', 'Non consulté — à vérifier sur data.inpi.fr': 'Not checked — verify on data.inpi.fr', 'Gel des avoirs / sanctions': 'Asset freezes / sanctions',
+     'Non consulté — à vérifier sur le site de la DG Trésor': 'Not checked — verify on the French Treasury website', 'Valeurs foncières (DVF)': 'Property values (DVF)', 'Non consulté': 'Not checked',
+     'Méthode de la note indicative': 'Indicative score method', 'Critère': 'Criterion', 'Observation': 'Observation', 'Points': 'Points', 'Total': 'Total',
+     'La note est indicative, calculée sur des données publiques. Ce n’est ni une notation réglementée, ni un conseil, ni une garantie de solvabilité.': 'The score is indicative and computed from public data. It is not a regulated rating, advice or a guarantee of solvency.',
+     'Plafond appliqué : mesure administrative ou contrôle sanitaire récent (voir ci-dessus).': 'Cap applied: recent administrative measure or health inspection (see above).',
+     'Plafonné à 20 : entreprise cessée.': 'Capped at 20: company ceased.', 'Plafonné à 30 : procédure collective mentionnée au BODACC.': 'Capped at 30: insolvency proceedings in the BODACC.',
+     'Statut administratif': 'Administrative status', 'Entreprise active au répertoire Sirene': 'Company active in the Sirene register', 'Entreprise cessée au répertoire Sirene': 'Company ceased in the Sirene register',
+     'Date de création non renseignée': 'Incorporation date not available', 'Moins d\'un an d\'existence': 'Less than one year old', 'Tranche d’effectif non renseignée': 'Headcount band not available',
+     'Aucun compte publié accessible': 'No published accounts available', 'Gouvernance': 'Governance', 'Aucun dirigeant déclaré': 'No director declared', 'Établissements ouverts': 'Open establishments', 'Non renseigné': 'Not available',
+     'Contrôle sanitaire officiel': 'Official health inspection', 'Fermeture administrative sanitaire': 'Administrative closure (health)', 'Sanction administrative': 'Administrative sanction', 'Incident relevé': 'Incident found',
+     'Annonce de procédure collective au BODACC : note plafonnée à 30': 'Insolvency notice in the BODACC: score capped at 30', 'Incidents relevés par la veille': 'Incidents found by the watch',
+     'Diagnostic (?diag=1)': 'Diagnostics (?diag=1)',
+     'Entreprise active au répertoire Sirene.': 'Company active in the Sirene register.', 'Gouvernance identifiée au registre.': 'Governance identified in the register.',
+     'Aucune procédure collective relevée au BODACC.': 'No insolvency proceedings found in the BODACC.', 'Annonce de procédure collective au BODACC.': 'Insolvency notice in the BODACC.',
+     'Chiffre d’affaires non communiqué : activité et marge non mesurables.': 'Revenue not disclosed: activity and margin cannot be measured.', 'Dernier exercice déficitaire ou à l’équilibre.': 'Latest financial year loss-making or break-even.',
+     'Aucun compte publié.': 'No published accounts.', 'Entreprise jeune (moins de 3 ans).': 'Young company (under 3 years).', 'Une source officielle n’a pas répondu : vérification à compléter.': 'An official source did not respond: further checks needed.',
+     'Signal privé non vérifié à confirmer.': 'Unverified private signal to confirm.', 'Capitaux propres négatifs : la structure financière ne protège pas les créanciers.': 'Negative equity: the financial structure does not protect creditors.',
+     'Annonce de procédure collective au BODACC': 'Insolvency notice in the BODACC', 'Contrôle sanitaire officiel défavorable': 'Unfavourable official health inspection',
+     'La source n’a pas répondu : l’absence d’alerte ne signifie pas qu’il n’y en a pas. Consultez la source officielle.': 'The source did not respond: no alert does not mean there is none. Check the official source.',
+     'BODACC injoignable': 'BODACC unreachable', 'Alim’confiance injoignable': 'Alim’confiance unreachable',
+     // --- Notifications et recherche
+     'Saisissez un nom d’entreprise, un SIREN ou un SIRET.': 'Enter a company name, a SIREN or a SIRET.', 'Le service officiel de recherche ne répond pas. Réessayez dans un instant.': 'The official search service is not responding. Please try again shortly.',
+     'Sélectionnez d’abord une entreprise.': 'Select a company first.', 'Veuillez d’abord rechercher et sélectionner une entreprise.': 'Please search for and select a company first.',
+     'La bibliothèque pdfMake n’est pas chargée.': 'The PDF library is not loaded.', 'Impossible de générer le PDF. Réessayez.': 'Unable to generate the PDF. Please try again.',
+     'Rédaction de l’analyse du dossier…': 'Writing the file analysis…', 'Consultation des sources, puis rédaction de l’analyse…': 'Checking sources, then writing the analysis…',
+     'Session expirée : reconnectez-vous.': 'Session expired: please sign in again.', 'Alerte ajoutée pour cette session seulement : le stockage du navigateur est indisponible.': 'Alert added for this session only: browser storage is unavailable.',
+     // --- Valeurs de référentiels
+     'Entrepreneur individuel': 'Sole trader', 'EURL': 'EURL (single-member LLC)', 'SARL': 'SARL (limited company)', 'SAS': 'SAS (simplified joint-stock company)', 'SASU': 'SASU (single-member SAS)',
+     'Société civile immobilière': 'Property holding company (SCI)', 'Association déclarée': 'Registered association', 'PME': 'SME', 'GE': 'Large company', 'ETI': 'Mid-cap', 'Unité non employeuse': 'No employees',
+     '0 salarié': '0 employees', '10 000 salariés et plus': '10,000 employees or more', 'Agriculture biologique': 'Organic farming', 'Reconnu garant de l’environnement (RGE)': 'RGE environmental certification',
+     'Économie sociale et solidaire': 'Social and solidarity economy', 'Certifié Qualiopi': 'Qualiopi certified', 'Société à mission': 'Mission-driven company', 'Entrepreneur de spectacles': 'Licensed entertainment company',
+     'Organisme de formation': 'Training organisation', 'Établissement sanitaire et social (FINESS)': 'Health or social care establishment (FINESS)', 'Service public': 'Public service',
+     'Gérant': 'Manager', 'Président': 'Chairman', 'Directeur général': 'Chief executive', 'Associé': 'Partner', 'Commissaire aux comptes titulaire': 'Statutory auditor', 'Commissaire aux comptes suppléant': 'Alternate statutory auditor',
+     'Personne morale': 'Corporate entity', 'Personne physique': 'Individual',
+     'Avis initial': 'Initial notice', 'Avis rectificatif': 'Correcting notice', 'Avis d\'annulation': 'Cancellation notice', 'Avis de dépôt des comptes': 'Notice of filing of accounts', 'Dépôts des comptes': 'Account filings',
+     'Immatriculations': 'Registrations', 'Créations': 'Incorporations', 'Modifications diverses': 'Various changes', 'Radiations': 'Deregistrations', 'Ventes et cessions': 'Sales and transfers',
+     'Procédures collectives': 'Insolvency proceedings', 'Procédures de conciliation': 'Conciliation proceedings', 'Procédures de rétablissement professionnel': 'Professional recovery proceedings',
+     'Jugement d\'ouverture': 'Opening judgment', 'Annonce': 'Notice', 'Restaurant': 'Restaurant',
+     // Activités (NAF)
+     'Restauration traditionnelle': 'Traditional restaurants', 'Cafétérias et autres libres-services': 'Cafeterias and self-service', 'Restauration de type rapide': 'Fast food', 'Services des traiteurs': 'Event catering',
+     'Restauration collective sous contrat': 'Contract catering', 'Autres services de restauration': 'Other food services', 'Débits de boissons': 'Bars', 'Hôtels et hébergement similaire': 'Hotels and similar accommodation',
+     'Hébergement touristique et autre hébergement de courte durée': 'Holiday and other short-stay accommodation', 'Commerce d’alimentation générale': 'General food retail', 'Supérettes': 'Convenience stores', 'Supermarchés': 'Supermarkets', 'Hypermarchés': 'Hypermarkets',
+     'Boulangerie et boulangerie-pâtisserie': 'Bakeries', 'Pâtisserie': 'Pastry shops', 'Commerce de gros alimentaire non spécialisé': 'Non-specialised food wholesale', 'Activités des sociétés holding': 'Activities of holding companies',
+     'Location de logements': 'Residential letting', 'Location de terrains et d’autres biens immobiliers': 'Letting of land and other property', 'Activités des sièges sociaux': 'Activities of head offices',
+     'Conseil pour les affaires et autres conseils de gestion': 'Business and management consultancy', 'Programmation informatique': 'Computer programming', 'Conseil en systèmes et logiciels informatiques': 'IT systems and software consultancy',
+     'Activités comptables': 'Accounting', 'Activités juridiques': 'Legal activities', 'Construction de maisons individuelles': 'House building', 'Construction d’autres bâtiments': 'Construction of other buildings',
+     'Travaux d’installation électrique dans tous locaux': 'Electrical installation', 'Travaux d’installation d’eau et de gaz en tous locaux': 'Plumbing and gas installation', 'Travaux de maçonnerie générale et gros œuvre de bâtiment': 'General masonry and structural works',
+     'Commerce de voitures et de véhicules automobiles légers': 'Sale of cars and light vehicles', 'Entretien et réparation de véhicules automobiles légers': 'Car maintenance and repair', 'Transports routiers de fret interurbains': 'Long-distance road freight',
+     'Transports routiers de fret de proximité': 'Local road freight', 'Coiffure': 'Hairdressing', 'Activité des médecins généralistes': 'General medical practice', 'Autres activités récréatives et de loisirs': 'Other recreation and leisure activities',
+     'Commerce de détail de produits pharmaceutiques': 'Pharmacies', 'Culture et production animale, chasse': 'Crop and animal production, hunting', 'Sylviculture et exploitation forestière': 'Forestry and logging', 'Pêche et aquaculture': 'Fishing and aquaculture',
+     'Extraction de houille et de lignite': 'Coal and lignite mining', 'Extraction d’hydrocarbures': 'Oil and gas extraction', 'Extraction de minerais métalliques': 'Metal ore mining', 'Autres industries extractives': 'Other mining and quarrying',
+     'Services de soutien aux industries extractives': 'Mining support services', 'Industries alimentaires': 'Food manufacturing', 'Fabrication de boissons': 'Beverage manufacturing', 'Fabrication de produits à base de tabac': 'Tobacco products',
+     'Fabrication de textiles': 'Textiles', 'Industrie de l’habillement': 'Clothing manufacturing', 'Industrie du cuir et de la chaussure': 'Leather and footwear', 'Travail du bois et fabrication d’articles en bois': 'Wood and wood products',
+     'Industrie du papier et du carton': 'Paper and paperboard', 'Imprimerie et reproduction d’enregistrements': 'Printing and reproduction', 'Cokéfaction et raffinage': 'Coke and refined petroleum', 'Industrie chimique': 'Chemicals',
+     'Industrie pharmaceutique': 'Pharmaceuticals', 'Fabrication de produits en caoutchouc et en plastique': 'Rubber and plastic products', 'Fabrication d’autres produits minéraux non métalliques': 'Other non-metallic mineral products', 'Métallurgie': 'Basic metals',
+     'Fabrication de produits métalliques': 'Fabricated metal products', 'Fabrication de produits informatiques, électroniques et optiques': 'Computer, electronic and optical products', 'Fabrication d’équipements électriques': 'Electrical equipment',
+     'Fabrication de machines et équipements': 'Machinery and equipment', 'Industrie automobile': 'Motor vehicles', 'Fabrication d’autres matériels de transport': 'Other transport equipment', 'Fabrication de meubles': 'Furniture',
+     'Autres industries manufacturières': 'Other manufacturing', 'Réparation et installation de machines et d’équipements': 'Repair and installation of machinery', 'Production et distribution d’électricité, de gaz, de vapeur et d’air conditionné': 'Electricity, gas, steam and air conditioning supply',
+     'Captage, traitement et distribution d’eau': 'Water collection, treatment and supply', 'Collecte et traitement des eaux usées': 'Sewerage', 'Collecte, traitement et élimination des déchets': 'Waste collection, treatment and disposal',
+     'Dépollution et autres services de gestion des déchets': 'Remediation and other waste management', 'Construction de bâtiments': 'Construction of buildings', 'Génie civil': 'Civil engineering', 'Travaux de construction spécialisés': 'Specialised construction',
+     'Commerce et réparation d’automobiles et de motocycles': 'Motor vehicle trade and repair', 'Commerce de gros': 'Wholesale trade', 'Commerce de détail': 'Retail trade', 'Transports terrestres': 'Land transport', 'Transports par eau': 'Water transport',
+     'Transports aériens': 'Air transport', 'Entreposage et services auxiliaires des transports': 'Warehousing and transport support', 'Activités de poste et de courrier': 'Postal and courier activities', 'Hébergement': 'Accommodation', 'Restauration': 'Food and beverage service',
+     'Édition': 'Publishing', 'Production audiovisuelle, enregistrement sonore et édition musicale': 'Film, video, sound recording and music publishing', 'Programmation et diffusion': 'Broadcasting', 'Télécommunications': 'Telecommunications',
+     'Programmation, conseil et autres activités informatiques': 'Computer programming and consultancy', 'Services d’information': 'Information services', 'Activités des services financiers': 'Financial services', 'Assurance': 'Insurance',
+     'Activités auxiliaires de services financiers et d’assurance': 'Auxiliary financial and insurance activities', 'Activités immobilières': 'Real estate activities', 'Activités juridiques et comptables': 'Legal and accounting activities',
+     'Activités des sièges sociaux ; conseil de gestion': 'Head offices; management consultancy', 'Architecture, ingénierie, contrôle et analyses techniques': 'Architecture, engineering and technical testing', 'Recherche-développement scientifique': 'Scientific research and development',
+     'Publicité et études de marché': 'Advertising and market research', 'Autres activités spécialisées, scientifiques et techniques': 'Other professional, scientific and technical activities', 'Activités vétérinaires': 'Veterinary activities',
+     'Activités de location et location-bail': 'Rental and leasing', 'Activités liées à l’emploi': 'Employment activities', 'Agences de voyage, voyagistes et services de réservation': 'Travel agencies, tour operators and reservations',
+     'Enquêtes et sécurité': 'Security and investigation', 'Services relatifs aux bâtiments et aménagement paysager': 'Building services and landscaping', 'Activités administratives et de soutien aux entreprises': 'Office administration and business support',
+     'Administration publique': 'Public administration', 'Enseignement': 'Education', 'Activités pour la santé humaine': 'Human health activities', 'Hébergement médico-social et social': 'Residential care', 'Action sociale sans hébergement': 'Social work without accommodation',
+     'Activités créatives, artistiques et de spectacle': 'Creative, arts and entertainment', 'Bibliothèques, archives, musées et autres activités culturelles': 'Libraries, archives, museums and culture', 'Organisation de jeux de hasard et d’argent': 'Gambling and betting',
+     'Activités sportives, récréatives et de loisirs': 'Sports, amusement and recreation', 'Activités des organisations associatives': 'Activities of membership organisations', 'Réparation d’ordinateurs et de biens personnels et domestiques': 'Repair of computers and household goods',
+     'Autres services personnels': 'Other personal services', 'Activités des ménages en tant qu’employeurs': 'Households as employers', 'Activités indifférenciées des ménages': 'Undifferentiated household activities', 'Activités des organisations extraterritoriales': 'Extraterritorial organisations',
+     'restauration': 'food and beverage service', 'industrie': 'manufacturing', 'construction': 'construction', 'commerce et réparation automobile': 'motor trade', 'commerce de gros': 'wholesale', 'commerce de détail': 'retail',
+     'transports et entreposage': 'transport and storage', 'hébergement': 'accommodation', 'information et communication': 'information and communication', 'activités immobilières': 'real estate', 'services aux entreprises': 'business services',
+     'services aux particuliers': 'consumer services', 'ensemble des secteurs marchands': 'all market sectors', 'moyenne sectorielle INSEE': 'INSEE sector average',
+     // Veille (données)
+     'Arrêt d’urgence des activités de restauration': 'Emergency suspension of restaurant activities', 'Préfecture de La Réunion, après inspection de la DAAF': 'Prefecture of Réunion, following a DAAF (food and agriculture authority) inspection',
+     'Rondavelle L’Uni Vert, La Saline-les-Bains (Saint-Paul)': 'Rondavelle L’Uni Vert, La Saline-les-Bains (Saint-Paul)',
+     'Constats rapportés par la préfecture : présence de nuisibles et de traces de rongeurs dans les zones de préparation et de stockage, poisson cru conservé entre 8 et 12 °C, saleté apparente et moisissures, avec un risque direct d’intoxication alimentaire pour la clientèle. La reprise de l’activité de restauration est subordonnée à une mise en conformité.': 'Findings reported by the prefecture: pests and rodent traces in preparation and storage areas, raw fish kept between 8 and 12 °C, visible dirt and mould, with a direct risk of food poisoning for customers. Restaurant activity may resume only once compliance is restored.',
+     'Aucune date de réouverture n’a été trouvée dans les sources consultées.': 'No reopening date was found in the sources consulted.', 'Établissement rattaché au SIREN par son nom commercial et sa commune.': 'Establishment matched to the SIREN by trading name and municipality.',
+     'Imaz Press, 7 mars 2026': 'Imaz Press, 7 March 2026',
+     'Constats rapportés par la préfecture : présence de nuisibles et de traces de rongeurs dans les zones de préparation et de stockage, poisson cru conservé entre 8 et 12 °C, saleté apparente et moisissures, avec un risque direct d’intoxication alimentaire pour la clientèle': 'Findings reported by the prefecture: pests and rodent traces in preparation and storage areas, raw fish kept between 8 and 12 °C, visible dirt and mould, with a direct risk of food poisoning for customers',
+     'La reprise de l’activité de restauration est subordonnée à une mise en conformité': 'Restaurant activity may resume only once compliance is restored',
+     // --- PDF
+     'EURO EXPERT SOLVABILITÉ': 'EURO EXPERT SOLVABILITÉ', 'RAPPORT D’ANALYSE B2B — DONNÉES PUBLIQUES': 'B2B ANALYSIS REPORT — PUBLIC DATA', 'Rapport établi par Euro Expert Solvabilité': 'Report issued by Euro Expert Solvabilité',
+     'SYNTHÈSE DE L’ANALYSE': 'ANALYSIS SUMMARY', '1. IDENTITÉ LÉGALE (RÉPERTOIRE SIRENE)': '1. LEGAL IDENTITY (SIRENE REGISTER)', 'Raison sociale': 'Company name', 'Forme juridique': 'Legal form', 'SIREN / SIRET': 'SIREN / SIRET',
+     'Code NAF / APE': 'Activity code (NAF)', 'Date de création': 'Incorporation date', 'Effectif (tranche)': 'Headcount (band)', 'Siège social': 'Registered office', '2. NOTE INDICATIVE ET NIVEAU DE RISQUE': '2. INDICATIVE SCORE AND RISK LEVEL',
+     'NOTE INDICATIVE': 'INDICATIVE SCORE', 'NIVEAU DE RISQUE INDICATIF': 'INDICATIVE RISK LEVEL', 'CONDITIONS SUGGÉRÉES': 'SUGGESTED TERMS', 'Aucun plafond chiffré': 'No figure-based limit',
+     'POSITION SUR LE SPECTRE DE RISQUE COMMERCIAL': 'POSITION ON THE COMMERCIAL RISK SCALE', '[ ESTIMATION ]': '[ ESTIMATE ]', '3. DÉTAIL DE LA NOTE INDICATIVE': '3. INDICATIVE SCORE BREAKDOWN', 'CRITÈRE': 'CRITERION', 'POINTS': 'POINTS',
+     'OBSERVATION': 'OBSERVATION', 'TOTAL': 'TOTAL', 'Somme des critères ci-dessus.': 'Sum of the criteria above.', 'Note plafonnée à 20 : entreprise cessée.': 'Score capped at 20: company ceased.',
+     '4. COMPTES PUBLIÉS (DERNIERS EXERCICES)': '4. PUBLISHED ACCOUNTS (RECENT YEARS)', 'EXERCICE': 'YEAR', 'CHIFFRE D’AFFAIRES': 'REVENUE', 'RÉSULTAT NET': 'NET INCOME', 'VARIATION DU CA': 'REVENUE CHANGE',
+     'COMPTES NON DISPONIBLES': 'ACCOUNTS NOT AVAILABLE', 'Aucun compte publié n’est accessible via les sources ouvertes pour cette entité (comptes non déposés ou confidentiels).': 'No published accounts are available from open sources for this entity (not filed or confidential).',
+     'ESTIMATION INDICATIVE — NON ISSUE DE COMPTES PUBLIÉS': 'INDICATIVE ESTIMATE — NOT FROM PUBLISHED ACCOUNTS', '5. RATIOS CALCULABLES ET INDICATEURS NON DISPONIBLES': '5. COMPUTABLE RATIOS AND UNAVAILABLE INDICATORS',
+     'INDICATEUR': 'INDICATOR', 'VALEUR': 'VALUE', 'MÉTHODE / SOURCE': 'METHOD / SOURCE', 'Résultat net / CA du dernier exercice publié': 'Net income / revenue of the latest published year', 'Croissance du CA': 'Revenue growth',
+     'Variation entre les deux derniers exercices publiés': 'Change between the two latest published years', 'Bilan détaillé non publié en source ouverte': 'Detailed balance sheet not published in open sources',
+     'Délais clients / fournisseurs': 'Customer / supplier payment periods', 'Comportement de paiement réel : données non publiques': 'Actual payment behaviour: non-public data', 'Non disponible': 'Not available',
+     '6. EFFORT DE CHIFFRE D’AFFAIRES EN CAS D’IMPAYÉ': '6. REVENUE EFFORT IF AN INVOICE GOES UNPAID', 'EFFORT DE CHIFFRE D’AFFAIRES EN CAS D’IMPAYÉ': 'REVENUE EFFORT IF AN INVOICE GOES UNPAID',
+     'Non calculable : la marge nette de l’entité n’est pas disponible ou n’est pas positive.': 'Not computable: the entity’s net margin is unavailable or not positive.', '6 bis. SIMULATION DE LA COMMANDE ENVISAGÉE': '6a. SIMULATION OF THE PLANNED ORDER',
+     'Montant de la commande': 'Order amount', 'CA à réaliser pour compenser un impayé': 'Revenue needed to offset an unpaid invoice', 'Poids dans le CA annuel du client': 'Share of the customer’s annual revenue',
+     'PAGE 2 — DONNÉES FINANCIÈRES PUBLIÉES': 'PAGE 2 — PUBLISHED FINANCIAL DATA', 'PAGE 3 — ANALYSE, GOUVERNANCE, CONTRÔLES ET MENTIONS': 'PAGE 3 — ANALYSIS, GOVERNANCE, CHECKS AND DISCLAIMERS',
+     'NOTRE RECOMMANDATION': 'OUR RECOMMENDATION', 'NOM / DÉNOMINATION': 'NAME', 'QUALITÉ': 'ROLE', 'TYPE': 'TYPE', 'DIRIGEANTS NON RENSEIGNÉS': 'DIRECTORS NOT LISTED',
+     'Aucun dirigeant n’est déclaré dans les sources publiques consultées.': 'No director is declared in the public sources consulted.', 'CONTRÔLE': 'CHECK', 'STATUT': 'STATUS', 'SOURCE': 'SOURCE',
+     'Vérifié : actif': 'Verified: active', 'Vérifié : cessé': 'Verified: ceased', 'Annonces légales / procédures collectives': 'Legal notices / insolvency proceedings', 'Alim’confiance (résultats d’inspection, hors arrêtés de fermeture)': 'Alim’confiance (inspection results, excluding closure orders)',
+     'Fermetures administratives / incidents': 'Administrative closures / incidents', 'Veille Euro Expert Solvabilité (sources publiques citées)': 'Euro Expert Solvabilité watch (public sources cited)', 'Bénéficiaires effectifs (RBE)': 'Beneficial owners (RBE)',
+     'Registre INPI — data.inpi.fr': 'INPI register — data.inpi.fr', 'DG Trésor — gels-avoirs.dgtresor.gouv.fr': 'French Treasury — gels-avoirs.dgtresor.gouv.fr', 'Valeurs foncières': 'Property values', 'DVF — app.dvf.etalab.gouv.fr': 'DVF — app.dvf.etalab.gouv.fr',
+     'Consulté : aucun résultat': 'Checked: no result', 'Source injoignable': 'Source unreachable', 'Dernières annonces BODACC': 'Latest BODACC notices', 'À VÉRIFIER AVANT TOUT ENGAGEMENT SIGNIFICATIF': 'TO CHECK BEFORE ANY SIGNIFICANT COMMITMENT',
+     'Les contrôles marqués « Non consulté » ou « Source injoignable » ne sont pas couverts par ce rapport : l’absence de résultat n’y vaut pas absence de problème. Demandez un RIB au nom exact de l’entité (SIREN ci-dessus) et rapprochez ces données de vos propres informations (historique de paiement, garanties, assurance-crédit).': 'Checks marked “Not checked” or “Source unreachable” are not covered by this report: no result does not mean no problem. Request bank details in the exact name of the entity (SIREN above) and compare this data with your own information (payment history, guarantees, credit insurance).',
+     'DOCUMENT ÉMIS PAR EURO EXPERT SOLVABILITÉ': 'DOCUMENT ISSUED BY EURO EXPERT SOLVABILITÉ', 'EURO EXPERT': 'EURO EXPERT', 'SOLVABILITÉ': 'SOLVABILITÉ', 'Sources : ': 'Sources: ', 'Sources :': 'Sources:',
+     'Notes privées de l’utilisateur — NON VÉRIFIÉES': 'User’s private notes — UNVERIFIED',
+     'Ce rapport est établi par Euro Expert Solvabilité à partir de sources publiques (répertoire Sirene de l’INSEE et comptes publiés via l’API Recherche d’entreprises, BODACC et Alim’confiance lorsqu’ils ont répondu). Il est fourni à titre d’information, sans valeur contractuelle ni garantie. La note est indicative : elle ne constitue ni une notation de crédit réglementée, ni un conseil, ni une certification. Les éléments non consultés sont signalés comme tels et doivent être vérifiés auprès des sources officielles. Les estimations sont signalées comme telles et ne constituent pas des données publiées. Les informations de veille proviennent des sources publiques citées (presse, autorités). L’analyse rédigée est établie automatiquement à partir des seules données de ce rapport et présentée sous la responsabilité d’Euro Expert Solvabilité.': 'This report is issued by Euro Expert Solvabilité from public sources (the INSEE Sirene register and accounts published via the French company search API, the BODACC and Alim’confiance where they responded). It is provided for information only, without contractual value or guarantee. The score is indicative: it is not a regulated credit rating, advice or certification. Items not checked are flagged as such and must be verified with the official sources. Estimates are flagged as such and are not published data. Watch information comes from the public sources cited (press, authorities). The written analysis is produced automatically from the data in this report only and is presented under the responsibility of Euro Expert Solvabilité.'
+   };
+   
+   /* Modèles : [expression, remplacement] — le remplacement peut être une fonction qui retraduit les morceaux. */
+   const t$ = (s) => tr(s);
+   const EN_RULES = [
+     [/^(\d[\d\s.,]*) à (\d[\d\s.,]*) salariés$/, '$1 to $2 employees'], [/^(\d+) à (\d+) salariés$/, '$1 to $2 employees'],
+     [/^(\d+) ans? d[’']existence$/, (m, n) => `${n} year${n > 1 ? 's' : ''} in business`], [/^(\d+) ans?$/, (m, n) => `${n} year${n > 1 ? 's' : ''}`],
+     [/^donnée (\d{4})$/, 'data from $1'], [/^(\d+) \((\d+) ouverts?\)$/, '$1 ($2 open)'], [/^dont (\d+) cessées?$/, '$1 ceased'],
+     [/^Grade ([A-D])$/, 'Grade $1'], [/^grade ([A-D])$/, 'grade $1'], [/^Grade ([A-D]) : (.+)$/, (m, g, t) => `Grade ${g}: ${t$(t)}`],
+     [/^Acompte (\d+) %, (\d+) j max$/, 'Deposit $1 %, $2 days max'], [/^Acompte (\d+) %, comptant$/, 'Deposit $1 %, cash on order'], [/^Sans acompte, (\d+) j max$/, 'No deposit, $1 days max'],
+     [/^Exercice (\d{4}) · comptes publiés$/, 'Financial year $1 · published accounts'], [/^Résultat net (\d{4})$/, 'Net income $1'], [/^Résultat net publié (\d{4})$/, 'Published net income $1'],
+     [/^Chiffre d’affaires (\d{4})$/, 'Revenue $1'], [/^CA (\d{4}) estimé$/, 'Estimated revenue $1'], [/^CA estimé$/, 'Estimated revenue'], [/^CA estimé \((.+)\)$/, (m, x) => `Estimated revenue (${t$(x)})`],
+     [/^CA publié (\d{4})$/, 'Revenue published $1'], [/^reconduction du CA publié (\d{4})$/, 'carry-forward of the $1 published revenue'], [/^CA (.+) \((\d{4})\)$/, 'Revenue $1 ($2)'], [/^Résultat (.+) \((\d{4})\)$/, 'Net income $1 ($2)'],
+     [/^Chiffre d’affaires (\d{4}) non publié : estimation par (.+) \(fourchette (.+) à (.+)\)\.$/, (m, y, b, lo, hi) => `Revenue ${y} not published: estimate by ${t$(b)} (range ${lo} to ${hi}).`],
+     [/^Aucun compte publié : estimation sectorielle \(fourchette (.+) à (.+)\)\. (.+)\.$/, (m, lo, hi, b) => `No published accounts: sector estimate (range ${lo} to ${hi}). ${t$(b)}.`],
+     [/^Résultat net (\d{4}) ; chiffre d’affaires non publié\.$/, 'Net income $1; revenue not published.'],
+     [/^Fourchette : (.+) à (.+)\. (.+)\. Fiabilité (.+)\. N’entre ni dans la note ni dans les ratios\.$/, (m, lo, hi, b, f) => `Range: ${lo} to ${hi}. ${t$(b)}. Reliability ${t$(f)}. Not used in the score or ratios.`],
+     [/^(.+) \(donnée (\d{4})\), soit environ (\d+) ETP, × (.+) de CA moyen par ETP \((.+), (.+)\)$/, (m, tr0, y, n, ca, sec, src) => `${t$(tr0)} (data from ${y}), i.e. about ${n} FTE, × ${ca} average revenue per FTE (${t$(sec)}, ${src})`],
+     [/^(.+), soit environ (\d+) ETP, × (.+) de CA moyen par ETP \((.+), (.+)\)$/, (m, tr0, n, ca, sec, src) => `${t$(tr0)}, i.e. about ${n} FTE, × ${ca} average revenue per FTE (${t$(sec)}, ${src})`],
+     [/^Dernier chiffre d’affaires publié \((\d{4}) : (.+)\) reconduit faute de publication pour (\d{4}) ; fourchette ±15 %$/, 'Latest published revenue ($1: $2) carried forward as nothing is published for $3; range ±15 %'],
+     [/^(.+), INSEE Ésane, fiche secteur 561$/, (m, s) => `${t$(s)}, INSEE Ésane, sector sheet 561`], [/^moyenne$/, 'medium'], [/^faible$/, 'low'],
+     [/^Valeurs estimées par Euro Expert Solvabilité : (.+)\.$/, (m, x) => `Values estimated by Euro Expert Solvabilité: ${x.split(' ; ').map((p) => p.replace(/^CA (\d{4}) par (.+)$/, (q, y, b) => `revenue ${y} by ${t$(b)}`).replace('résultat estimé avec la marge nette moyenne publiée de l’entreprise', 'net income estimated with the company’s average published net margin')).join('; ')}.`],
+     [/^Taux ([\d.,]+) % \+ indemnité de 40 €$/, 'Rate $1 % + €40 recovery fee'], [/^Taux ([\d.,]+) % \(dernier taux connu\) \+ indemnité de 40 €$/, 'Rate $1 % (latest known rate) + €40 recovery fee'],
+     [/^TVA ([\d.,]+) %$/, 'VAT $1 %'], [/^À ([\d.,]+) % de marge$/, 'At $1 % margin'], [/^Pénalités dues après (\d+) jours de retard$/, 'Interest due after $1 days late'],
+     [/^Acompte conseillé : (\d+) % soit (.+) TTC · délai maximal conseillé : (.+)$/, (m, p, a, d) => `Recommended deposit: ${p} % i.e. ${a} incl. VAT · maximum recommended term: ${d === 'aucun' ? 'none' : d.replace('jours', 'days')}`],
+     [/^Délai de (\d+) jours supérieur au maximum légal de 60 jours à compter de la facture \(C\. com\. L441-10\)\.$/, 'A $1-day term exceeds the French statutory maximum of 60 days from invoice (Commercial Code L441-10).'],
+     [/^Délai demandé \((\d+) j\) supérieur au délai conseillé pour un grade ([A-D]) \((\d+) j\)\.$/, 'Requested term ($1 days) exceeds the recommended term for grade $2 ($3 days).'],
+     [/^Cette commande représente ([\d.,]+) % du chiffre d’affaires annuel du client : montant élevé au regard de sa taille\.$/, 'This order represents $1 % of the customer’s annual revenue: a large amount relative to its size.'],
+     [/^Fermeture administrative le (\S+) : exigez la preuve de la reprise d’activité avant de livrer\.$/, 'Administrative closure on $1: demand proof that trading has resumed before delivering.'],
+     [/^Obligation de vigilance \(prestation ≥ .+? HT sur l’année\) : (.+)$/, 'French due-diligence duty (services ≥ €5,000 excl. VAT per year): obtain the URSSAF “attestation de vigilance” before signing and every 6 months, plus a company register extract (Kbis) under 3 months old. Otherwise you are jointly liable for unpaid social contributions.'],
+     [/^Grade ([A-D]) : (.+)$/, (m, g, t) => `Grade ${g}: ${t$(t)}`],
+     [/^Clé RIB valide \(code banque (\d+), guichet (\d+)\)\.$/, 'French bank key valid (bank code $1, branch $2).'],
+     [/^Longueur incorrecte pour un IBAN (\w+) \((\d+) caractères au lieu de (\d+)\)\.$/, 'Incorrect length for a $1 IBAN ($2 characters instead of $3).'],
+     [/^Compte domicilié hors de France \((\w+)\) pour une entreprise française : .+$/, 'Account held outside France ($1) for a French company: a typical sign of change-of-bank-details fraud. Verify by phone, on the usual number.'],
+     [/^Identique à l’IBAN de référence enregistré le (\S+)\.$/, 'Identical to the reference IBAN saved on $1.'],
+     [/^DIFFÉRENT de l’IBAN de référence enregistré le (\S+) \((.+)\)\. .+$/, 'DIFFERENT from the reference IBAN saved on $1 ($2). Change nothing until you have spoken to a known contact, on the usual number (never the one in the email received).'],
+     [/^Le titulaire du compte ne peut pas être contrôlé ici : exigez un RIB au nom exact de « (.+) »\.$/, 'The account holder cannot be checked here: require bank details in the exact name of “$1”.'],
+     [/^IBAN de référence enregistré le (\S+) : (.+)$/, 'Reference IBAN saved on $1: $2'],
+     [/^(\d+) annonces?$/, (m, n) => `${n} notice${n > 1 ? 's' : ''}`], [/^(\d+) contrôles?$/, (m, n) => `${n} inspection${n > 1 ? 's' : ''}`], [/^(\d+) articles?$/, (m, n) => `${n} article${n > 1 ? 's' : ''}`],
+     [/^(\d+) faits? relevés?$/, (m, n) => `${n} fact${n > 1 ? 's' : ''} found`], [/^(\d+) \(non vérifiées?\)$/, '$1 (unverified)'], [/^Jusqu’à (\d{4})$/, 'Up to $1'],
+     [/^Autonomie (.+)$/, 'Equity ratio $1'], [/^(\d+) sociétés?, (\d+) cessées?$/, (m, a, c) => `${a} compan${a > 1 ? 'ies' : 'y'}, ${c} ceased`], [/^(\d+) sociétés?$/, (m, a) => `${a} compan${a > 1 ? 'ies' : 'y'}`],
+     [/^(\d+) autres? sociétés? dont (\d+) cessée\(s\)$/, (m, a, c) => `${a} other compan${a > 1 ? 'ies' : 'y'}, ${c} ceased`],
+     [/^(\d+) autres? sociétés?( dont (\d+) cessées?)?$/, (m, a, x, c) => `${a} other compan${a > 1 ? 'ies' : 'y'}${c ? `, ${c} ceased` : ''}`],
+     [/^(.+) · né\(e\) en (\d{4})$/, (m, q, y) => `${t$(q)} · born ${y}`], [/^(.+) · SIREN (\d{9})$/, (m, q, s) => `${t$(q)} · SIREN ${s}`],
+     [/^SIREN (\d{9}) · (.+) · dirigée par (.+)$/, (m, s, q, d) => `SIREN ${s} · ${t$(q)} · managed by ${d}`], [/^SIREN (\d{9})(.*) · créée le (\S+)$/, 'SIREN $1$2 · incorporated $3'],
+     [/^Cessée \((\S+)\)$/, 'Ceased ($1)'], [/^Rapprochement par nom, premier prénom( et année de naissance)?\. .+$/, (m, y) => `Matched by surname, first name${y ? ' and year of birth' : ''}. A namesake remains possible: check the official company directory.`],
+     [/^(.+) · mentionne la commune$/, '$1 · mentions the municipality'],
+     [/^Fermeture administrative sanitaire le (\S+) — (.+)$/, (m, d, x) => `Administrative closure (health) on ${d} — ${t$(x)}`], [/^(Fermeture administrative|Sanction administrative|Incident relevé) le (\S+) — (.+)$/, (m, k, d, x) => `${t$(k)} on ${d} — ${t$(x)}`],
+     [/^Dernière vérification le (\S+)\.$/, 'Last checked on $1.'], [/^Établissement rattaché au SIREN par son nom commercial et sa commune\. Dernière vérification le (\S+)\.$/, 'Establishment matched to the SIREN by trading name and municipality. Last checked on $1.'],
+     [/^ · (.+)$/, (m, x) => ` · ${t$(x)}`], [/^· (.+)$/, (m, x) => `· ${t$(x)}`],
+     [/^(.+) le (\d{2}\/\d{2}\/\d{4}) : exigez la preuve de la reprise d’activité avant toute livraison à crédit\.$/, (m, k, d) => `${t$(k)} on ${d}: demand proof that trading has resumed before any delivery on credit.`],
+     [/^(.+) le (\d{2}\/\d{2}\/\d{4}) : vérifiez la régularisation avant toute livraison à crédit\.$/, (m, k, d) => `${t$(k)} on ${d}: check that the situation has been regularised before any delivery on credit.`],
+     [/^Grade ([A-D]) · risque (.+), d’après les données publiques consultées\.$/, (m, g, r) => `Grade ${g} · ${t$(r)} risk, based on the public data consulted.`.replace(/ (\w)/, (q, c) => ` ${c}`)],
+     [/^(.+) le (\d{2}\/\d{2}\/\d{4}) : (-?\d+) points, note plafonnée à (\d+)$/, (m, k, d, p, c) => `${t$(k)} on ${d}: ${p} points, score capped at ${c}`], [/^(.+) le (\d{2}\/\d{2}\/\d{4}) : (-?\d+) points$/, (m, k, d, p) => `${t$(k)} on ${d}: ${p} points`],
+     [/^« (.+) » le (\S+) : −20 points, note plafonnée à 44$/, (m, r, d) => `“${t$(r)}” on ${d}: −20 points, score capped at 44`], [/^« (.+) » le (\S+) : déjà pris en compte avec la fermeture$/, (m, r, d) => `“${t$(r)}” on ${d}: already counted with the closure`],
+     [/^« (.+) » le (\S+) : −5 points$/, (m, r, d) => `“${t$(r)}” on ${d}: −5 points`],
+     [/^Capitaux propres négatifs au (\S+) \(autonomie financière (.+)\)$/, 'Negative equity at $1 (equity ratio $2)'], [/^Exercice (\d{4}) : (.+)$/, (m, y, x) => `Year ${y}: ${x.split(', ').map((p) => ({ 'comptes publiés': 'accounts published', 'résultat net positif': 'positive net income', 'résultat net nul ou négatif': 'zero or negative net income', 'CA en hausse': 'revenue up', 'CA stable ou en baisse': 'revenue flat or down' }[p] || p)).join(', ')}`],
+     [/^(\d+) dirigeants?\(s\) déclarés?\(s\)$/, '$1 director(s) declared'], [/^(\d+) dirigeant\(s\) déclaré\(s\)$/, '$1 director(s) declared'], [/^(\d+) établissement\(s\) ouvert\(s\)$/, '$1 open establishment(s)'],
+     [/^Entreprise cessée au répertoire Sirene(.*)$/, 'Company ceased in the Sirene register$1'],
+     [/^Enregistrée comme cessée au répertoire Sirene( depuis le (\S+))?\. Revoyez toute relation commerciale\.$/, (m, x, d) => `Recorded as ceased in the Sirene register${d ? ` since ${d}` : ''}. Review any business relationship.`],
+     [/^(\S+) · (.+)\. Consultez l’annonce complète avant tout engagement\.$/, (m, d, x) => `${d} · ${x.split(' · ').map(t$).join(' · ')}. Read the full notice before any commitment.`],
+     [/^(\S+) · « (.+) » \(Alim’confiance\)\. Ce résultat est une synthèse d’inspection ; il ne dit pas si une fermeture a été prononcée\.$/, (m, d, r) => `${d} · “${t$(r)}” (Alim’confiance). This is an inspection summary; it does not say whether a closure was ordered.`],
+     [/^(.+) — signalée par l’analyste, non vérifiée$/, (m, k) => `${t$(k)} — reported by the user, unverified`], [/^(Décision du (\S+)\. )?Source indiquée : (.+)$/, (m, x, d, s) => `${d ? `Decision of ${d}. ` : ''}Source given: ${s}`],
+     [/^Source : (.+)$/, (m, x) => `Source: ${x.replace(/ratios financiers BCE \/ INPI/, 'BCE / INPI financial ratios').replace('comptes annuels déposés', 'filed annual accounts').replace('Repères : seuils usuels de l’analyse crédit', 'Benchmarks: usual credit analysis thresholds').replace('médianes', 'medians').replace('fascicule sectoriel', 'sector report').replace(/ ; /g, '; ').replace(/ : /g, ': ')}`],
+     [/^Analyse établie le (.+) à partir des données du dossier\.$/, 'Analysis prepared on $1 from the file data.'],
+     [/^Le code du jour change chaque nuit à minuit \(heure de La Réunion\)\. Prochain changement à (.+)\.$/, 'Today’s code changes every night at midnight (Réunion time, UTC+4). Next change at $1.'],
+     [/^Trop d’essais\. Nouvel essai possible dans (.+)\.$/, 'Too many attempts. Try again in $1.'], [/^Change dans (\d+) h (\d+) min$/, 'Changes in $1 h $2 min'],
+     [/^Code du jour,$/, 'Today’s code,'], [/^Demain,$/, 'Tomorrow,'], [/^Codes programmés jusqu’au (\S+) \((\d+) jours\)\.$/, 'Codes scheduled until $1 ($2 days).'],
+     [/^Plus que (\d+) jour\(s\) de codes programmés : .+$/, 'Only $1 day(s) of codes left: regenerate the access block with outil-acces.html.'],
+     [/^Aucune entreprise trouvée pour « (.+) »\. .+$/, 'No company found for “$1”. Try the SIREN, add a postcode (e.g. “name 75001”) or check the spelling. Companies that opted out of public disclosure do not appear in public sources.'],
+     [/^(\d+) entreprises correspondent : choisissez-en une dans la liste\.$/, '$1 companies match: choose one from the list.'],
+     [/^(.+) est suivi : chaque ouverture de l’accueil signale les changements\.$/, '$1 is now monitored: changes are flagged on the home page.'], [/^(.+) n’est plus suivi\.$/, '$1 is no longer monitored.'],
+     [/^Changements depuis la dernière consultation : (.+)\.$/, (m, x) => `Changes since last visit: ${x.split(' ; ').map(t$).join('; ')}.`],
+     [/^Vérification (\d+) sur (\d+)…$/, 'Checking $1 of $2…'], [/^(\d+) client\(s\) avec des changements\.$/, '$1 customer(s) with changes.'], [/^Aucun changement depuis la dernière vérification\.$/, 'No change since the last check.'],
+     [/^Note : (\d+) → (\d+)$/, 'Score: $1 → $2'], [/^Nouvelle annonce BODACC du (\S+)$/, 'New BODACC notice dated $1'], [/^Nouveau contrôle sanitaire : (.+)$/, (m, r) => `New health inspection: ${t$(r)}`],
+     [/^Procédure collective publiée au BODACC$/, 'Insolvency proceedings published in the BODACC'], [/^Entreprise désormais cessée$/, 'Company now ceased'], [/^Nouvelle fermeture ou incident relevé par la veille$/, 'New closure or incident found by the watch'], [/^Capitaux propres devenus négatifs$/, 'Equity turned negative'],
+     [/^Délai court \(30 jours au plus\) ou acompte à la commande\.$/, 'Short term (30 days maximum) or deposit on order.'],
+     [/^(\d+)\/100 · ([A-D])$/, '$1/100 · $2'], [/^≈ (.+) est\.$/, '≈ $1 est.'], [/^est\.$/, 'est.'], [/^(\d+) j$/, '$1 days'], [/^≤ (\d+) j$/, '≤ $1 days'], [/^≤ 60 j \(légal\)$/, '≤ 60 days (legal)'], [/^≤ 4 ans$/, '≤ 4 years'], [/^([\d.,]+) ans$/, '$1 years'],
+     [/^(\d+) jours$/, '$1 days'], [/^Ancienneté de (\d+) ans, gage de stabilité commerciale\.$/, '$1 years in business, a sign of commercial stability.'],
+     [/^Structure significative : (.+)\.$/, (m, x) => `Substantial organisation: ${t$(x)}.`], [/^Dernier exercice publié bénéficiaire \((.+)\)\.$/, 'Latest published year profitable ($1).'],
+     [/^Chiffre d’affaires en progression \((.+)\)\.$/, 'Revenue growing ($1).'], [/^Bonne autonomie financière \((.+)\)\.$/, 'Good equity ratio ($1).'], [/^Liquidité confortable \((.+)\)\.$/, 'Comfortable liquidity ($1).'],
+     [/^Dirigeant expérimenté : (\d+) autres? sociétés? actives?\.$/, (m, n) => `Experienced director: ${n} other active compan${n > 1 ? 'ies' : 'y'}.`],
+     [/^Liquidité générale inférieure à 1 \((.+)\) : tension de trésorerie possible\.$/, 'Current ratio below 1 ($1): possible cash strain.'], [/^Délai moyen de paiement des fournisseurs élevé \((\d+) jours\)\.$/, 'High average supplier payment period ($1 days).'],
+     [/^Marge nette faible \((.+)\) : peu de capacité à absorber un choc\.$/, 'Low net margin ($1): little capacity to absorb a shock.'], [/^Contrôle sanitaire défavorable \(« (.+) »\)\.$/, (m, r) => `Unfavourable health inspection (“${t$(r)}”).`],
+     [/^Le réseau du dirigeant compte (\d+) sociétés cessées : vérifier les circonstances\.$/, 'The director’s network includes $1 ceased companies: check the circumstances.'],
+     [/^(.+) prononcée le (\S+) \((.+)\) : risque d’interruption d’activité et d’atteinte à la réputation\.$/, (m, k, d, a) => `${t$(k)} ordered on ${d} (${t$(a)}): risk of business interruption and reputational damage.`],
+     [/^Obtenir la preuve de la levée de la mesure de fermeture .+$/, 'Obtain proof that the closure order has been lifted (prefectoral order or letter) and that trading has actually resumed.'],
+     [/^Demander la liasse fiscale ou le dernier bilan complet .+$/, 'Request the tax return or latest full balance sheet to establish revenue and financial structure.'], [/^Obtenir le dernier bilan complet .+$/, 'Obtain the latest full balance sheet (equity, debt, cash).'],
+     [/^Vérifier les bénéficiaires effectifs .+$/, 'Check the beneficial owners (INPI register) and that no asset freeze applies.'], [/^Exiger un RIB au nom exact de l’entité .+$/, 'Require bank details in the exact name of the entity and compare payment history with your own accounts.'],
+     [/^Confirmation écrite de la reprise d’activité, puis revue mensuelle des annonces et contrôles publiés\.$/, 'Written confirmation that trading has resumed, then a monthly review of published notices and inspections.'],
+     [/^Revue annuelle, et à chaque nouvelle publication de comptes\.$/, 'Annual review, and whenever new accounts are published.'], [/^Revue trimestrielle des annonces légales et des comptes\.$/, 'Quarterly review of legal notices and accounts.'],
+     [/^Délais usuels de votre politique commerciale, dans la limite légale\.$/, 'Your usual payment terms, within the legal limit.'], [/^Délais usuels, avec relance dès le premier retard\.$/, 'Usual terms, with a reminder at the first delay.'],
+     [/^Paiement à la commande ou comptant\.$/, 'Payment on order or cash.'], [/^Aucune garantie particulière au vu des données publiques\.$/, 'No specific guarantee needed based on public data.'],
+     [/^Assurance-crédit recommandée au-delà de votre seuil habituel\.$/, 'Credit insurance recommended above your usual threshold.'], [/^Acompte, caution du dirigeant ou couverture d’assurance-crédit\.$/, 'Deposit, personal guarantee from the director or credit insurance cover.'],
+     [/^Paiement d’avance, garantie bancaire ou caution personnelle\.$/, 'Payment in advance, bank guarantee or personal guarantee.'],
+     // PDF
+     [/^Édition : (.+)$/, 'Issued: $1'], [/^Réf\. : (.+)$/, 'Ref.: $1'], [/^SIREN : (\d+)$/, 'SIREN: $1'], [/^(\d+) \(dont (.+) ouvert\(s\)\)$/, '$1 ($2 open)'],
+     [/^Active$/, 'Active'], [/^Cessée( \((\S+)\))?$/, (m, x, d) => `Ceased${d ? ` (${d})` : ''}`], [/^(\d+) \/ (\d+)$/, '$1 / $2'],
+     [/^Personne morale \(SIREN (\d+)\)$/, 'Corporate entity (SIREN $1)'], [/^(\d+) annonce\(s\)(, procédure collective)?$/, (m, n, c) => `${n} notice(s)${c ? ', insolvency proceedings' : ''}`], [/^(\d+) contrôle\(s\)$/, '$1 inspection(s)'],
+     [/^(\d+) fait\(s\) relevé\(s\)$/, '$1 fact(s) found'], [/^Bilan clos le (\S+) \(ratios BCE \/ INPI\)$/, 'Balance sheet at $1 (BCE / INPI ratios)'],
+     [/^≈ (.+) \(est\.\)$/, '≈ $1 (est.)'], [/^Chiffre d’affaires annuel estimé : environ (.+) \(fourchette (.+) à (.+)\)$/, 'Estimated annual revenue: about $1 (range $2 to $3)'],
+     [/^Base de calcul : (.+)\. Fiabilité : (.+)\. Cette fourchette .+$/, (m, b, f) => `Basis: ${t$(b)}. Reliability: ${t$(f)}. This range is not used in the score or ratios and must not be used to set a credit limit.`],
+     [/^Pour absorber un impayé de 10 000 €, (.+) devrait réaliser environ (.+) de chiffre d’affaires supplémentaire, sur la base de sa marge nette de (.+) \(exercice (\d{4})\)\.$/, 'To absorb a €10,000 unpaid invoice, $1 would need about $2 of additional revenue, based on its net margin of $3 (year $4).'],
+     [/^(\S+) — (.+?)( \((.+)\))?$/, (m, d, x, y, z) => (/^\d{2}\/\d{2}\/\d{4}$/.test(d) ? `${d} — ${t$(x)}${z ? ` (${z})` : ''}` : m)],
+     [/^(.+) HT, soit (.+) TTC \(TVA (.+)\)$/, '$1 excl. VAT, i.e. $2 incl. VAT (VAT $3)'], [/^Conditions conseillées \(grade ([A-D])\)$/, 'Recommended terms (grade $1)'],
+     [/^(.+) Acompte (\d+) % \((.+)\)\.$/, (m, p, a, b) => `${t$(p)} Deposit ${a} % (${b}).`], [/^(.+) \(marge (.+)\)$/, '$1 (margin $2)'], [/^(.+) \(CA estimé \((.+)\)\)$/, (m, a, b) => `${a} (estimated revenue (${t$(b)}))`],
+     [/^(.+) \(CA publié (\d{4})\)$/, '$1 (revenue published $2)'], [/^Pénalités après (\d+) jours de retard$/, 'Interest after $1 days late'], [/^(.+) \(taux (.+) \+ indemnité 40 €\)$/, '$1 (rate $2 + €40 fee)'],
+     [/^Réseau des dirigeants : (\d+) autre\(s\) société\(s\) trouvée\(s\)(, dont (\d+) cessée\(s\))? .+$/, (m, n, x, c) => `Directors’ network: ${n} other compan${n > 1 ? 'ies' : 'y'} found${c ? `, ${c} ceased` : ''} (matched by name and first name, namesakes possible).`],
+     [/^Holdings : (.+)$/, (m, x) => `Holding companies: ${x.replace(/, cessée/g, ', ceased')}`], [/^Édité le (.+) à partir des sources publiques citées\. .+$/, 'Issued on $1 from the public sources cited. Data may change after this date.'],
+     [/^(FERMETURE ADMINISTRATIVE SANITAIRE|FERMETURE ADMINISTRATIVE|SANCTION ADMINISTRATIVE|INCIDENT RELEVÉ) — (\S+)$/, (m, k, d) => `${({ 'FERMETURE ADMINISTRATIVE SANITAIRE': 'ADMINISTRATIVE CLOSURE (HEALTH)', 'FERMETURE ADMINISTRATIVE': 'ADMINISTRATIVE CLOSURE', 'SANCTION ADMINISTRATIVE': 'ADMINISTRATIVE SANCTION', 'INCIDENT RELEVÉ': 'INCIDENT FOUND' })[k]} — ${d}`],
+     [/^(.+) \((.+)\)\. (Rondavelle.+)$/, (m, a, b, c) => `${t$(a)} (${t$(b)}). ${c.split(/(?<=\.) /).map(t$).join(' ')}`],
+     [/^(\d+)\. (.+)$/, (m, n, x) => { const y = EN_EXACT[x]; return y ? `${n}. ${y}` : m; }]
+   ];
+   
+   const FR_MONTHS = { janvier: 'January', février: 'February', mars: 'March', avril: 'April', mai: 'May', juin: 'June', juillet: 'July', août: 'August', septembre: 'September', octobre: 'October', novembre: 'November', décembre: 'December' };
+   const SECTION_NUM = /^(\d+(?: bis)?)\. (.+)$/;
+   
+   /** Traduit un texte français (français conservé s'il n'est pas reconnu). */
+   function tr(s) {
+     if (LANG !== 'en' || typeof s !== 'string') return s;
+     const lead = s.match(/^\s*/)[0];
+     const trail = s.match(/\s*$/)[0];
+     let core = s.trim();
+     if (!core) return s;
+     if (Object.prototype.hasOwnProperty.call(EN_EXACT, core)) return lead + EN_EXACT[core] + trail;
+     const sec = core.match(SECTION_NUM);
+     if (sec && EN_EXACT[sec[2]]) return lead + `${sec[1].replace(' bis', 'a')}. ${EN_EXACT[sec[2]]}` + trail;
+     core = core.replace(/\b(\d{1,2}) (janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre) (\d{4})\b/g, (m, d, mo, y) => `${d} ${FR_MONTHS[mo]} ${y}`);
+     if (Object.prototype.hasOwnProperty.call(EN_EXACT, core)) return lead + EN_EXACT[core] + trail;
+     for (const [re, rep] of EN_RULES) {
+       if (re.test(core)) {
+         const out = core.replace(re, rep);
+         if (out !== core || typeof rep === 'string') return lead + out + trail;
+       }
+     }
+     if (/\.$/.test(core) && EN_EXACT[core.slice(0, -1)]) return lead + EN_EXACT[core.slice(0, -1)] + '.' + trail;
+     if (!tr.depth || tr.depth < 2) {
+       tr.depth = (tr.depth || 0) + 1;
+       try {
+         for (const sep of [' · ', '. ']) {
+           if (core.includes(sep)) {
+             const parts = core.split(sep).map((p, i, arr) => (sep === '. ' && i < arr.length - 1 ? `${p}.` : p));
+             const out = parts.map((p) => tr(p));
+             if (out.some((x, i) => x !== parts[i])) return lead + out.map((x) => (sep === '. ' ? x : x)).join(sep === '. ' ? ' ' : sep) + trail;
+           }
+         }
+       } finally { tr.depth -= 1; }
+     }
+     return lead + core + trail;
+   }
+   
+   /** Traduit en continu tout le texte de la page (anglais uniquement). */
+   const TRANSLATED = new WeakSet();
+   function translateNode(root) {
+     if (LANG !== 'en' || !root) return;
+     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+       acceptNode: (n) => (n.parentElement && !['SCRIPT', 'STYLE', 'PRE', 'TEXTAREA'].includes(n.parentElement.tagName) && n.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT)
+     });
+     const nodes = [];
+     while (walker.nextNode()) nodes.push(walker.currentNode);
+     nodes.forEach((n) => { const t = tr(n.nodeValue); if (t !== n.nodeValue) n.nodeValue = t; });
+     const els = root.nodeType === 1 ? [root, ...root.querySelectorAll('[placeholder],[aria-label],[title]')] : [];
+     els.forEach((el) => ['placeholder', 'aria-label', 'title'].forEach((a) => { const v = el.getAttribute && el.getAttribute(a); if (v) { const t = tr(v); if (t !== v) el.setAttribute(a, t); } }));
+   }
+   function startTranslator() {
+     if (LANG !== 'en') return;
+     document.documentElement.lang = 'en';
+     document.title = 'Euro Expert Solvabilité — B2B credit file';
+     translateNode(document.body);
+     const obs = new MutationObserver((muts) => {
+       muts.forEach((m) => {
+         if (m.type === 'characterData') { const n = m.target; const t = tr(n.nodeValue); if (t !== n.nodeValue) n.nodeValue = t; }
+         else if (m.type === 'attributes') { const v = m.target.getAttribute(m.attributeName); if (v) { const t = tr(v); if (t !== v) m.target.setAttribute(m.attributeName, t); } }
+         else m.addedNodes.forEach((n) => (n.nodeType === 3 ? (() => { const t = tr(n.nodeValue); if (t !== n.nodeValue) n.nodeValue = t; })() : translateNode(n)));
+       });
+     });
+     obs.observe(document.body, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['placeholder', 'aria-label', 'title'] });
+   }
+   
+   /** Traduit récursivement les textes d'une définition pdfMake. */
+   function translatePdf(node) {
+     if (LANG !== 'en') return node;
+     if (Array.isArray(node)) return node.map(translatePdf);
+     if (node && typeof node === 'object') {
+       const out = {};
+       Object.keys(node).forEach((k) => {
+         const val = node[k];
+         if ((k === 'text') && typeof val === 'string') out[k] = tr(val);
+         else if (k === 'text' && Array.isArray(val)) out[k] = val.map((x) => (typeof x === 'string' ? tr(x) : translatePdf(x)));
+         else if (['info', 'styles', 'defaultStyle', 'layout'].includes(k)) out[k] = val;
+         else if (typeof val === 'function') out[k] = (...args) => translatePdf(val(...args));
+         else out[k] = translatePdf(val);
+       });
+       return out;
+     }
+     return node;
+   }
+   
+   /** Change de langue : mémorise le choix et le dossier ouvert, puis recharge. */
+   function switchLang() {
+     try {
+       localStorage.setItem('ees_lang', LANG === 'en' ? 'fr' : 'en');
+       if (state.view) sessionStorage.setItem('ees_reopen', state.view.siren);
+     } catch (e) { /* stockage indisponible */ }
+     location.reload();
+   }
+   
+   
+   /* =============================================================================
       1. UTILITAIRES
       ============================================================================= */
    const $ = (id) => document.getElementById(id);
@@ -214,13 +711,16 @@
      if (el) el.innerHTML = html; // n'appeler qu'avec du contenu déjà échappé via esc()
    }
    
-   const numberFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 });
+   const numberFormat = new Intl.NumberFormat(LOCALE, { maximumFractionDigits: 0 });
+   const euroFormatEN = new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+   /** Nombre décimal au format de la langue (virgule en français, point en anglais). */
+   const dec = (x, d = 1) => (LANG === 'en' ? x.toFixed(d) : x.toFixed(d).replace('.', ','));
    const cleanSpaces = (s) => s.replace(/[  ]/g, ' ');
-   const fmtEuro = (n) => (n === null || n === undefined ? NA : `${cleanSpaces(numberFormat.format(Math.round(n)))} €`);
+   const fmtEuro = (n) => (n === null || n === undefined ? NA : LANG === 'en' ? euroFormatEN.format(Math.round(n)) : `${cleanSpaces(numberFormat.format(Math.round(n)))} €`);
    const fmtPct = (ratio, signed = false) => {
      if (ratio === null || ratio === undefined || !Number.isFinite(ratio)) return NA;
-     const text = (ratio * 100).toFixed(1).replace('.', ',');
-     return `${signed && ratio > 0 ? '+' : ''}${text} %`;
+     const text = dec(ratio * 100, 1);
+     return `${signed && ratio > 0 ? '+' : ''}${text}${LANG === 'en' ? '%' : ' %'}`;
    };
    
    function fmtDate(iso) {
@@ -799,7 +1299,7 @@
    
    async function initAuth() {
      setText('auth-change-hint', accessMode() === 'codes'
-       ? `Le code du jour change chaque nuit à minuit (heure de La Réunion). Prochain changement à ${new Date(nextChangeMs()).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`
+       ? `Le code du jour change chaque nuit à minuit (heure de La Réunion). Prochain changement à ${new Date(nextChangeMs()).toLocaleTimeString(LOCALE, { hour: '2-digit', minute: '2-digit' })}.`
        : 'Saisissez la clé fournie avec votre abonnement.');
      setLocked(true);
      const session = readSession();
@@ -1707,6 +2207,10 @@
    const fmtCompact = (n) => {
      if (n === null || n === undefined) return NA;
      const abs = Math.abs(n);
+     if (LANG === 'en') {
+       const g = (x, unit) => `${x < 0 ? '-' : ''}€${new Intl.NumberFormat('en-GB', { maximumFractionDigits: 1 }).format(Math.abs(x))}${unit}`;
+       return abs >= 1e6 ? g(n / 1e6, 'M') : abs >= 1e3 ? g(n / 1e3, 'k') : g(n, '');
+     }
      const f = (x, unit) => `${cleanSpaces(new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(x))} ${unit}`;
      return abs >= 1e6 ? f(n / 1e6, 'M€') : abs >= 1e3 ? f(n / 1e3, 'k€') : f(n, '€');
    };
@@ -2034,7 +2538,7 @@
      }
      const latest = src.items[0];
      const fmt = {
-       eur: (n) => fmtEuro(n), pct: (n) => fmtPct(n / 100), days: (n) => `${Math.round(n)} j`, x: (n) => n.toFixed(2).replace('.', ','), years: (n) => `${n.toFixed(1).replace('.', ',')} ans`
+       eur: (n) => fmtEuro(n), pct: (n) => fmtPct(n / 100), days: (n) => `${Math.round(n)} j`, x: (n) => dec(n, 2), years: (n) => `${dec(n, 1)} ans`
      };
      const lines = [
        ['Excédent brut d’exploitation', 'ebe', 'eur'], ['Marge d’EBE', 'margeEbe', 'pct'], ['Résultat net', 'resultat', 'eur'],
@@ -2058,7 +2562,7 @@
    
    /** Met en gras les montants, pourcentages, durées, dates et notes dans un texte déjà échappé. */
    function boldFigures(html) {
-     return html.replace(/(≈\s?)?(?:\b\d{1,2}\/\d{1,2}\/\d{4}\b|-?\d[\d\s .,]*\s?(?:M€|k€|€|%|jours\b|ans\b|an\b|j\b)|\b\d+\/100\b|\bgrade [A-D]\b)/g, (m) => `<strong>${m}</strong>`);
+     return html.replace(/(≈\s?)?(?:\b\d{1,2}\/\d{1,2}\/\d{4}\b|-?€\d[\d,.]*(?:M|k)?|\b\d[\d,.]*%|\b\d+ (?:days|years?)\b|-?\d[\d\s .,]*\s?(?:M€|k€|€|%|jours\b|ans\b|an\b|j\b)|\b\d+\/100\b|\bgrade [A-D]\b)/g, (m) => `<strong>${m}</strong>`);
    }
    
    /* ---------------- Historique financier fusionné (Recherche d'entreprises + bilans BCE/INPI) ----------------
@@ -2459,7 +2963,7 @@
    function buildReportDefinition(v) {
      const s = v.score;
      const color = TONES[s.tone].pdf;
-     const dateLong = v.extractedAt.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+     const dateLong = v.extractedAt.toLocaleDateString(LOCALE, { year: 'numeric', month: 'long', day: 'numeric' });
      const reference = `EES-${v.siren}-${v.extractedAt.toISOString().slice(0, 10).replace(/-/g, '')}`;
    
      const layout = {
@@ -2551,7 +3055,7 @@
          return [
            [cell('Autonomie financière', { bold: true }), cell(rb ? pv(rb.autonomie) : NA, { alignment: 'center', bold: !!rb }), cell(src)],
            [cell('Taux d’endettement', { bold: true }), cell(rb ? pv(rb.endettement) : NA, { alignment: 'center', bold: !!rb }), cell(src)],
-           [cell('Liquidité générale', { bold: true }), cell(rb && rb.liquidite !== null ? rb.liquidite.toFixed(2).replace('.', ',') : NA, { alignment: 'center', bold: !!rb }), cell(src)],
+           [cell('Liquidité générale', { bold: true }), cell(rb && rb.liquidite !== null ? dec(rb.liquidite, 2) : NA, { alignment: 'center', bold: !!rb }), cell(src)],
            [cell('Délais clients / fournisseurs', { bold: true }), cell(rb && (rb.dso !== null || rb.dpo !== null) ? `${rb.dso === null ? '—' : Math.round(rb.dso)} j / ${rb.dpo === null ? '—' : Math.round(rb.dpo)} j` : NA, { alignment: 'center', bold: !!rb }), cell(rb ? src : 'Comportement de paiement réel : données non publiques')]
          ];
        })()
@@ -2775,7 +3279,7 @@
      if (!view) return notify('Veuillez d’abord rechercher et sélectionner une entreprise.');
      if (!window.pdfMake) return notify('La bibliothèque pdfMake n’est pas chargée.');
      try {
-       window.pdfMake.createPdf(buildReportDefinition(view)).download(`Rapport_EES_${view.siren}.pdf`);
+       window.pdfMake.createPdf(translatePdf(buildReportDefinition(view))).download(`Rapport_EES_${view.siren}.pdf`);
      } catch (e) {
        console.error('Erreur de génération du PDF :', e);
        notify('Impossible de générer le PDF. Réessayez.');
@@ -2835,7 +3339,9 @@
    const plural = (n, one, many) => `${n} ${n > 1 ? many : one}`;
    const lowerFirst = (t) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
    
-   function buildFallbackAnalysis(v) {
+   function buildFallbackAnalysis(v) { return LANG === 'en' ? buildFallbackAnalysisEN(v) : buildFallbackAnalysisFR(v); }
+   
+   function buildFallbackAnalysisFR(v) {
      const s = v.score;
      const fin = v.fin;
      const latest = fin.latest;
@@ -2879,7 +3385,7 @@
        const bits = [];
        if (rb.autonomie !== null) bits.push(rb.autonomie < 0 ? `des capitaux propres négatifs (autonomie financière de ${fmtPct(rb.autonomie / 100)})` : `une autonomie financière de ${fmtPct(rb.autonomie / 100)}`);
        if (rb.endettement !== null) bits.push(`un taux d’endettement de ${fmtPct(rb.endettement / 100)}`);
-       if (rb.liquidite !== null) bits.push(`une liquidité générale de ${rb.liquidite.toFixed(2).replace('.', ',')}`);
+       if (rb.liquidite !== null) bits.push(`une liquidité générale de ${dec(rb.liquidite, 2)}`);
        if (rb.dpo !== null) bits.push(`un délai moyen de paiement des fournisseurs de ${Math.round(rb.dpo)} jours`);
        if (bits.length) finParts.push(`Le bilan clos le ${fmtDate(rb.date)} fait apparaître ${bits.join(', ')}.`);
      } else {
@@ -2919,10 +3425,10 @@
      if (!latest) vig.push('Aucun compte publié.');
      const rv = latestRatios(v);
      if (rv && rv.autonomie !== null && rv.autonomie < 0) vig.unshift('Capitaux propres négatifs : la structure financière ne protège pas les créanciers.');
-     if (rv && rv.liquidite !== null && rv.liquidite < 1) vig.push(`Liquidité générale inférieure à 1 (${rv.liquidite.toFixed(2).replace('.', ',')}) : tension de trésorerie possible.`);
+     if (rv && rv.liquidite !== null && rv.liquidite < 1) vig.push(`Liquidité générale inférieure à 1 (${dec(rv.liquidite, 2)}) : tension de trésorerie possible.`);
      if (rv && rv.dpo !== null && rv.dpo > 60) vig.push(`Délai moyen de paiement des fournisseurs élevé (${Math.round(rv.dpo)} jours).`);
      if (rv && rv.autonomie !== null && rv.autonomie >= 30) forts.push(`Bonne autonomie financière (${fmtPct(rv.autonomie / 100)}).`);
-     if (rv && rv.liquidite !== null && rv.liquidite >= 1.5) forts.push(`Liquidité confortable (${rv.liquidite.toFixed(2).replace('.', ',')}).`);
+     if (rv && rv.liquidite !== null && rv.liquidite >= 1.5) forts.push(`Liquidité confortable (${dec(rv.liquidite, 2)}).`);
      if (age !== null && age < 3) vig.push('Entreprise jeune (moins de 3 ans).');
      if (b.status === 'unavailable' || a.status === 'unavailable') vig.push('Une source officielle n’a pas répondu : vérification à compléter.');
      if (v.manualAlerts.length) vig.push('Signal privé non vérifié à confirmer.');
@@ -2975,6 +3481,149 @@
      };
    }
    
+   
+   /* ---------- English version of the standard analysis ---------- */
+   const enYears = (n) => `${n} year${n > 1 ? 's' : ''}`;
+   const enN = (n, one, many) => `${n} ${n > 1 ? many : one}`;
+   const enLow = (t) => lowerFirst(tr(t || ''));
+   const enPct = (x, sign) => fmtPct(x, sign);
+   
+   function buildFallbackAnalysisEN(v) {
+     const s = v.score;
+     const fin = v.fin;
+     const latest = fin.latest;
+     const age = ageInYears(v.dateCreation);
+     const b = v.sources.bodacc;
+     const a = v.sources.alim;
+     const closure = v.veille.find((e) => /^fermeture/.test(e.type));
+     const alimLast = a.status === 'ok' ? a.items[0] : null;
+     const eff = v.effectif !== NA ? tr(v.effectif).toLowerCase() : null;
+   
+     const profil = [
+       `${v.raison} is ${v.active ? 'an active' : 'a ceased'} company${v.forme !== NA ? ` incorporated as ${tr(v.forme)}` : ''}, registered under SIREN ${v.siren}${v.dateCreation ? ` and created on ${fmtDate(v.dateCreation)}` : ''}${age !== null ? `, i.e. ${enYears(age)} in business` : ''}.`,
+       v.nafLabel ? `Its main activity is ${enLow(v.nafLabel)} (NAF code ${v.naf})${v.city ? `, from a registered office in ${v.city}` : ''}.` : (v.city ? `Its registered office is in ${v.city}.` : ''),
+       eff ? `The headcount declared in the Sirene register is ${eff}${v.company.annee_tranche_effectif_salarie ? ` (data from ${v.company.annee_tranche_effectif_salarie})` : ''}${v.categorie !== NA ? `, placing it in the ${tr(v.categorie)} category` : ''}.` : 'The headcount is not disclosed.',
+       v.nbEtab !== null ? `It has ${enN(v.nbEtab, 'establishment', 'establishments')}${v.nbEtabOpen !== null ? `, ${v.nbEtabOpen} of them open` : ''}.` : '',
+       v.dirigeants.length ? `Declared governance comprises ${enN(v.dirigeants.length, 'officer', 'officers')}${v.dirigeants.some((d) => !isLegalPerson(d) && d.nom) ? `, including ${v.dirigeants.filter((d) => !isLegalPerson(d) && d.nom).slice(0, 2).map((d) => `${[d.prenoms, d.nom].filter(Boolean).join(' ')} (${tr(d.qualite || 'Dirigeant').toLowerCase()})`).join(' and ')}` : ''}${v.dirigeants.some(isLegalPerson) ? `, as well as the holding company ${v.dirigeants.filter(isLegalPerson).map((d) => d.denomination).filter(Boolean).join(', ')}` : ''}.` : 'No director is declared in public sources.',
+       (() => { const l = linkedStats(v); return l && l.count ? `The director(s) also hold office in ${enN(l.count, 'other company', 'other companies')}${l.closed ? `, ${l.closed} of which ceased` : ', all active'}.` : ''; })()
+     ].filter(Boolean).join(' ');
+   
+     const finParts = [];
+     if (latest) {
+       const years = fin.rows.map((r) => r.year);
+       finParts.push(`Published accounts cover ${years.length > 1 ? `financial years ${years[0]} to ${years[years.length - 1]}` : `financial year ${years[0]}`}.`);
+       if (latest.ca !== null) finParts.push(`Revenue for the latest year stands at ${fmtEuro(latest.ca)}${fin.growth !== null ? `, ${fin.growth >= 0 ? 'up' : 'down'} ${fmtPct(Math.abs(fin.growth))} year on year` : ''}.`);
+       else finParts.push(`Revenue for ${latest.year} is not disclosed (reported as zero or confidential), so activity and margin cannot be measured.`);
+       if (latest.resultat !== null) finParts.push(`Net income is ${fmtEuro(latest.resultat)}, ${latest.resultat > 0 ? 'so the year was profitable' : latest.resultat < 0 ? 'so the year was loss-making' : 'at break-even'}${fin.margin !== null ? `, a net margin of ${fmtPct(fin.margin)}` : ''}.`);
+       const res = fin.rows.map((r) => r.resultat).filter((x) => x !== null);
+       if (res.length >= 2) finParts.push(res[res.length - 1] >= res[res.length - 2] ? 'Profitability improved compared with the previous year.' : 'Profitability deteriorated compared with the previous year.');
+     } else {
+       finParts.push('No annual accounts are published in open sources: the financial assessment relies only on identity, age and size.');
+     }
+     const lastPub = [...fin.rows].reverse().find((r) => r.ca !== null);
+     if (lastPub && (!latest || latest.ca === null)) finParts.push(`The latest published revenue is ${fmtEuro(lastPub.ca)} (year ${lastPub.year})${lastPub.resultat !== null && lastPub.ca ? `, with a net margin of ${fmtPct(lastPub.resultat / lastPub.ca)}` : ''}${lastPub.ebe ? ` and EBITDA of ${fmtEuro(lastPub.ebe)}` : ''}.`);
+     if (v.estimate.available && v.estimate.kind === 'historique') finParts.push(`In the absence of a more recent filing, we use an estimated revenue of around ${fmtCompact(v.estimate.central)} (range ${fmtCompact(v.estimate.low)} to ${fmtCompact(v.estimate.high)}).`);
+     else if (v.estimate.available) finParts.push(`As an indication, a company of this size achieving its sector’s average revenue (${tr(v.estimate.sector)}) would reach about ${fmtCompact(v.estimate.central)} a year (range ${fmtCompact(v.estimate.low)} to ${fmtCompact(v.estimate.high)}); this estimate does not come from the accounts.`);
+     const resTrend = fin.rows.filter((r) => r.resultat !== null);
+     if (resTrend.length >= 2) finParts.push(`Net income moved from ${fmtEuro(resTrend[0].resultat)} (${resTrend[0].year}) to ${fmtEuro(resTrend[resTrend.length - 1].resultat)} (${resTrend[resTrend.length - 1].year}).`);
+     const rb = latestRatios(v);
+     if (rb) {
+       const bits = [];
+       if (rb.autonomie !== null) bits.push(rb.autonomie < 0 ? `negative equity (equity ratio of ${fmtPct(rb.autonomie / 100)})` : `an equity ratio of ${fmtPct(rb.autonomie / 100)}`);
+       if (rb.endettement !== null) bits.push(`gearing of ${fmtPct(rb.endettement / 100)}`);
+       if (rb.liquidite !== null) bits.push(`a current ratio of ${rb.liquidite.toFixed(2)}`);
+       if (rb.dpo !== null) bits.push(`an average supplier payment period of ${Math.round(rb.dpo)} days`);
+       if (bits.length) finParts.push(`The balance sheet at ${fmtDate(rb.date)} shows ${bits.join(', ')}.`);
+     } else {
+       finParts.push('The detailed balance sheet (equity, debt, cash) is not published in open sources, which limits the assessment of financial strength.');
+     }
+   
+     const sig = [];
+     sig.push(v.active ? 'The company is active in the Sirene register.' : `The company is recorded as ceased${v.dateFermeture ? ` since ${fmtDate(v.dateFermeture)}` : ''}.`);
+     v.veille.forEach((e) => sig.push(`On ${fmtDate(e.date)}, our watch recorded a measure of ${enLow(e.titre)} ordered by the ${enLow(e.autorite)} against the establishment ${tr(e.etablissement)}. ${tr(e.faits)} ${tr(e.suite)}`));
+     if (b.status === 'ok') {
+       const last = b.items[0];
+       sig.push(`${enN(b.items.length, 'notice appears', 'notices appear')} in the BODACC, the most recent on ${fmtDate(last.date)} (${enLow(last.type || last.famille)}).${hasCollective(v) ? ' One of them relates to insolvency proceedings.' : ' None relates to insolvency proceedings.'}`);
+     } else if (b.status === 'none') sig.push('No notice was found in the BODACC for this SIREN, in particular no insolvency proceedings.');
+     else if (b.status === 'unavailable') sig.push('The BODACC could not be queried: the absence of insolvency proceedings remains to be confirmed.');
+     if (alimLast) sig.push(`The latest published official health inspection (${fmtDate(alimLast.date)}) rated hygiene as “${tr(alimLast.result)}”.`);
+     else if (a.status === 'none') sig.push('No recent health inspection result is published on Alim’confiance.');
+     else if (a.status === 'unavailable') sig.push('Health inspection results could not be checked.');
+     if (v.manualAlerts.length) sig.push(`${enN(v.manualAlerts.length, 'private note flags', 'private notes flag')} an additional risk, not verified at this stage.`);
+   
+     const forts = [];
+     const vig = [];
+     if (v.active) forts.push('Company active in the Sirene register.');
+     if (age !== null && age >= 5) forts.push(`${enYears(age)} in business, a sign of commercial stability.`);
+     if (TRANCHE_RANGES[v.company.tranche_effectif_salarie] && TRANCHE_RANGES[v.company.tranche_effectif_salarie][0] >= 10) forts.push(`Substantial organisation: ${eff}.`);
+     if (latest && latest.resultat !== null && latest.resultat > 0) forts.push(`Latest published year profitable (${fmtEuro(latest.resultat)}).`);
+     if (fin.growth !== null && fin.growth > 0) forts.push(`Revenue growing (${fmtPct(fin.growth, true)}).`);
+     if (b.status === 'none' || (b.status === 'ok' && !hasCollective(v))) forts.push('No insolvency proceedings found in the BODACC.');
+     if (v.dirigeants.length) forts.push('Governance identified in the register.');
+     if (closure) vig.push(`${tr(VEILLE_TYPES[closure.type])} ordered on ${fmtDate(closure.date)} (${tr(closure.autorite)}): risk of business interruption and reputational damage.`);
+     if (hasCollective(v)) vig.push('Insolvency notice in the BODACC.');
+     if (worstAlim(v) === 'bad' || worstAlim(v) === 'warn') vig.push(`Unfavourable health inspection (“${tr(alimLast.result)}”).`);
+     if (latest && latest.ca === null) vig.push('Revenue not disclosed: activity and margin cannot be measured.');
+     if (latest && latest.resultat !== null && latest.resultat <= 0) vig.push('Latest financial year loss-making or break-even.');
+     if (fin.margin !== null && fin.margin > 0 && fin.margin < 0.02) vig.push(`Low net margin (${fmtPct(fin.margin)}): little capacity to absorb a shock.`);
+     if (!latest) vig.push('No published accounts.');
+     const rv = latestRatios(v);
+     if (rv && rv.autonomie !== null && rv.autonomie < 0) vig.unshift('Negative equity: the financial structure does not protect creditors.');
+     if (rv && rv.liquidite !== null && rv.liquidite < 1) vig.push(`Current ratio below 1 (${rv.liquidite.toFixed(2)}): possible cash strain.`);
+     if (rv && rv.dpo !== null && rv.dpo > 60) vig.push(`High average supplier payment period (${Math.round(rv.dpo)} days).`);
+     if (rv && rv.autonomie !== null && rv.autonomie >= 30) forts.push(`Good equity ratio (${fmtPct(rv.autonomie / 100)}).`);
+     if (rv && rv.liquidite !== null && rv.liquidite >= 1.5) forts.push(`Comfortable liquidity (${rv.liquidite.toFixed(2)}).`);
+     if (age !== null && age < 3) vig.push('Young company (under 3 years).');
+     if (b.status === 'unavailable' || a.status === 'unavailable') vig.push('An official source did not respond: further checks needed.');
+     if (v.manualAlerts.length) vig.push('Unverified private signal to confirm.');
+     const lsv = linkedStats(v);
+     if (lsv && lsv.closed >= 2) vig.push(`The director’s network includes ${lsv.closed} ceased companies: check the circumstances.`);
+     if (lsv && lsv.count >= 1 && lsv.closed === 0) forts.push(`Experienced director: ${enN(lsv.count, 'other active company', 'other active companies')}.`);
+     if (!v.active) vig.unshift('Company ceased.');
+   
+     const grade = s.grade;
+     let recommandation;
+     if (!v.active) recommandation = 'As the company has ceased trading, we advise against any new business relationship on credit; existing receivables should be declared and monitored without delay.';
+     else if (hasCollective(v)) recommandation = 'The insolvency notice calls for the utmost caution: we recommend trading on cash terms only and checking with the court-appointed administrator how to file a claim.';
+     else if (closure && s.recentClosure) recommandation = `Despite ${age !== null && age >= 5 ? 'a reassuring age and size' : 'sound identity data'}, the administrative closure ordered on ${fmtDate(closure.date)} is a major operational risk signal: a business interruption weighs directly on cash flow. We recommend making any new exposure conditional on confirmation that trading has resumed and on suitable guarantees.`;
+     else if (grade === 'A') recommandation = 'The profile emerging from public data is favourable. A business relationship on standard terms is possible, with periodic monitoring of legal notices.';
+     else if (grade === 'B') recommandation = 'The profile is fair, with no major adverse signal. We recommend standard terms with close monitoring of due dates and a review when the next accounts are published.';
+     else if (grade === 'C') recommandation = 'Several factors call for caution. We recommend limiting exposure, shortening payment terms and completing the file before any significant commitment.';
+     else recommandation = 'Public data point to a high risk. We recommend payment on order or solid guarantees before any delivery.';
+   
+     const conditions = {
+       paiement: { A: 'Your usual payment terms, within the legal limit.', B: 'Usual terms, with a reminder at the first delay.', C: 'Short term (30 days maximum) or deposit on order.', D: 'Payment on order or cash.' }[grade],
+       garanties: { A: 'No specific guarantee needed based on public data.', B: 'Credit insurance recommended above your usual threshold.', C: 'Deposit, personal guarantee from the director or credit insurance cover.', D: 'Payment in advance, bank guarantee or personal guarantee.' }[grade],
+       suivi: closure ? 'Written confirmation that trading has resumed, then a monthly review of published notices and inspections.' : grade === 'A' ? 'Annual review, and whenever new accounts are published.' : 'Quarterly review of legal notices and accounts.'
+     };
+   
+     const verifications = [];
+     if (closure) verifications.push('Obtain proof that the closure order has been lifted (prefectoral order or letter) and that trading has actually resumed.');
+     if (latest && latest.ca === null) verifications.push('Request the tax return or latest full balance sheet to establish revenue and financial structure.');
+     else verifications.push('Obtain the latest full balance sheet (equity, debt, cash).');
+     verifications.push('Check the beneficial owners (INPI register) and that no asset freeze applies.');
+     verifications.push('Require bank details in the exact name of the entity and compare payment history with your own accounts.');
+   
+     return {
+       synthese: [
+         `${v.raison} has an indicative score of ${s.total}/100 (grade ${s.grade}, ${tr(s.risk).toLowerCase()} risk).`,
+         closure ? `The file is marked by an ${enLow(VEILLE_TYPES[closure.type])} ordered on ${fmtDate(closure.date)} by the ${enLow(closure.autorite)}, which weighs on the risk assessment.` : '',
+         hasCollective(v) ? 'An insolvency notice appears in the BODACC.' : '',
+         age !== null ? `The company has been in business for ${enYears(age)} and ${eff ? `has a headcount of ${eff}` : 'does not disclose its headcount'}.` : '',
+         latest ? (latest.ca !== null ? `Its latest published accounts (${latest.year}) show revenue of ${fmtEuro(latest.ca)} and net income of ${fmtEuro(latest.resultat)}.` : `Its latest published accounts (${latest.year}) show net income of ${fmtEuro(latest.resultat)}, with no revenue disclosed.`) : 'No accounts are published.',
+         `Suggested terms: ${enLow(s.terms)}.`
+       ].filter(Boolean).join(' '),
+       profil,
+       analyse_financiere: finParts.join(' '),
+       signaux: sig.join(' '),
+       points_forts: forts.slice(0, 5),
+       points_vigilance: vig.slice(0, 5),
+       recommandation,
+       conditions,
+       verifications: verifications.slice(0, 5)
+     };
+   }
+   
    /* ---------- Rédaction par le modèle de langage ---------- */
    const AI_SYSTEM_PROMPT = `Tu es analyste crédit B2B senior au sein du cabinet Euro Expert Solvabilité. Tu rédiges, en français, l'analyse d'un dossier de crédit fournisseur destinée à un directeur financier ou à un responsable crédit. Le texte est publié sous la signature du cabinet : écris comme le cabinet (« nous recommandons »), dans un registre professionnel, précis et nuancé.
    
@@ -3005,6 +3654,7 @@
     "verifications": ["2 à 5 éléments"]}
    Chaque élément de liste fait 220 caractères au plus.`;
    const AI_KEY_STORE = 'ees_ai';
+   const AI_EN_SUFFIX = "\n\nIMPORTANT : rédige toutes les valeurs du JSON en anglais britannique professionnel (le lecteur est un directeur financier européen non francophone). Garde les clés JSON en français. Traduis les termes français (BODACC = official French gazette of legal notices, procédure collective = insolvency proceedings, Sirene = French business register) et écris les montants au format « €1,234,567 ».";
    
    const readAIKey = () => { try { return sessionStorage.getItem(AI_KEY_STORE); } catch (e) { return null; } };
    const storeAIKey = (k) => { try { if (k) sessionStorage.setItem(AI_KEY_STORE, k); else sessionStorage.removeItem(AI_KEY_STORE); } catch (e) { /* stockage indisponible */ } };
@@ -3049,7 +3699,7 @@
          model: CONFIG.ai.model,
          max_tokens: 2200,
          system: AI_SYSTEM_PROMPT,
-         messages: [{ role: 'user', content: `<donnees>\n${JSON.stringify(sanitizeFacts(facts), null, 1)}\n</donnees>\n\nRédige l'analyse du dossier au format JSON demandé.` }]
+         messages: [{ role: 'user', content: `<donnees>\n${JSON.stringify(sanitizeFacts(facts), null, 1)}\n</donnees>\n\nRédige l'analyse du dossier au format JSON demandé.${LANG === 'en' ? AI_EN_SUFFIX : ''}` }]
        })
      });
      if (res.status === 401 || res.status === 403) { storeAIKey(null); throw new Error('key_rejected'); }
@@ -3068,7 +3718,7 @@
      return out;
    }
    
-   const analysisKey = (v) => [v.siren, v.score.total, v.sources.linked.status, v.sources.press.status, v.sources.ratios.status, v.sources.ratios.items.length, v.sources.bodacc.status, v.sources.bodacc.items.length, v.sources.alim.status, v.sources.alim.items.length, v.veille.length, v.manualAlerts.length].join('|');
+   const analysisKey = (v) => [LANG, v.siren, v.score.total, v.sources.linked.status, v.sources.press.status, v.sources.ratios.status, v.sources.ratios.items.length, v.sources.bodacc.status, v.sources.bodacc.items.length, v.sources.alim.status, v.sources.alim.items.length, v.veille.length, v.manualAlerts.length].join('|');
    const analysisCache = new Map();
    
    /**
@@ -3097,7 +3747,7 @@
          const res = await fetch(CONFIG.analysisEndpoint, {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ token: session.token, facts: buildAIFacts(v) })
+           body: JSON.stringify({ token: session.token, facts: buildAIFacts(v), lang: LANG })
          });
          const data = await res.json().catch(() => null);
          if (res.ok && data && data.ok && data.analysis) analysis = data.analysis;
@@ -3134,7 +3784,7 @@
      const list = (title, items, cls, icon) => (items && items.length ? `<section class="an-list ${cls}"><h3><i class="fa-solid ${icon}"></i> ${esc(title)}</h3><ul>${items.map((i) => `<li>${boldFigures(esc(i))}</li>`).join('')}</ul></section>` : '');
      const c = a.conditions || {};
      setHTML('ai-analysis',
-       `<p class="an-meta">Analyse établie le ${esc(a.generatedAt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }))} à partir des données du dossier.</p>` +
+       `<p class="an-meta">${lx('Analyse établie le', 'Analysis prepared on')} ${esc(a.generatedAt.toLocaleDateString(LOCALE, { day: '2-digit', month: 'long', year: 'numeric' }))}${lx(' à partir des données du dossier.', ' from the file data.')}</p>` +
        `<p class="an-lead">${boldFigures(esc(a.synthese))}</p>` +
        `<div class="an-grid">${para('Profil de l’entreprise', a.profil, 'fa-building')}${para('Analyse financière', a.analyse_financiere, 'fa-chart-line')}${para('Signaux de risque', a.signaux, 'fa-triangle-exclamation')}</div>` +
        `<div class="an-grid an-grid--2">${list('Points forts', a.points_forts, 'an-list--ok', 'fa-circle-check')}${list('Points de vigilance', a.points_vigilance, 'an-list--warn', 'fa-circle-exclamation')}</div>` +
@@ -3166,9 +3816,10 @@
      const known = Object.keys(PENALTY_RATES).sort();
      return { rate: PENALTY_RATES[known[known.length - 1]], exact: false };
    }
-   const fmtNum = (n, d = 2) => cleanSpaces(new Intl.NumberFormat('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d }).format(n));
-   const fmtEur2 = (n) => `${fmtNum(n, 2)} €`;
-   const parseAmount = (val) => { const n = parseFloat(String(val || '').replace(/\s/g, '').replace(',', '.')); return Number.isFinite(n) ? n : null; };
+   let fmtLocale = LOCALE; // forcé en français pendant la rédaction des courriers
+   const fmtNum = (n, d = 2) => cleanSpaces(new Intl.NumberFormat(fmtLocale, { minimumFractionDigits: d, maximumFractionDigits: d }).format(n));
+   const fmtEur2 = (n) => (fmtLocale === 'en-GB' ? `${n < 0 ? '-' : ''}€${fmtNum(Math.abs(n), 2)}` : `${fmtNum(n, 2)} €`);
+   const parseAmount = (val) => { const raw = String(val || '').replace(/\s/g, ''); const n = parseFloat(LANG === 'en' ? raw.replace(/,/g, '') : raw.replace(',', '.')); return Number.isFinite(n) ? n : null; };
    const isoToday = () => new Date().toISOString().slice(0, 10);
    const daysBetween = (a, b) => Math.round((new Date(`${b}T00:00:00`) - new Date(`${a}T00:00:00`)) / 86400000);
    
@@ -3466,7 +4117,10 @@
    }
    
    /* ---------------- Courriers de recouvrement ---------------- */
-   function buildLetter(kind) {
+   /** Les courriers sont rédigés en français (langue du débiteur), avec les formats français. */
+   function buildLetter(kind) { fmtLocale = 'fr-FR'; try { return buildLetterFR(kind); } finally { fmtLocale = LOCALE; } }
+   
+   function buildLetterFR(kind) {
      const v = state.view;
      if (!v) return '';
      const me = $('letter-me').value.trim();
@@ -3516,6 +4170,7 @@
       ============================================================================= */
    const ACTIONS = {
      home: resetToHome,
+     lang: switchLang,
      theme: toggleTheme,
      lock: () => lockSession(),
      search: () => executeSearch(),
@@ -3538,6 +4193,13 @@
    };
    
    function init() {
+     document.querySelectorAll('[data-action="lang"]').forEach((b) => {
+       const code = b.querySelector('.lang-code');
+       if (code) code.textContent = LANG === 'en' ? 'FR' : 'EN';
+       const label = LANG === 'en' ? 'Version française' : 'English version';
+       b.setAttribute('aria-label', label); b.setAttribute('title', label); b.setAttribute('lang', LANG === 'en' ? 'fr' : 'en');
+     });
+     startTranslator();
      initAuth();
      watchSessionExpiry();
      const codeInput = $('access-code-input');
@@ -3582,6 +4244,10 @@
      document.addEventListener('keydown', (e) => {
        if (e.key === 'Escape') { hideAutocomplete(); closeManagerPanel(); }
      });
+     try {
+       const reopen = sessionStorage.getItem('ees_reopen');
+       if (reopen) { sessionStorage.removeItem('ees_reopen'); if (readSession() && /^\d{9}$/.test(reopen)) triggerSearchBySiren(reopen); }
+     } catch (e) { /* stockage indisponible */ }
    }
    
    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
