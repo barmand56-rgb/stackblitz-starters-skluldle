@@ -161,7 +161,7 @@
       VEILLE EURO EXPERT SOLVABILITÉ — informations relevées et sourcées par vos soins,
       affichées à TOUS vos clients (contrairement aux notes privées saisies dans le navigateur).
       Une entrée = un fait daté, avec au moins une source publique. Ajoutez-en en copiant le modèle.
-      type : 'fermeture_sanitaire' | 'fermeture_autre' | 'incident'
+      type : 'fermeture_sanitaire' | 'fermeture_autre' | 'sanction' (amende, retrait d'agrément, sanction DGCCRF, URSSAF…) | 'incident'
       ============================================================================= */
    const VEILLE = Object.freeze([
      {
@@ -182,7 +182,7 @@
        ]
      }
    ]);
-   const VEILLE_TYPES = Object.freeze({ fermeture_sanitaire: 'Fermeture administrative sanitaire', fermeture_autre: 'Fermeture administrative', incident: 'Incident relevé' });
+   const VEILLE_TYPES = Object.freeze({ fermeture_sanitaire: 'Fermeture administrative sanitaire', fermeture_autre: 'Fermeture administrative', sanction: 'Sanction administrative', incident: 'Incident relevé' });
    const veilleFor = (siren) => VEILLE.filter((e) => e.siren === siren).sort((a, b) => b.date.localeCompare(a.date));
    const monthsSince = (iso) => { const d = new Date(`${iso}T00:00:00`); return Number.isNaN(d.getTime()) ? null : (Date.now() - d.getTime()) / (30.44 * 24 * 3600 * 1000); };
    
@@ -1216,12 +1216,32 @@
      const collective = !closed && flags.collective === true;
      if (collective) add('Procédure collective', 0, 0, 'Annonce de procédure collective au BODACC : note plafonnée à 30');
    
-     // Veille : fermeture administrative récente (≤ 12 mois) = −25 points et note plafonnée à 59 ; plus ancienne (≤ 36 mois) = −10 points.
-     const closures = (flags.veille || []).filter((e) => /^fermeture/.test(e.type));
-     const recent = closures.find((e) => { const m = monthsSince(e.date); return m !== null && m <= 12; });
-     const older = !recent && closures.find((e) => { const m = monthsSince(e.date); return m !== null && m <= 36; });
-     if (recent) add('Incidents relevés par la veille', -25, 0, `${VEILLE_TYPES[recent.type]} le ${fmtDate(recent.date)} : −25 points, note plafonnée à 59`);
-     else if (older) add('Incidents relevés par la veille', -10, 0, `${VEILLE_TYPES[older.type]} le ${fmtDate(older.date)} : −10 points`);
+     /* Mesures de l'État (veille) — barème volontairement sévère :
+        fermeture administrative : ≤ 12 mois −40 et note plafonnée à 35 (grade D) ; 12 à 24 mois −25 et plafond 50 ; 24 à 36 mois −15 et plafond 74.
+        sanction administrative   : ≤ 12 mois −30 et plafond 44 (grade D) ; 12 à 24 mois −15 et plafond 59 ; 24 à 36 mois −8 et plafond 74.
+        incident relevé           : ≤ 12 mois −10.
+        Contrôle sanitaire « à corriger de manière urgente » (Alim'confiance, ≤ 12 mois) : −20 et plafond 44,
+        sauf s'il est lié à une fermeture déjà comptée (moins de 60 jours d'écart) ; « à améliorer » : −5. */
+     const measures = (flags.veille || []).map((e) => ({ e, m: monthsSince(e.date) })).filter((x) => x.m !== null && x.m <= 36);
+     let cap = 100;
+     let recent = null;
+     const scale = { fermeture: [[12, -40, 35], [24, -25, 50], [36, -15, 74]], sanction: [[12, -30, 44], [24, -15, 59], [36, -8, 74]], incident: [[12, -10, 100]] };
+     measures.forEach(({ e, m }) => {
+       const kind = /^fermeture/.test(e.type) ? 'fermeture' : e.type === 'sanction' ? 'sanction' : 'incident';
+       const step = scale[kind].find(([max]) => m <= max);
+       if (!step) return;
+       const [, pts, c] = step;
+       cap = Math.min(cap, c);
+       if (kind !== 'incident' && m <= 24 && (!recent || e.date > recent.date)) recent = e;
+       add(kind === 'fermeture' ? 'Fermeture administrative' : kind === 'sanction' ? 'Sanction administrative' : 'Incident relevé', pts, 0,
+         `${VEILLE_TYPES[e.type]} le ${fmtDate(e.date)} : ${pts} points${c < 100 ? `, note plafonnée à ${c}` : ''}`);
+     });
+     const urgent = (flags.alim || []).find((i) => /urgent/i.test(i.result) && monthsSince(i.date) !== null && monthsSince(i.date) <= 12);
+     const linked = urgent && (flags.veille || []).some((e) => /^fermeture/.test(e.type) && Math.abs(daysBetweenIso(e.date, urgent.date)) <= 60);
+     if (urgent && !linked) { add('Contrôle sanitaire officiel', -20, 0, `« ${urgent.result} » le ${fmtDate(urgent.date)} : −20 points, note plafonnée à 44`); cap = Math.min(cap, 44); }
+     else if (urgent && linked) add('Contrôle sanitaire officiel', 0, 0, `« ${urgent.result} » le ${fmtDate(urgent.date)} : déjà pris en compte avec la fermeture`);
+     const improve = !urgent && (flags.alim || []).find((i) => /am[ée]liorer/i.test(i.result) && monthsSince(i.date) !== null && monthsSince(i.date) <= 12);
+     if (improve) add('Contrôle sanitaire officiel', -5, 0, `« ${improve.result} » le ${fmtDate(improve.date)} : −5 points`);
    
      const r = flags.ratios;
      if (r && r.autonomie !== null && r.autonomie < 0) add('Solidité du bilan', -10, 0, `Capitaux propres négatifs au ${fmtDate(r.date)} (autonomie financière ${fmtPct(r.autonomie / 100)})`);
@@ -1229,15 +1249,17 @@
      let total = Math.max(0, criteria.reduce((sum, c) => sum + c.pts, 0));
      if (closed) total = Math.min(total, 20);
      if (collective) total = Math.min(total, 30);
-     if (recent) total = Math.min(total, 59);
+     total = Math.min(total, cap);
    
      let grade, label, risk, tone, terms;
      if (closed) {
        grade = 'D'; label = 'Entreprise cessée'; risk = 'Critique'; tone = 'red'; terms = 'Paiement à la commande conseillé';
      } else if (collective) {
        grade = 'D'; label = 'Procédure collective signalée'; risk = 'Élevé'; tone = 'red'; terms = 'Paiement à la commande conseillé';
-     } else if (recent && total >= 45) {
-       grade = 'C'; label = 'Fermeture administrative récente'; risk = 'Élevé'; tone = 'amber'; terms = 'Terme court ou garanties conseillés';
+     } else if (recent && total < 45) {
+       grade = 'D'; label = /^fermeture/.test(recent.type) ? 'Fermeture administrative récente' : 'Sanction administrative récente'; risk = 'Très élevé'; tone = 'red'; terms = 'Paiement à la commande conseillé';
+     } else if (recent) {
+       grade = 'C'; label = /^fermeture/.test(recent.type) ? 'Fermeture administrative récente' : 'Sanction administrative récente'; risk = 'Élevé'; tone = 'amber'; terms = 'Terme court ou garanties conseillés';
      } else if (total >= 75) {
        grade = 'A'; label = 'Profil favorable'; risk = 'Faible'; tone = 'emerald'; terms = 'Conditions usuelles';
      } else if (total >= 60) {
@@ -1247,9 +1269,11 @@
      } else {
        grade = 'D'; label = 'Risque élevé'; risk = 'Élevé'; tone = 'red'; terms = 'Paiement à la commande conseillé';
      }
+     if (!closed && !collective && !recent && urgent && !linked) label = 'Contrôle sanitaire défavorable';
      return { total, grade, label, risk, tone, terms, criteria, closed, collective, recentClosure: recent || null };
    }
    
+   const daysBetweenIso = (a, b) => Math.round((new Date(`${a}T00:00:00`) - new Date(`${b}T00:00:00`)) / 86400000);
    const fmtPts = (c) => (c.max === 0 ? (c.pts < 0 ? `−${Math.abs(c.pts)}` : '—') : `${c.pts} / ${c.max}`);
    
    /* =============================================================================
@@ -1330,7 +1354,7 @@
    function buildView(company) {
      const siege = company.siege || {};
      const dirigeants = Array.isArray(company.dirigeants) ? company.dirigeants : [];
-     const fin = summarizeFinances(parseFinances(company));
+     const { fin, estimate } = computeFinance(company, []);
      const raison = String(company.nom_complet || company.nom_raison_sociale || company.nom || 'ENTREPRISE');
      const nature = company.nature_juridique ? String(company.nature_juridique) : '';
    
@@ -1339,7 +1363,7 @@
        siege,
        dirigeants,
        fin,
-       estimate: fin.rows.some((r) => r.ca !== null) ? { available: false, reason: 'Chiffre d’affaires publié.' } : estimateRevenue(company),
+       estimate,
        analysis: null,
        sources: newSources(company.activite_principale),
        manualAlerts: [],
@@ -1384,7 +1408,9 @@
      return {
        bodacc: { status: 'loading', items: [], attempts: [] },
        alim: { status: FOOD_NAF.test(naf || '') ? 'loading' : 'na', items: [], attempts: [] },
-       ratios: { status: 'loading', items: [], attempts: [] }
+       ratios: { status: 'loading', items: [], attempts: [] },
+       linked: { status: 'loading', persons: [], holdings: [], attempts: [] },
+       press: { status: 'loading', items: [], attempts: [] }
      };
    }
    
@@ -1529,7 +1555,8 @@
      const rec = lowerKeys(raw);
      const caRaw = numField(rec, /chiffre_?d?_?affaires/, /variation|evolution|taux/);
      const ca = caRaw === 0 ? null : caRaw; // 0 = non communiqué
-     const ebe = numField(rec, /^ebe$|excedent_brut/);
+     const ebeRaw = numField(rec, /^ebe$|excedent_brut/);
+     const ebe = ebeRaw === 0 && ca === null ? null : ebeRaw; // 0 avec un CA non publié = non communiqué
      return {
        date: String(pickField(rec, /date_cloture|cloture/) || '').slice(0, 10),
        typeBilan: String(pickField(rec, /type_bilan/) || ''),
@@ -1540,7 +1567,7 @@
        margeEbe: ca && ca > 0 ? (ebe !== null ? (ebe / ca) * 100 : asPct(numField(rec, /marge_ebe/))) : null,
        endettement: asPct(numField(rec, /endettement/)),
        autonomie: asPct(numField(rec, /autonomie/)),
-       liquidite: numField(rec, /liquidit/),
+       liquidite: (() => { const l = numField(rec, /liquidit/); return l !== null && Math.abs(l) > 10 ? l / 100 : l; })(), // publié en % (104,95) ou en ratio (1,05)
        dso: numField(rec, /credit_?client|client.*jours|delai.*client/),
        dpo: numField(rec, /credit_?fournisseur|fournisseur.*jours|delai.*fournisseur/),
        bfrJours: numField(rec, /bfr/),
@@ -1573,6 +1600,8 @@
      if (!/^\d{9}$/.test(v.siren)) {
        v.sources.bodacc.status = 'unavailable';
        v.sources.ratios.status = 'unavailable';
+       v.sources.linked.status = 'unavailable';
+       v.sources.press.status = 'unavailable';
        if (v.sources.alim.status === 'loading') v.sources.alim.status = 'unavailable';
        return refreshSourced(v);
      }
@@ -1581,18 +1610,33 @@
      await Promise.all(jobs.map((j) => j.catch((e) => { console.error('Source :', e); })));
      ['bodacc', 'alim', 'ratios'].forEach((k) => { if (v.sources[k].status === 'loading') v.sources[k].status = 'unavailable'; });
      refreshSourced(v);
+     // Sources complémentaires (plus lentes) : réseau des dirigeants et presse, puis nouvelle mise à jour
+     await Promise.all([
+       loadLinked(v).then((r) => { v.sources.linked = r; }).catch(() => { v.sources.linked = { status: 'unavailable', persons: [], holdings: [], attempts: [] }; }),
+       loadPress(v).then((r) => { v.sources.press = r; }).catch(() => { v.sources.press = { status: 'unavailable', items: [], attempts: [] }; })
+     ]);
+     refreshSourced(v);
    }
    
    /** Recalcule ce qui dépend des sources (note, alertes) puis redessine — uniquement si le dossier est toujours affiché. */
    function refreshSourced(v) {
      if (state.view !== v) return;
-     v.score = computeScore(v.company, v.fin, v.dirigeants, { collective: hasCollective(v), veille: v.veille, ratios: latestRatios(v) });
+     const cf = computeFinance(v.company, v.sources.ratios.status === 'ok' ? v.sources.ratios.items : []);
+     v.fin = cf.fin;
+     v.estimate = cf.estimate;
+     v.score = computeScore(v.company, v.fin, v.dirigeants, { collective: hasCollective(v), veille: v.veille, ratios: latestRatios(v), alim: v.sources.alim.status === 'ok' ? v.sources.alim.items : [] });
      renderVerdict(v);
      renderAlerts(v);
      renderSignals(v);
      renderAlertsTab(v);
      renderSourcesTab(v);
+     renderRevenue(v);
+     renderKpis(v);
+     renderFinances(v);
      renderRatios(v);
+     renderGroup(v);
+     renderPress(v);
+     renderHeader(v);
      renderDiag(v);
      if (isWatched(v.siren)) {
        const changes = updateWatchEntry(v);
@@ -1653,7 +1697,7 @@
    const chip = (text, tone = '', icon = '') =>
      `<span class="chip${tone ? ` chip--${tone}` : ''}">${icon ? `<i class="fa-solid ${icon}"></i>` : ''}${esc(text)}</span>`;
    const dotRow = (label, tone, value) =>
-     `<div class="row"><span class="row__k"><span class="dot dot--${tone}"></span>${esc(label)}</span><span class="row__v">${esc(value)}</span></div>`;
+     `<div class="row"><span class="row__k"><span class="dot dot--${tone}"></span>${esc(label)}</span><span class="row__v ${tone === 'bad' || tone === 'warn' || tone === 'ok' ? `v-${tone}` : ''}">${esc(value)}</span></div>`;
    const extLink = (href, label, icon = 'fa-arrow-up-right-from-square') =>
      `<a class="btn btn--small" href="${esc(href)}" target="_blank" rel="noopener noreferrer"><i class="fa-solid ${icon}"></i> ${esc(label)}</a>`;
    const auditButton = (siren) =>
@@ -1687,6 +1731,7 @@
      renderFinances(view);
      renderRatios(view);
      renderGroup(view);
+     renderPress(view);
      renderAlertsTab(view);
      renderSourcesTab(view);
      renderDiag(view);
@@ -1711,6 +1756,7 @@
      if (v.forme !== NA) chips.push(chip(v.forme));
      if (FOOD_NAF.test(v.naf)) chips.push(chip('Activité alimentaire', 'info', 'fa-utensils'));
      if (v.veille.some((e) => /^fermeture/.test(e.type))) chips.push(chip('Fermeture administrative relevée', 'bad', 'fa-ban'));
+     if (v.veille.some((e) => e.type === 'sanction')) chips.push(chip('Sanction administrative relevée', 'bad', 'fa-gavel'));
      v.complements.forEach((c) => chips.push(chip(c, 'ok', 'fa-award')));
      setHTML('company-chips', chips.join(''));
    
@@ -1720,6 +1766,12 @@
        ['Effectif', v.effectif, v.company.annee_tranche_effectif_salarie ? `donnée ${v.company.annee_tranche_effectif_salarie}` : ''], ['Catégorie', v.categorie],
        ['Établissements', etab], ['Siège', [v.postal, v.city].filter(Boolean).join(' ') || NA], ['TVA intracom. (théorique)', vatFromSiren(v.siren)]
      ];
+     const boss = v.dirigeants.find((d) => d.type_dirigeant !== 'personne morale' && d.nom);
+     if (boss) facts.unshift(['Dirigeant', [boss.prenoms, boss.nom].filter(Boolean).join(' '), boss.qualite || 'Dirigeant']);
+     const hold = v.dirigeants.filter((d) => d.type_dirigeant === 'personne morale' && d.denomination);
+     if (hold.length) facts.splice(1, 0, ['Holding', hold.map((d) => d.denomination).join(', '), hold[0].qualite || '']);
+     const ls = linkedStats(v);
+     if (ls) facts.push(['Sociétés liées au dirigeant', String(ls.count), ls.closed ? `dont ${ls.closed} cessée${ls.closed > 1 ? 's' : ''}` : 'toutes actives']);
      if (v.idcc.length) facts.push(['Convention collective', `IDCC ${v.idcc.join(', ')}`]);
      if (v.updatedAt) facts.push(['Données Sirene à jour au', fmtDate(v.updatedAt)]);
      setHTML('company-facts', facts.map(([k, val, sub]) => `<div><dt>${esc(k)}</dt><dd>${esc(val)}${sub ? `<span class="dd-sub">${esc(sub)}</span>` : ''}</dd></div>`).join(''));
@@ -1744,13 +1796,15 @@
      setText('score-label', s.label);
      const sub = s.closed ? 'Entreprise cessée au répertoire Sirene.'
        : s.collective ? 'Une annonce de procédure collective figure au BODACC : lisez-la avant tout engagement.'
-         : s.recentClosure ? `Fermeture administrative prononcée le ${fmtDate(s.recentClosure.date)} : vérifiez la reprise d’activité avant d’accorder un délai.`
+         : s.recentClosure ? `${VEILLE_TYPES[s.recentClosure.type]} le ${fmtDate(s.recentClosure.date)} : ${/^fermeture/.test(s.recentClosure.type) ? 'exigez la preuve de la reprise d’activité' : 'vérifiez la régularisation'} avant toute livraison à crédit.`
          : `Grade ${s.grade} · ${s.risk === 'Faible' ? 'risque faible' : `risque ${s.risk.toLowerCase()}`}, d’après les données publiques consultées.`;
      setText('verdict-sub', sub);
      setText('risk-level', s.risk);
      setText('credit-rating-grade', `Grade ${s.grade}`);
      setText('payment-terms', s.terms);
-     setText('credit-limit', 'Non chiffré');
+     ['risk-level', 'credit-rating-grade', 'payment-terms'].forEach((id) => { const el = $(id); if (el) el.style.color = `var(${tone.css})`; });
+     const pol = POLICY[s.grade] || POLICY.C;
+     setHTML('credit-limit', `${pol.acompte ? `Acompte ${pol.acompte} %` : 'Sans acompte'}, ${pol.delai ? `${pol.delai} j max` : 'comptant'} <button type="button" class="link-btn" data-tab="cat-outils">Simuler →</button>`);
    
      const marker = $('scale-marker');
      if (marker) {
@@ -1767,7 +1821,7 @@
      const tile = (icon, label, value, tone = '') =>
        `<div class="kpi${tone ? ` kpi--${tone}` : ''}"><span class="kpi__i"><i class="fa-solid ${icon}"></i></span><div><div class="kpi__k">${esc(label)}</div><div class="kpi__v">${esc(value)}</div></div></div>`;
      const ca = fin.latest && fin.latest.ca !== null ? tile('fa-chart-column', `Chiffre d’affaires ${fin.latest.year}`, fmtCompact(fin.latest.ca))
-       : est.available ? tile('fa-chart-column', 'CA estimé (non publié)', `≈ ${fmtCompact(est.central)}`, 'warn')
+       : est.available ? tile('fa-chart-column', `CA ${fin.latest ? fin.latest.year : ''} estimé`.replace('  ', ' '), `≈ ${fmtCompact(est.central)}`, 'warn')
          : tile('fa-chart-column', 'Chiffre d’affaires', NA);
      const res = fin.latest && fin.latest.resultat !== null ? tile('fa-scale-balanced', `Résultat net ${fin.latest.year}`, fmtCompact(fin.latest.resultat), fin.latest.resultat < 0 ? 'bad' : 'ok')
        : tile('fa-scale-balanced', 'Résultat net', NA);
@@ -1785,12 +1839,18 @@
      let html;
      if (fin.latest && fin.latest.ca !== null) {
        html = `<div class="stack"><div><div class="big">${esc(fmtEuro(fin.latest.ca))}</div><p class="note">Exercice ${esc(fin.latest.year)} · comptes publiés</p></div>` +
-         rows([['Résultat net', fmtEuro(fin.latest.resultat)], ['Marge nette', fin.margin === null ? NA : fmtPct(fin.margin)], ['Évolution du CA', fin.growth === null ? NA : fmtPct(fin.growth, true)]]) + '</div>';
+         `<div class="rows"><div class="row"><span class="row__k">Résultat net</span><span class="row__v ${toneCls(signTone(fin.latest.resultat))}">${esc(fmtEuro(fin.latest.resultat))}</span></div>` +
+         `<div class="row"><span class="row__k">Marge nette</span><span class="row__v ${toneCls(signTone(fin.margin))}">${esc(fin.margin === null ? '—' : fmtPct(fin.margin))}</span></div>` +
+         `<div class="row"><span class="row__k">Évolution du CA</span><span class="row__v ${toneCls(signTone(fin.growth))}">${esc(fin.growth === null ? '—' : fmtPct(fin.growth, true))}</span></div></div></div>`;
      } else if (fin.latest) {
-       html = `<div class="stack"><div><div class="big">Non communiqué</div><p class="note">Exercice ${esc(fin.latest.year)} : comptes publiés sans chiffre d’affaires (déclaré à 0 ou confidentiel).</p></div>` +
-         rows([['Résultat net publié', fmtEuro(fin.latest.resultat)], ['Marge nette', NA]]) + estimateBox + '</div>';
+       html = est.available
+         ? `<div class="stack"><div><div class="big">≈ ${esc(fmtCompact(est.central))} ${estBadge}</div><p class="note">Chiffre d’affaires ${esc(fin.latest.year)} non publié : estimation par ${esc(est.label)} (fourchette ${esc(fmtCompact(est.low))} à ${esc(fmtCompact(est.high))}).</p></div>` +
+           `<div class="rows"><div class="row"><span class="row__k">Résultat net publié ${esc(fin.latest.year)}</span><span class="row__v ${toneCls(signTone(fin.latest.resultat))}">${esc(fmtEuro(fin.latest.resultat))}</span></div>` +
+           `<div class="row"><span class="row__k">Marge nette estimée</span><span class="row__v">≈ ${esc(fmtPct(fin.latest.resultat / est.central))} ${estBadge}</span></div>` +
+           `<div class="row"><span class="row__k">Base de l’estimation</span><span class="row__v small">${esc(est.kind === 'historique' ? est.source : `${est.sector}, ${est.source}`)}</span></div></div></div>`
+         : `<div class="stack"><div><div class="big">${esc(fmtEuro(fin.latest.resultat))}</div><p class="note">Résultat net ${esc(fin.latest.year)} ; chiffre d’affaires non publié.</p></div></div>`;
      } else if (est.available) {
-       html = `<div class="stack">${estimateBox}<p class="note">Aucun compte n’est publié. Ne vous servez pas de cette fourchette pour fixer un encours.</p></div>`;
+       html = `<div class="stack"><div><div class="big">≈ ${esc(fmtCompact(est.central))} ${estBadge}</div><p class="note">Aucun compte publié : estimation sectorielle (fourchette ${esc(fmtCompact(est.low))} à ${esc(fmtCompact(est.high))}). ${esc(est.basis)}.</p></div></div>`;
      } else {
        html = `<div class="stack"><div class="big">${esc(NA)}</div><p class="note">Aucun compte publié. ${esc(est.reason || '')}</p></div>`;
      }
@@ -1827,127 +1887,396 @@
      const s = v.sources;
      const rows = [
        dotRow('Statut Sirene', v.active ? 'ok' : 'bad', v.active ? 'Active' : 'Cessée'),
-       dotRow('Ancienneté', ageInYears(v.dateCreation) >= 5 ? 'ok' : 'warn', ageInYears(v.dateCreation) === null ? NA : `${ageInYears(v.dateCreation)} an(s)`),
+       dotRow('Ancienneté', ageInYears(v.dateCreation) >= 5 ? 'ok' : 'warn', ageInYears(v.dateCreation) === null ? NA : `${ageInYears(v.dateCreation)} an${ageInYears(v.dateCreation) > 1 ? 's' : ''}`),
        dotRow('Effectif', v.effectif === NA ? 'info' : 'ok', v.effectif),
        dotRow('Comptes publiés', v.fin.latest ? 'ok' : 'warn', v.fin.latest ? `Jusqu’à ${v.fin.latest.year}` : 'Aucun'),
        dotRow('Annonces BODACC', s.bodacc.status === 'ok' ? (hasCollective(v) ? 'bad' : 'warn') : SRC_TONE[s.bodacc.status] || 'info',
-         s.bodacc.status === 'ok' ? `${s.bodacc.items.length} annonce(s)` : SRC_LABEL[s.bodacc.status]),
+         s.bodacc.status === 'ok' ? `${s.bodacc.items.length} annonce${s.bodacc.items.length > 1 ? 's' : ''}` : SRC_LABEL[s.bodacc.status]),
        dotRow('Contrôles sanitaires', s.alim.status === 'ok' ? (worstAlim(v) || 'info') : SRC_TONE[s.alim.status] || 'info',
-         s.alim.status === 'ok' ? `${s.alim.items.length} contrôle(s)` : SRC_LABEL[s.alim.status]),
+         s.alim.status === 'ok' ? `${s.alim.items.length} contrôle${s.alim.items.length > 1 ? 's' : ''}` : SRC_LABEL[s.alim.status]),
        dotRow('Solidité du bilan', (() => { const r = latestRatios(v); return !r || r.autonomie === null ? (s.ratios.status === 'unavailable' ? 'warn' : 'info') : r.autonomie < 0 ? 'bad' : r.autonomie < 15 ? 'warn' : 'ok'; })(),
          (() => { const r = latestRatios(v); if (r && r.autonomie !== null) return `Autonomie ${fmtPct(r.autonomie / 100)}`; return s.ratios.status === 'ok' ? 'Bilan publié' : s.ratios.status === 'none' ? 'Bilan non publié' : SRC_LABEL[s.ratios.status]; })()),
+       dotRow('Réseau des dirigeants', (() => { const l = linkedStats(v); return !l ? (s.linked.status === 'unavailable' ? 'warn' : 'info') : l.closed >= 2 ? 'warn' : 'ok'; })(),
+         (() => { const l = linkedStats(v); if (l) return `${l.count} société${l.count > 1 ? 's' : ''}${l.closed ? `, ${l.closed} cessée${l.closed > 1 ? 's' : ''}` : ''}`; return s.linked.status === 'na' ? 'Sans objet' : SRC_LABEL[s.linked.status]; })()),
+       dotRow('Presse en ligne', s.press.status === 'ok' ? 'info' : SRC_TONE[s.press.status] || 'info', s.press.status === 'ok' ? `${s.press.items.length} article${s.press.items.length > 1 ? 's' : ''}` : SRC_LABEL[s.press.status]),
        dotRow('Veille (fermetures, incidents)', v.veille.length ? 'bad' : 'ok', v.veille.length ? `${v.veille.length} fait${v.veille.length > 1 ? 's' : ''} relevé${v.veille.length > 1 ? 's' : ''}` : 'Rien de relevé'),
        dotRow('Vos notes privées', v.manualAlerts.length ? 'warn' : 'info', v.manualAlerts.length ? `${v.manualAlerts.length} (non vérifiée${v.manualAlerts.length > 1 ? 's' : ''})` : 'Aucune')
      ];
      setHTML('signals-list', rows.join(''));
    }
    
-   function chartSVG(rows) {
-     const W = 600; const H = 270; const L = 58; const R = 12; const T = 22; const B = 34;
-     const vals = rows.flatMap((r) => [r.ca, r.resultat]).filter((x) => x !== null);
+   /* ---------- Valeurs estimées et appréciations (rendu des tableaux) ---------- */
+   const estBadge = '<span class="est" title="Estimation Euro Expert Solvabilité (moyenne sectorielle INSEE), non issue des comptes">est.</span>';
+   const toneCls = (t) => (t ? `v-${t}` : '');
+   const cellNum = (text, tone, estimated) => `<td class="num ${toneCls(tone)}${estimated ? ' is-est' : ''}">${esc(text)}${estimated ? ` ${estBadge}` : ''}</td>`;
+   const signTone = (n) => (n === null || n === undefined ? '' : n < 0 ? 'bad' : n > 0 ? 'ok' : '');
+   
+   /* Repères médians du secteur, quand une source publique les donne (Banque de France, fascicule restauration 2022). */
+   const SECTOR_MEDIANS = Object.freeze({
+     56: { label: 'Restauration (médiane 2022)', source: 'Banque de France, fascicule sectoriel 56', dso: 1, dpo: 38, endettement: 90.8 }
+   });
+   const sectorMedians = (v) => SECTOR_MEDIANS[parseInt(String(v.naf).slice(0, 2), 10)] || null;
+   
+   /** Appréciation standard d'un ratio : [libellé, ton]. Seuils usuels de l'analyse crédit. */
+   function rateRatio(key, val) {
+     if (val === null || val === undefined) return null;
+     const r = (ok, mid, warn) => (ok ? ['Solide', 'ok'] : mid ? ['Correct', 'info'] : warn ? ['À surveiller', 'warn'] : ['Fragile', 'bad']);
+     switch (key) {
+       case 'autonomie': return r(val >= 30, val >= 20, val >= 0);
+       case 'endettement': return r(val <= 50, val <= 100, val <= 200);
+       case 'liquidite': return r(val >= 1.5, val >= 1, val >= 0.8);
+       case 'margeEbe': return r(val >= 10, val >= 5, val >= 0);
+       case 'dpo': return r(val <= 45, val <= 60, val <= 90);
+       case 'dso': return r(val <= 30, val <= 45, val <= 60);
+       case 'ebe': case 'resultat': return val > 0 ? ['Positif', 'ok'] : ['Négatif', 'bad'];
+       case 'couverture': return r(val >= 5, val >= 3, val >= 1.5);
+       case 'capRemb': return r(val <= 3, val <= 4, val <= 6);
+       default: return null;
+     }
+   }
+   const REPERES = Object.freeze({ autonomie: '≥ 20 %', endettement: '≤ 100 %', liquidite: '≥ 1', margeEbe: '≥ 5 %', dpo: '≤ 60 j (légal)', dso: '≤ 45 j', couverture: '≥ 3', capRemb: '≤ 4 ans', ebe: '> 0', resultat: '> 0' });
+   
+   function chartSVG(rows, est) {
+     const W = 600; const H = 270; const L = 58; const R = 12; const T = 26; const B = 34;
+     const data = rows.map((r) => ({ ...r, caEst: r.ca === null ? r.caEst : null, resultat: r.resultat ?? r.resEst ?? null, resIsEst: r.resultat === null && r.resEst !== null && r.resEst !== undefined }));
+     const vals = data.flatMap((r) => [r.ca ?? r.caEst, r.resultat]).filter((x) => x !== null && x !== undefined);
      const max = Math.max(0, ...vals);
      const min = Math.min(0, ...vals);
      const span = max - min || 1;
      const y = (n) => T + ((max - n) / span) * (H - T - B);
-     const gw = (W - L - R) / rows.length;
-     const bw = Math.min(46, gw * 0.26);
-     let out = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Chiffre d’affaires et résultat net par exercice">`;
+     const gw = (W - L - R) / data.length;
+     const bw = Math.min(56, gw * 0.28);
+     let out = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Chiffre d’affaires et résultat net par exercice"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="var(--warn-soft)"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--warn)" stroke-width="2"/></pattern></defs>`;
      for (let i = 0; i <= 4; i += 1) {
        const val = min + (span * i) / 4;
        out += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(val)}" y2="${y(val)}"/><text x="${L - 8}" y="${y(val) + 4}" text-anchor="end">${esc(fmtCompact(val))}</text>`;
      }
-     rows.forEach((r, i) => {
+     data.forEach((r, i) => {
        const cx = L + gw * i + gw / 2;
-       const bar = (value, x, cls) => {
-         if (value === null) return `<text x="${x + bw / 2}" y="${y(0) - 6}" text-anchor="middle">n.d.</text>`;
+       const bar = (value, x, cls, label) => {
+         if (value === null || value === undefined) return '';
          const top = Math.min(y(value), y(0));
-         const height = Math.max(Math.abs(y(value) - y(0)), 1.5);
-         const labelY = value >= 0 ? top - 5 : top + height + 12;
-         return `<rect class="${value < 0 && cls === 'bar-res' ? 'bar-neg' : cls}" x="${x}" y="${top}" width="${bw}" height="${height}" rx="2"/>` +
-           `<text class="val" x="${x + bw / 2}" y="${labelY}" text-anchor="middle">${esc(fmtCompact(value))}</text>`;
+         const height = Math.max(Math.abs(y(value) - y(0)), 2);
+         const labelY = value >= 0 ? top - 6 : top + height + 13;
+         return `<rect class="${cls}" x="${x}" y="${top}" width="${bw}" height="${height}" rx="3"/>` +
+           `<text class="val" x="${x + bw / 2}" y="${labelY}" text-anchor="middle">${esc(label || fmtCompact(value))}</text>`;
        };
-       out += bar(r.ca, cx - bw - 3, 'bar-ca') + bar(r.resultat, cx + 3, 'bar-res');
-       out += `<text x="${cx}" y="${H - 12}" text-anchor="middle">${esc(r.year)}</text>`;
+       out += r.ca !== null ? bar(r.ca, cx - bw - 4, 'bar-ca') : bar(r.caEst, cx - bw - 4, 'bar-est', `≈ ${fmtCompact(r.caEst)} est.`);
+       out += bar(r.resultat, cx + 4, r.resultat !== null && r.resultat < 0 ? 'bar-neg' : r.resIsEst ? 'bar-est' : 'bar-res', r.resIsEst && r.resultat !== null ? `≈ ${fmtCompact(r.resultat)} est.` : undefined);
+       out += `<text x="${cx}" y="${H - 12}" text-anchor="middle" class="yr">${esc(r.year)}</text>`;
      });
+     const hasEst = data.some((r) => r.caEst !== null);
      out += `<line class="axis" x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}"/></svg>` +
-       '<div class="legend"><span><i class="bar-ca" style="background:var(--accent)"></i>Chiffre d’affaires</span><span><i style="background:var(--ok)"></i>Résultat net</span></div>';
+       `<div class="legend"><span><i style="background:var(--accent)"></i>Chiffre d’affaires publié</span>${hasEst ? '<span><i class="lg-est"></i>Chiffre d’affaires estimé</span>' : ''}<span><i style="background:var(--ok)"></i>Résultat net</span></div>`;
      return out;
    }
    
    function renderFinances(v) {
-     const { fin } = v;
+     const { fin, estimate: est } = v;
      if (fin.rows.length === 0) {
-       setHTML('finance-chart', emptyNote('Aucun compte publié n’est accessible via les sources ouvertes pour cette entreprise (comptes non déposés ou confidentiels).'));
-       setHTML('finance-table', emptyNote('Les ratios ne peuvent pas être calculés sans comptes publiés. Autonomie financière, délais de paiement (Paydex, DSO, DPO) et BFR ne figurent pas dans les sources ouvertes.'));
+       setHTML('finance-chart', est.available
+         ? chartSVG([{ year: 'Estimation', ca: null, resultat: null }], est) + '<p class="note">Aucun compte publié : seule l’estimation sectorielle est représentée.</p>'
+         : emptyNote('Aucun compte publié n’est accessible via les sources ouvertes pour cette entreprise (comptes non déposés ou confidentiels).'));
+       setHTML('finance-table', est.available
+         ? `<div class="tbl-wrap"><table class="tbl tbl--fin"><thead><tr><th>Indicateur</th><th class="num">Valeur</th></tr></thead><tbody>` +
+           `<tr><td>Chiffre d’affaires annuel</td>${cellNum(`≈ ${fmtEuro(est.central)}`, '', true)}</tr>` +
+           `<tr><td>Fourchette</td>${cellNum(`${fmtCompact(est.low)} à ${fmtCompact(est.high)}`, '', true)}</tr></tbody></table></div>` +
+           `<p class="note">${estBadge} ${esc(est.basis)}.</p>`
+         : emptyNote('Les ratios ne peuvent pas être calculés sans comptes publiés.'));
        return;
      }
-     setHTML('finance-chart', chartSVG(fin.rows));
-     const body = fin.rows.map((r, i) => {
+     setHTML('finance-chart', chartSVG(fin.rows, est));
+     const rb = latestRatios(v);
+     const head = fin.rows.map((r) => `<th class="num">${esc(r.year)}</th>`).join('');
+     const line = (label, cells, help) => `<tr><td><strong>${esc(label)}</strong>${help ? `<span class="dd-sub">${esc(help)}</span>` : ''}</td>${cells.join('')}</tr>`;
+     const caCells = fin.rows.map((r) => (r.ca !== null ? cellNum(fmtEuro(r.ca), '') : r.caEst ? cellNum(`≈ ${fmtEuro(r.caEst)}`, '', true) : cellNum('Non publié', 'muted')));
+     const resCells = fin.rows.map((r) => (r.resultat !== null ? cellNum(fmtEuro(r.resultat), signTone(r.resultat)) : r.resEst !== null ? cellNum(`≈ ${fmtEuro(r.resEst)}`, signTone(r.resEst), true) : cellNum('Non publié', 'muted')));
+     const marginCells = fin.rows.map((r) => {
+       const res = r.resultat ?? r.resEst;
+       const ca = r.ca ?? r.caEst;
+       if (res === null || res === undefined || !ca) return cellNum('—', 'muted');
+       return cellNum(`${r.ca && r.resultat !== null ? '' : '≈ '}${fmtPct(res / ca)}`, signTone(res), !(r.ca && r.resultat !== null));
+     });
+     const growthCells = fin.rows.map((r, i) => {
        const prev = i > 0 ? fin.rows[i - 1] : null;
-       const margin = r.ca && r.resultat !== null ? fmtPct(r.resultat / r.ca) : NA;
-       const growth = prev && prev.ca && r.ca !== null ? fmtPct((r.ca - prev.ca) / Math.abs(prev.ca), true) : '—';
-       return `<tr><td>${esc(r.year)}</td><td class="num">${esc(r.caHidden ? 'Non communiqué' : fmtEuro(r.ca))}</td><td class="num">${esc(fmtEuro(r.resultat))}</td><td class="num">${esc(margin)}</td><td class="num">${esc(growth)}</td></tr>`;
-     }).join('');
+       if (prev && prev.ca && r.ca !== null) { const g = (r.ca - prev.ca) / Math.abs(prev.ca); return cellNum(fmtPct(g, true), signTone(g)); }
+       return cellNum('—', 'muted');
+     });
+     const rows = [
+       line('Chiffre d’affaires', caCells),
+       line('Résultat net', resCells),
+       line('Marge nette', marginCells, 'Résultat net / chiffre d’affaires'),
+       line('Évolution du chiffre d’affaires', growthCells)
+     ];
+     if (fin.rows.some((r) => r.ebe !== null && r.ebe !== undefined)) {
+       const ebeCells = fin.rows.map((r) => (r.ebe !== null && r.ebe !== undefined ? cellNum(fmtEuro(r.ebe), signTone(r.ebe)) : cellNum('—', 'muted')));
+       rows.splice(1, 0, line('Excédent brut d’exploitation', ebeCells, 'Ce que l’activité dégage avant amortissements'));
+     }
+     if (growthCells.every((c) => c.includes('—'))) rows.pop(); // aucune évolution calculable : ligne masquée
+     const estRows = fin.rows.filter((r) => (r.ca === null && r.caEst) || (r.resultat === null && r.resEst !== null));
+     const anyEst = estRows.length > 0;
      setHTML('finance-table',
-       `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Exercice</th><th class="num">Chiffre d’affaires</th><th class="num">Résultat net</th><th class="num">Marge nette</th><th class="num">Évolution du CA</th></tr></thead><tbody>${body}</tbody></table></div>` +
-       `<p class="note">Non disponibles dans les sources ouvertes : autonomie financière, délais de paiement (Paydex, DSO, DPO), BFR. Aucun plafond d’encours n’est calculé : il dépend de votre exposition et de vos garanties.</p>`);
+       `<div class="tbl-wrap"><table class="tbl tbl--fin"><thead><tr><th>Compte de résultat</th>${head}</tr></thead><tbody>${rows.join('')}</tbody></table></div>` +
+       (anyEst ? `<p class="note">${estBadge} Valeurs estimées par Euro Expert Solvabilité : ${esc([...new Set(estRows.map((r) => (r.ca === null && r.caEst ? `CA ${r.year} par ${r.estBasis}` : '')).filter(Boolean))].join(' ; '))}${estRows.some((r) => r.resultat === null && r.resEst !== null) ? ' ; résultat estimé avec la marge nette moyenne publiée de l’entreprise' : ''}.</p>` : ''));
    }
    
    function renderRatios(v) {
      const src = v.sources.ratios;
      const el = $('ratios-container');
      if (!el) return;
+     const med = sectorMedians(v);
      if (src.status !== 'ok') {
-       el.innerHTML = emptyNote({ loading: 'Consultation des bilans publiés…', none: 'Aucun bilan détaillé publié (comptes confidentiels ou non déposés).', unavailable: 'La base des ratios financiers (BCE / INPI) n’a pas répondu.' }[src.status] || '');
+       el.innerHTML = emptyNote({ loading: 'Consultation des bilans publiés…', none: 'Aucun bilan détaillé publié (comptes confidentiels ou non déposés).', unavailable: 'La base des ratios financiers (BCE / INPI) n’a pas répondu.' }[src.status] || '') +
+         (med ? `<div class="tbl-wrap" style="margin-top:14px"><table class="tbl tbl--fin"><thead><tr><th>Repère du secteur</th><th class="num">${esc(med.label)}</th></tr></thead><tbody>` +
+           `<tr><td><strong>Délai de paiement des clients</strong></td>${cellNum(`${med.dso} j`, '')}</tr><tr><td><strong>Délai de paiement des fournisseurs</strong></td>${cellNum(`${med.dpo} j`, '')}</tr>` +
+           `<tr><td><strong>Taux d’endettement</strong></td>${cellNum(fmtPct(med.endettement / 100), '')}</tr></tbody></table></div><p class="note">Source : ${esc(med.source)}.</p>` : '');
        return;
      }
-     const years = src.items.slice(0, 3);
-     const f = {
-       eur: (n) => (n === null ? '—' : fmtEuro(n)),
-       pct: (n) => (n === null ? '—' : fmtPct(n / 100)),
-       days: (n) => (n === null ? '—' : `${Math.round(n)} j`),
-       x: (n) => (n === null ? '—' : n.toFixed(2).replace('.', ','))
+     const latest = src.items[0];
+     const fmt = {
+       eur: (n) => fmtEuro(n), pct: (n) => fmtPct(n / 100), days: (n) => `${Math.round(n)} j`, x: (n) => n.toFixed(2).replace('.', ','), years: (n) => `${n.toFixed(1).replace('.', ',')} ans`
      };
      const lines = [
-       ['Chiffre d’affaires', 'ca', 'eur', 'Tiret : non communiqué'], ['Excédent brut d’exploitation', 'ebe', 'eur', 'Ce que l’activité dégage avant amortissements et frais financiers'],
-       ['Marge d’EBE', 'margeEbe', 'pct', ''], ['Résultat net', 'resultat', 'eur', ''],
-       ['Autonomie financière', 'autonomie', 'pct', 'Capitaux propres / total du bilan. Négatif = capitaux propres négatifs'],
-       ['Taux d’endettement', 'endettement', 'pct', 'Dettes financières / capitaux propres'], ['Liquidité générale', 'liquidite', 'x', 'Actif à court terme / dettes à court terme. Sous 1 : tension de trésorerie'],
-       ['Délai clients', 'dso', 'days', ''], ['Délai fournisseurs', 'dpo', 'days', 'Délai moyen de paiement de ses propres fournisseurs'],
-       ['Couverture des intérêts', 'couverture', 'x', ''], ['Capacité de remboursement', 'capRemb', 'x', 'Années de CAF pour rembourser les dettes financières']
-     ].filter(([, k]) => years.some((y) => y[k] !== null));
+       ['Excédent brut d’exploitation', 'ebe', 'eur'], ['Marge d’EBE', 'margeEbe', 'pct'], ['Résultat net', 'resultat', 'eur'],
+       ['Autonomie financière', 'autonomie', 'pct', 'Capitaux propres / total du bilan'], ['Taux d’endettement', 'endettement', 'pct', 'Dettes financières / capitaux propres', 'endettement'],
+       ['Liquidité générale', 'liquidite', 'x', 'Actif court terme / dettes court terme'], ['Délai de paiement des clients', 'dso', 'days', '', 'dso'],
+       ['Délai de paiement des fournisseurs', 'dpo', 'days', 'Comment ce client paie ses propres fournisseurs', 'dpo'],
+       ['Couverture des intérêts', 'couverture', 'x'], ['Capacité de remboursement', 'capRemb', 'years', 'Années de CAF pour rembourser les dettes financières']
+     ].filter(([, k]) => latest[k] !== null && latest[k] !== undefined);
      if (!lines.length) { el.innerHTML = emptyNote('Bilan publié, mais sans ratio exploitable.'); return; }
-     el.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Indicateur</th>${years.map((y) => `<th class="num">${esc(fmtDate(y.date))}</th>`).join('')}</tr></thead><tbody>` +
-       lines.map(([label, k, fmt, help]) => `<tr><td>${esc(label)}${help ? `<span class="dd-sub">${esc(help)}</span>` : ''}</td>${years.map((y) => `<td class="num">${esc(f[fmt](y[k]))}</td>`).join('')}</tr>`).join('') +
-       `</tbody></table></div><p class="note">Source : ratios financiers BCE / INPI (data.economie.gouv.fr), calculés à partir des comptes annuels déposés.</p>`;
+     el.innerHTML = `<div class="tbl-wrap"><table class="tbl tbl--fin"><thead><tr><th>Indicateur</th><th class="num">${esc(fmtDate(latest.date))}</th><th class="num">Repère</th>${med ? `<th class="num">${esc(med.label)}</th>` : ''}<th class="num">Appréciation</th></tr></thead><tbody>` +
+       lines.map(([label, k, f, help, medKey]) => {
+         const val = latest[k];
+         const rate = rateRatio(k, val);
+         const tone = rate ? rate[1] : '';
+         const medVal = med && medKey && med[medKey] !== undefined ? (f === 'pct' ? fmtPct(med[medKey] / 100) : `${med[medKey]} j`) : '—';
+         return `<tr><td><strong>${esc(label)}</strong>${help ? `<span class="dd-sub">${esc(help)}</span>` : ''}</td>${cellNum(fmt[f](val), tone === 'info' ? '' : tone)}` +
+           `<td class="num faint">${esc(REPERES[k] || '—')}</td>${med ? `<td class="num faint">${esc(medVal)}</td>` : ''}<td class="num">${rate ? chip(rate[0], rate[1]) : ''}</td></tr>`;
+       }).join('') +
+       `</tbody></table></div><p class="note">Source : ratios financiers BCE / INPI (data.economie.gouv.fr), comptes annuels déposés. Repères : seuils usuels de l’analyse crédit${med ? ` ; médianes : ${esc(med.source)}` : ''}.</p>`;
+   }
+   
+   /** Met en gras les montants, pourcentages, durées, dates et notes dans un texte déjà échappé. */
+   function boldFigures(html) {
+     return html.replace(/(≈\s?)?(?:\b\d{1,2}\/\d{1,2}\/\d{4}\b|-?\d[\d\s .,]*\s?(?:M€|k€|€|%|jours\b|ans\b|an\b|j\b)|\b\d+\/100\b|\bgrade [A-D]\b)/g, (m) => `<strong>${m}</strong>`);
+   }
+   
+   /* ---------------- Historique financier fusionné (Recherche d'entreprises + bilans BCE/INPI) ----------------
+      Trois derniers exercices. Quand un chiffre manque, il est ESTIMÉ et marqué comme tel :
+      - CA manquant : reconduction du CA publié le plus proche (même entreprise), sinon moyenne sectorielle INSEE ;
+      - résultat manquant : CA (publié ou estimé) × marge nette moyenne des exercices publiés de l'entreprise. */
+   function computeFinance(company, ratioItems) {
+     const byYear = new Map();
+     parseFinances(company).forEach((r) => byYear.set(r.year, { ...r, ebe: null }));
+     (ratioItems || []).forEach((it) => {
+       const year = String(it.date || '').slice(0, 4);
+       if (!/^\d{4}$/.test(year)) return;
+       const row = byYear.get(year) || { year, ca: null, caHidden: false, resultat: null, ebe: null };
+       if (row.ca === null && it.ca) { row.ca = it.ca; row.caHidden = false; }
+       if (row.resultat === null && it.resultat !== null) row.resultat = it.resultat;
+       if (it.ebe !== null && it.ebe !== undefined) row.ebe = it.ebe;
+       byYear.set(year, row);
+     });
+     const rows = [...byYear.values()].filter((r) => r.ca !== null || r.resultat !== null || r.ebe !== null)
+       .sort((a, b) => a.year.localeCompare(b.year)).slice(-3);
+     const published = rows.filter((r) => r.ca !== null);
+     const margins = published.filter((r) => r.resultat !== null && r.ca > 0).map((r) => r.resultat / r.ca);
+     const avgMargin = margins.length ? margins.reduce((a, b) => a + b, 0) / margins.length : null;
+     const sector = estimateRevenue(company);
+     rows.forEach((r, i) => {
+       r.caEst = null; r.resEst = null; r.estBasis = ''; r.estRefYear = null;
+       if (r.ca === null) {
+         const ref = [...published].reverse().find((p) => p.year < r.year) || published.find((p) => p.year > r.year);
+         if (ref) { r.caEst = ref.ca; r.estRefYear = ref.year; r.estBasis = `reconduction du CA publié ${ref.year}`; }
+         else if (i === rows.length - 1 && sector.available) { r.caEst = sector.central; r.estBasis = 'moyenne sectorielle INSEE'; }
+       }
+       if (r.resultat === null && avgMargin !== null) {
+         const base = r.ca ?? r.caEst;
+         if (base) r.resEst = Math.round(base * avgMargin);
+       }
+     });
+     const fin = summarizeFinances(rows);
+     const latest = fin.latest;
+     let estimate;
+     if (latest && latest.ca !== null) estimate = { available: false, reason: 'Chiffre d’affaires publié.' };
+     else if (latest && latest.estRefYear) {
+       const ref = published.find((p) => p.year === latest.estRefYear);
+       estimate = {
+         available: true, kind: 'historique', central: latest.caEst, low: roundSig(latest.caEst * 0.85, 'down'), high: roundSig(latest.caEst * 1.15, 'up'),
+         confidence: 'Moyenne', sector: sector.sector || '', source: `CA publié ${ref.year}`, label: `reconduction du CA publié ${ref.year}`,
+         basis: `Dernier chiffre d’affaires publié (${ref.year} : ${fmtEuro(ref.ca)}) reconduit faute de publication pour ${latest.year} ; fourchette ±15 %`
+       };
+     } else if (sector.available) estimate = { ...sector, kind: 'secteur', label: 'moyenne sectorielle INSEE' };
+     else estimate = sector;
+     return { fin, estimate };
+   }
+   
+   /* ---------------- Réseau des dirigeants : holdings et autres entreprises ----------------
+      Recherche par nom et prénom (et année de naissance quand elle est publiée), puis filtrage strict
+      sur la liste des dirigeants de chaque résultat pour écarter les homonymes. */
+   const personKey = (d) => `${normalizeName(d.nom)}|${normalizeName(d.prenoms || '').split(' ')[0]}`;
+   const birthYear = (d) => String(d.annee_de_naissance || d.date_de_naissance || '').slice(0, 4);
+   const linkedRow = (c, role) => {
+     const fin = parseFinances(c);
+     const last = [...fin].reverse().find((r) => r.ca !== null || r.resultat !== null);
+     return {
+       siren: digits(c.siren), name: companyDisplayName(c).toUpperCase(), active: c.etat_administratif === 'A', naf: c.activite_principale || '',
+       nafLabel: nafLabel(c.activite_principale), city: (c.siege && c.siege.libelle_commune) || '', role: role || '',
+       created: c.date_creation || '', closedAt: c.date_fermeture || '', last
+     };
+   };
+   
+   async function loadLinked(v) {
+     const attempts = [];
+     const persons = [];
+     const physical = v.dirigeants.filter((d) => d.type_dirigeant !== 'personne morale' && d.nom).slice(0, 3);
+     let anyOk = false;
+     for (const d of physical) {
+       const prenom = String(d.prenoms || '').split(/[\s,]+/)[0] || '';
+       const year = birthYear(d);
+       const key = personKey(d);
+       const tries = [
+         { nom_personne: d.nom, prenoms_personne: prenom, per_page: '25', ...(year ? { date_naissance_personne_min: `${year}-01-01`, date_naissance_personne_max: `${year}-12-31` } : {}) },
+         { q: `${prenom} ${d.nom}`.trim(), per_page: '25' }
+       ];
+       let companies = [];
+       for (const params of tries) {
+         const url = `${CONFIG.searchApi}?${new URLSearchParams(params).toString()}`;
+         const data = await fetchGouvAPI(url);
+         attempts.push({ url, ok: !!data, received: data && Array.isArray(data.results) ? data.results.length : null });
+         if (!data || !Array.isArray(data.results)) continue;
+         anyOk = true;
+         companies = data.results.filter((c) => digits(c.siren) !== v.siren).map((c) => {
+           const match = (c.dirigeants || []).find((x) => x.type_dirigeant !== 'personne morale' && personKey(x) === key && (!year || !birthYear(x) || birthYear(x) === year));
+           return match ? linkedRow(c, match.qualite) : null;
+         }).filter(Boolean);
+         if (companies.length) break;
+       }
+       const seen = new Set();
+       companies = companies.filter((c) => (seen.has(c.siren) ? false : seen.add(c.siren)));
+       persons.push({ name: [d.prenoms, d.nom].filter(Boolean).join(' '), qualite: d.qualite || 'Dirigeant', year, companies });
+     }
+     const holdings = [];
+     for (const d of v.dirigeants.filter((x) => x.type_dirigeant === 'personne morale' && digits(x.siren).length === 9).slice(0, 3)) {
+       const url = `${CONFIG.searchApi}?${new URLSearchParams({ q: digits(d.siren), per_page: '5' }).toString()}`;
+       const data = await fetchGouvAPI(url);
+       attempts.push({ url, ok: !!data, received: data && Array.isArray(data.results) ? data.results.length : null });
+       if (data) anyOk = true;
+       const c = data && Array.isArray(data.results) ? data.results.find((x) => digits(x.siren) === digits(d.siren)) : null;
+       holdings.push(c ? { ...linkedRow(c, d.qualite), dirigeants: (c.dirigeants || []).slice(0, 3).map((x) => (x.type_dirigeant === 'personne morale' ? x.denomination : [x.prenoms, x.nom].filter(Boolean).join(' '))).filter(Boolean) }
+         : { siren: digits(d.siren), name: d.denomination || NA, role: d.qualite || '', active: null });
+     }
+     const none = !physical.length && !holdings.length;
+     return { status: none ? 'na' : anyOk ? 'ok' : 'unavailable', persons, holdings, attempts };
+   }
+   
+   const linkedStats = (v) => {
+     const l = v.sources.linked;
+     if (!l || l.status !== 'ok') return null;
+     const all = new Map();
+     l.persons.forEach((p) => p.companies.forEach((c) => all.set(c.siren, c)));
+     const list = [...all.values()];
+     return { count: list.length, closed: list.filter((c) => !c.active).length, active: list.filter((c) => c.active).length };
+   };
+   
+   /* ---------------- Revue de presse (GDELT, base mondiale d'articles en ligne) ---------------- */
+   async function loadPress(v) {
+     const words = significantWords(v.displayName);
+     if (!words.length) return { status: 'na', items: [], attempts: [] };
+     const phrase = odsText(v.displayName.replace(/[’']/g, ' '));
+     const attempts = [];
+     for (const span of ['12m', '3m']) {
+       const url = `https://api.gdeltproject.org/api/v2/doc/doc?${new URLSearchParams({ query: `"${phrase}"`, mode: 'artlist', format: 'json', maxrecords: '50', timespan: span, sort: 'datedesc' }).toString()}`;
+       const r = await fetchJson(url);
+       attempts.push({ url, http: r.http, ms: r.ms, error: r.error || null });
+       if (!r.ok || !r.data) continue;
+       const arts = Array.isArray(r.data.articles) ? r.data.articles : [];
+       const city = normalizeName(v.city);
+       const items = arts.filter((a) => {
+         const t = normalizeName(a.title);
+         return words.every((w) => t.includes(w));
+       }).map((a) => ({
+         title: String(a.title || '').slice(0, 200), url: String(a.url || ''), domain: String(a.domain || ''),
+         date: /^\d{8}/.test(String(a.seendate || '')) ? `${a.seendate.slice(0, 4)}-${a.seendate.slice(4, 6)}-${a.seendate.slice(6, 8)}` : '',
+         local: city ? normalizeName(a.title).includes(city) : false
+       })).filter((a) => /^https?:\/\//.test(a.url)).slice(0, 12);
+       return { status: items.length ? 'ok' : 'none', items, attempts };
+     }
+     return { status: 'unavailable', items: [], attempts };
+   }
+   
+   const newsSearchUrl = (v) => `https://news.google.com/search?${new URLSearchParams({ q: `"${v.displayName}" ${v.city || ''}`.trim(), hl: 'fr', gl: 'FR', ceid: 'FR:fr' }).toString()}`;
+   
+   function renderPress(v) {
+     const el = $('press-container');
+     if (!el) return;
+     const p = v.sources.press;
+     const body = p.status === 'ok'
+       ? `<ul class="tl">${p.items.map((a) => `<li><span class="tl__date">${esc(a.date ? fmtDate(a.date) : '')}</span><div><div class="tl__title"><a href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${esc(a.title)}</a></div><div class="tl__meta">${esc(a.domain)}${a.local ? ' · mentionne la commune' : ''}</div></div></li>`).join('')}</ul>`
+       : emptyNote({ none: 'Aucun article en ligne trouvé sur les 12 derniers mois pour ce nom.', unavailable: 'La base de presse n’a pas répondu.', loading: 'Recherche d’articles…', na: 'Recherche de presse sans objet.' }[p.status] || '');
+     el.innerHTML = sourceCard('Presse en ligne (base GDELT)', p.status, body) +
+       `<p class="note">Articles repérés automatiquement par le nom de l’entreprise : vérifiez qu’ils concernent bien cette société (homonymes possibles). La presse locale est mieux couverte par la recherche ci-dessous.</p>` +
+       `<div class="btn-row" style="margin-top:10px">${extLink(newsSearchUrl(v), 'Rechercher dans Google Actualités', 'fa-newspaper')}${extLink(LINKS.bodacc, 'BODACC', 'fa-gavel')}</div>`;
    }
    
    function renderGroup(v) {
+     const L = v.sources.linked || { status: 'loading', persons: [], holdings: [] };
+     const physical = v.dirigeants.filter((d) => d.type_dirigeant !== 'personne morale');
+     const legal = v.dirigeants.filter((d) => d.type_dirigeant === 'personne morale');
      const leaders = $('leaders-container');
      if (leaders) {
        leaders.innerHTML = v.dirigeants.length === 0 ? emptyNote('Aucun dirigeant renseigné dans les sources publiques.')
-         : `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nom</th><th>Qualité</th><th>Nature</th></tr></thead><tbody>${
-           v.dirigeants.slice(0, 8).map((d) => {
-             const legal = d.type_dirigeant === 'personne morale';
-             const name = legal ? (d.denomination || NA) : [d.prenoms, d.nom].filter(Boolean).join(' ') || NA;
-             return `<tr><td>${esc(name)}</td><td>${esc(d.qualite || 'Dirigeant')}</td><td>${esc(legal ? 'Personne morale' : 'Personne physique')}</td></tr>`;
-           }).join('')}</tbody></table></div>`;
+         : `<div class="people">${v.dirigeants.slice(0, 8).map((d) => {
+           const isLegal = d.type_dirigeant === 'personne morale';
+           const name = isLegal ? (d.denomination || NA) : [d.prenoms, d.nom].filter(Boolean).join(' ') || NA;
+           const p = !isLegal && L.status === 'ok' ? L.persons.find((x) => x.name === [d.prenoms, d.nom].filter(Boolean).join(' ')) : null;
+           const extra = p ? `${p.companies.length} autre${p.companies.length > 1 ? 's' : ''} société${p.companies.length > 1 ? 's' : ''}${p.companies.some((c) => !c.active) ? ` dont ${p.companies.filter((c) => !c.active).length} cessée(s)` : ''}` : '';
+           return `<div class="person"><span class="person__ico t-${isLegal ? 'ai' : 'accent'}"><i class="fa-solid ${isLegal ? 'fa-building' : 'fa-user-tie'}"></i></span>` +
+             `<div><strong>${esc(name)}</strong><span class="dd-sub">${esc(d.qualite || 'Dirigeant')}${!isLegal && birthYear(d) ? ` · né(e) en ${esc(birthYear(d))}` : ''}${isLegal && digits(d.siren) ? ` · SIREN ${esc(digits(d.siren))}` : ''}</span>` +
+             `${extra ? `<span class="person__extra">${esc(extra)}</span>` : ''}</div></div>`;
+         }).join('')}</div>`;
      }
-     const legalPersons = v.dirigeants.filter((d) => d.type_dirigeant === 'personne morale' && digits(d.siren).length === 9);
-     setHTML('holding-container', legalPersons.length === 0 ? emptyNote('Aucune personne morale dirigeante déclarée.')
-       : `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Dénomination</th><th>SIREN</th><th>Qualité</th><th></th></tr></thead><tbody>${
-         legalPersons.map((d) => `<tr><td>${esc(d.denomination || NA)}</td><td>${esc(digits(d.siren))}</td><td>${esc(d.qualite || 'Dirigeant')}</td><td class="num">${auditButton(d.siren)}</td></tr>`).join('')}</tbody></table></div>`);
+   
+     // Holdings (personnes morales dirigeantes), enrichies
+     let holdingsHTML;
+     if (!legal.length) holdingsHTML = emptyNote('Aucune holding ni personne morale dirigeante déclarée : l’entreprise est dirigée en direct.');
+     else {
+       const rows = (L.status === 'ok' && L.holdings.length ? L.holdings : legal.map((d) => ({ siren: digits(d.siren), name: d.denomination || NA, role: d.qualite, active: null })));
+       holdingsHTML = `<div class="tbl-wrap"><table class="tbl tbl--fin"><thead><tr><th>Holding</th><th>Statut</th><th>Activité</th><th class="num">Dernier chiffre publié</th><th></th></tr></thead><tbody>${
+         rows.map((c) => `<tr><td><strong>${esc(c.name)}</strong><span class="dd-sub">SIREN ${esc(c.siren)}${c.role ? ` · ${esc(c.role)}` : ''}${c.dirigeants && c.dirigeants.length ? ` · dirigée par ${esc(c.dirigeants.join(', '))}` : ''}</span></td>` +
+           `<td>${c.active === null ? '—' : chip(c.active ? 'Active' : 'Cessée', c.active ? 'ok' : 'bad')}</td><td>${esc(c.nafLabel || c.naf || '—')}</td>` +
+           `<td class="num">${c.last ? esc(c.last.ca !== null ? `CA ${fmtCompact(c.last.ca)} (${c.last.year})` : `Résultat ${fmtCompact(c.last.resultat)} (${c.last.year})`) : '—'}</td>` +
+           `<td class="num">${/^\d{9}$/.test(c.siren) ? auditButton(c.siren) : ''}</td></tr>`).join('')}</tbody></table></div>`;
+     }
+     setHTML('holding-container', holdingsHTML);
+   
+     // Autres entreprises des dirigeants
+     let linkedHTML;
+     if (!physical.length) linkedHTML = emptyNote('Aucun dirigeant personne physique : pas de recherche d’entreprises associées.');
+     else if (L.status === 'loading') linkedHTML = emptyNote('Recherche des autres entreprises des dirigeants…');
+     else if (L.status !== 'ok') linkedHTML = emptyNote('La recherche des entreprises associées n’a pas abouti. Consultez l’Annuaire des Entreprises.');
+     else {
+       const all = L.persons.flatMap((p) => p.companies.map((c) => ({ ...c, person: p.name })));
+       linkedHTML = all.length === 0 ? emptyNote('Aucune autre entreprise trouvée pour ces dirigeants.')
+         : `<div class="tbl-wrap"><table class="tbl tbl--fin"><thead><tr><th>Entreprise</th><th>Dirigeant</th><th>Statut</th><th>Activité</th><th class="num">Dernier chiffre publié</th><th></th></tr></thead><tbody>${
+           all.slice(0, 25).map((c) => `<tr><td><strong>${esc(c.name)}</strong><span class="dd-sub">SIREN ${esc(c.siren)}${c.city ? ` · ${esc(c.city)}` : ''}${c.created ? ` · créée le ${esc(fmtDate(c.created))}` : ''}</span></td>` +
+             `<td>${esc(c.person)}<span class="dd-sub">${esc(c.role || '')}</span></td><td>${chip(c.active ? 'Active' : `Cessée${c.closedAt ? ` (${fmtDate(c.closedAt)})` : ''}`, c.active ? 'ok' : 'bad')}</td>` +
+             `<td>${esc(c.nafLabel || c.naf || '—')}</td><td class="num">${c.last ? esc(c.last.ca !== null ? `CA ${fmtCompact(c.last.ca)} (${c.last.year})` : `Résultat ${fmtCompact(c.last.resultat)} (${c.last.year})`) : '—'}</td>` +
+             `<td class="num">${auditButton(c.siren)}</td></tr>`).join('')}</tbody></table></div>` +
+           `<p class="note">Rapprochement par nom, premier prénom${L.persons.some((p) => p.year) ? ' et année de naissance' : ''}. Un homonyme reste possible : vérifiez sur l’Annuaire des Entreprises.</p>`;
+     }
+     setHTML('linked-container', linkedHTML);
    
      const closed = v.nbEtab !== null && v.nbEtabOpen !== null ? Math.max(v.nbEtab - v.nbEtabOpen, 0) : null;
      const matching = Array.isArray(v.company.matching_etablissements) ? v.company.matching_etablissements.filter((e) => e && e.siret) : [];
-     const siegeRow = `<tr><td>${esc(v.siret || NA)}</td><td>${esc(v.address)}</td><td>${esc(v.siegeActive ? 'Ouvert' : 'Fermé')}</td><td>Siège</td></tr>`;
+     const siegeRow = `<tr><td>${esc(v.siret || NA)}</td><td>${esc(v.address)}</td><td>${chip(v.siegeActive ? 'Ouvert' : 'Fermé', v.siegeActive ? 'ok' : 'bad')}</td><td>Siège</td></tr>`;
      const others = matching.filter((e) => digits(e.siret) !== v.siret).slice(0, 10).map((e) =>
-       `<tr><td>${esc(digits(e.siret))}</td><td>${esc([e.adresse, e.code_postal, e.libelle_commune].filter(Boolean).join(' ') || NA)}</td><td>${esc(e.etat_administratif === 'A' ? 'Ouvert' : e.etat_administratif ? 'Fermé' : NA)}</td><td></td></tr>`).join('');
+       `<tr><td>${esc(digits(e.siret))}</td><td>${esc([e.adresse, e.code_postal, e.libelle_commune].filter(Boolean).join(' ') || NA)}</td><td>${e.etat_administratif ? chip(e.etat_administratif === 'A' ? 'Ouvert' : 'Fermé', e.etat_administratif === 'A' ? 'ok' : 'bad') : '—'}</td><td></td></tr>`).join('');
      setHTML('etablissements-container',
        `<div class="rows"><div class="row"><span class="row__k">Établissements</span><span class="row__v">${esc(v.nbEtab === null ? NA : v.nbEtab)}</span></div>` +
-       `<div class="row"><span class="row__k">Ouverts</span><span class="row__v">${esc(v.nbEtabOpen === null ? NA : v.nbEtabOpen)}</span></div>` +
-       `<div class="row"><span class="row__k">Fermés</span><span class="row__v">${esc(closed === null ? NA : closed)}</span></div></div>` +
-       `<div class="tbl-wrap" style="margin-top:14px"><table class="tbl"><thead><tr><th>SIRET</th><th>Adresse</th><th>État</th><th></th></tr></thead><tbody>${siegeRow}${others}</tbody></table></div>` +
+       `<div class="row"><span class="row__k">Ouverts</span><span class="row__v v-ok">${esc(v.nbEtabOpen === null ? NA : v.nbEtabOpen)}</span></div>` +
+       `<div class="row"><span class="row__k">Fermés</span><span class="row__v ${closed ? 'v-warn' : ''}">${esc(closed === null ? NA : closed)}</span></div></div>` +
+       `<div class="tbl-wrap" style="margin-top:14px"><table class="tbl tbl--fin"><thead><tr><th>SIRET</th><th>Adresse</th><th>État</th><th></th></tr></thead><tbody>${siegeRow}${others}</tbody></table></div>` +
        `<p class="note">La liste complète des établissements est consultable sur l’Annuaire des Entreprises.</p>`);
    }
    
@@ -2010,6 +2339,8 @@
        row('BODACC', s.bodacc.status, 'Annonces légales, procédures collectives, dépôts de comptes') +
        row('Alim’confiance', s.alim.status, 'Résultats des inspections sanitaires (activités alimentaires)') +
        row('Ratios financiers BCE / INPI', s.ratios.status, 'Bilans déposés : EBE, autonomie, endettement, liquidité, délais') +
+       row('Réseau des dirigeants (Sirene)', s.linked.status, 'Holdings et autres sociétés des dirigeants') +
+       row('Presse en ligne (GDELT)', s.press.status, 'Articles en ligne citant l’entreprise') +
        row('Veille Euro Expert Solvabilité', v.veille.length ? 'ok' : 'none', 'Fermetures administratives et incidents relevés, avec leurs sources') +
        row('Vos notes privées', v.manualAlerts.length ? 'ok' : 'none', 'Saisies dans ce navigateur, non vérifiées') +
        row('Registre des bénéficiaires effectifs', 'unavailable', 'Non consulté — à vérifier sur data.inpi.fr') +
@@ -2017,10 +2348,14 @@
        row('Valeurs foncières (DVF)', 'unavailable', 'Non consulté') +
        `</tbody></table></div><p class="note">L’analyse rédigée est établie automatiquement à partir des seules données de ce dossier, puis présentée sous la responsabilité d’Euro Expert Solvabilité. « Injoignable » signifie que la source n’a pas été interrogée avec succès. Cela ne veut jamais dire « rien à signaler ».</p>`);
    
-     const crit = v.score.criteria.map((c) => `<tr><td>${esc(c.name)}</td><td>${esc(c.note)}</td><td class="num">${esc(fmtPts(c))}</td></tr>`).join('');
+     const crit = v.score.criteria.map((c) => {
+       const pct = c.max > 0 ? Math.round((Math.max(c.pts, 0) / c.max) * 100) : 0;
+       const tone = c.max === 0 ? 'bad' : pct >= 80 ? 'ok' : pct >= 40 ? 'warn' : 'bad';
+       return `<tr><td><strong>${esc(c.name)}</strong></td><td>${esc(c.note)}</td><td class="num"><div class="pbar"><span class="pbar__fill pbar--${tone}" style="width:${c.max > 0 ? pct : 100}%"></span></div><strong class="v-${tone}">${esc(fmtPts(c))}</strong></td></tr>`;
+     }).join('');
      setHTML('method-container',
        `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Critère</th><th>Observation</th><th class="num">Points</th></tr></thead><tbody>${crit}` +
-       `<tr><td><strong>Total</strong></td><td>${esc(v.score.closed ? 'Plafonné à 20 : entreprise cessée.' : v.score.collective ? 'Plafonné à 30 : procédure collective mentionnée au BODACC.' : v.score.recentClosure ? 'Plafonné à 59 : fermeture administrative de moins de 12 mois.' : '')}</td><td class="num"><strong>${v.score.total} / 100</strong></td></tr></tbody></table></div>` +
+       `<tr><td><strong>Total</strong></td><td>${esc(v.score.closed ? 'Plafonné à 20 : entreprise cessée.' : v.score.collective ? 'Plafonné à 30 : procédure collective mentionnée au BODACC.' : v.score.criteria.some((c) => /plafonnée/.test(c.note)) ? 'Plafond appliqué : mesure administrative ou contrôle sanitaire récent (voir ci-dessus).' : '')}</td><td class="num"><strong>${v.score.total} / 100</strong></td></tr></tbody></table></div>` +
        `<p class="note">La note est indicative, calculée sur des données publiques. Ce n’est ni une notation réglementée, ni un conseil, ni une garantie de solvabilité.</p>`);
    }
    
@@ -2029,7 +2364,7 @@
      if (!panel) return;
      if (!new URLSearchParams(location.search).has('diag') || (accessMode() === 'codes' && !isManager())) { panel.hidden = true; return; }
      const dump = { siren: v.siren, siret: v.siret, naf: v.naf, nbEtab: v.nbEtab, nbEtabOpen: v.nbEtabOpen, bodacc: { status: v.sources.bodacc.status, items: v.sources.bodacc.items.length, attempts: v.sources.bodacc.attempts },
-       alim: { status: v.sources.alim.status, items: v.sources.alim.items.length, attempts: v.sources.alim.attempts }, veille: v.veille.length, ratios: { status: v.sources.ratios.status, items: v.sources.ratios.items.length, champs: v.sources.ratios.items[0] ? v.sources.ratios.items[0].rawKeys : [], attempts: v.sources.ratios.attempts }, champs_sirene: Object.keys(v.company).sort() };
+       alim: { status: v.sources.alim.status, items: v.sources.alim.items.length, attempts: v.sources.alim.attempts }, veille: v.veille.length, linked: { status: v.sources.linked.status, attempts: v.sources.linked.attempts }, press: { status: v.sources.press.status, items: v.sources.press.items.length, attempts: v.sources.press.attempts }, ratios: { status: v.sources.ratios.status, items: v.sources.ratios.items.length, champs: v.sources.ratios.items[0] ? v.sources.ratios.items[0].rawKeys : [], attempts: v.sources.ratios.attempts }, champs_sirene: Object.keys(v.company).sort() };
      panel.hidden = false;
      panel.innerHTML = '<strong>Diagnostic (?diag=1)</strong><pre></pre>';
      panel.querySelector('pre').textContent = JSON.stringify(dump, null, 1);
@@ -2184,8 +2519,8 @@
      const variation = (current, previous) => (current === null || previous === null || !previous ? '—' : fmtPct((current - previous) / Math.abs(previous), true));
      const financeBody = [[head('EXERCICE'), head('CHIFFRE D’AFFAIRES', 'tableHeaderDarkRight'), head('RÉSULTAT NET', 'tableHeaderDarkRight'), head('VARIATION DU CA', 'tableHeaderDarkCenter')]];
      rows.forEach((r, i) => financeBody.push([
-       cell(r.year, { bold: true }), cell(r.caHidden ? 'Non communiqué' : fmtEuro(r.ca), { alignment: 'right' }),
-       cell(fmtEuro(r.resultat), { alignment: 'right', color: r.resultat !== null && r.resultat < 0 ? '#dc2626' : '#0b1322' }),
+       cell(r.year, { bold: true }), cell(r.ca !== null ? fmtEuro(r.ca) : r.caEst ? `≈ ${fmtEuro(r.caEst)} (est.)` : 'Non publié', { alignment: 'right', italics: r.ca === null && !!r.caEst, color: r.ca === null && r.caEst ? '#9a6200' : '#0b1322' }),
+       cell(r.resultat !== null ? fmtEuro(r.resultat) : r.resEst !== null ? `≈ ${fmtEuro(r.resEst)} (est.)` : 'Non publié', { alignment: 'right', italics: r.resultat === null && r.resEst !== null, color: (r.resultat ?? r.resEst ?? 0) < 0 ? '#dc2626' : r.resultat === null && r.resEst !== null ? '#9a6200' : '#0b1322' }),
        cell(i === 0 ? '—' : variation(r.ca, rows[i - 1].ca), { alignment: 'center' })
      ]));
      const dashedLayout = {
@@ -2272,6 +2607,9 @@
          cell(legal ? `Personne morale${digits(d.siren) ? ` (SIREN ${digits(d.siren)})` : ''}` : 'Personne physique')
        ]);
      });
+     const lsP = linkedStats(v);
+     const networkBlocks = lsP ? [{ text: `Réseau des dirigeants : ${lsP.count} autre(s) société(s) trouvée(s)${lsP.closed ? `, dont ${lsP.closed} cessée(s)` : ''} (rapprochement par nom et prénom, homonymes possibles).`, fontSize: 7.5, margin: [0, 0, 0, 4] },
+       ...((v.sources.linked.holdings || []).length ? [{ text: `Holdings : ${v.sources.linked.holdings.map((x) => `${x.name} (SIREN ${x.siren}${x.active === false ? ', cessée' : ''})`).join(' ; ')}`, fontSize: 7.5, margin: [0, 0, 0, 8] }] : [])] : [];
      const governanceBlock = v.dirigeants.length
        ? { table: { widths: ['40%', '30%', '30%'], body: governanceBody }, layout, margin: [0, 0, 0, 10] }
        : noticeBox('#f8fafc', '#475569', 'DIRIGEANTS NON RENSEIGNÉS', 'Aucun dirigeant n’est déclaré dans les sources publiques consultées.');
@@ -2399,6 +2737,7 @@
          ...analysisBlocks,
          nextSection('DIRIGEANTS DÉCLARÉS'),
          governanceBlock,
+         ...networkBlocks,
          nextSection('CONTRÔLES ET VÉRIFICATIONS COMPLÉMENTAIRES'),
          { table: { widths: ['32%', '22%', '46%'], body: checks }, layout, margin: [0, 0, 0, 8] },
          ...veilleBlocks,
@@ -2464,7 +2803,7 @@
        },
        score: { note: s.total, grade: s.grade, libelle: s.label, risque: s.risk, conditions: s.terms, criteres: s.criteria },
        finances: {
-         exercices: v.fin.rows.map((r) => ({ annee: r.year, ca: r.ca, ca_non_communique: r.caHidden, resultat: r.resultat })),
+         exercices: v.fin.rows.map((r) => ({ annee: r.year, ca: r.ca, ca_non_communique: r.ca === null, ca_estime: r.ca === null ? r.caEst : null, base_estimation: r.ca === null ? r.estBasis : null, resultat: r.resultat, resultat_estime: r.resultat === null ? r.resEst : null, ebe: r.ebe ?? null })),
          croissance: v.fin.growth,
          marge: v.fin.margin
        },
@@ -2486,7 +2825,9 @@
          }
        },
        veille: v.veille.map((e) => ({ type: VEILLE_TYPES[e.type], date: e.date, titre: e.titre, autorite: e.autorite, etablissement: e.etablissement, faits: e.faits, suite: e.suite, sources: e.sources.map((x) => x.label) })),
-       notes_privees_non_verifiees: v.manualAlerts.map((m) => ({ type: ALERT_TYPES[m.type], date: m.date }))
+       notes_privees_non_verifiees: v.manualAlerts.map((m) => ({ type: ALERT_TYPES[m.type], date: m.date })),
+       reseau_dirigeants: (() => { const l = linkedStats(v); return l ? { autres_societes: l.count, dont_cessees: l.closed, holdings: (v.sources.linked.holdings || []).map((x) => ({ nom: x.name, active: x.active })) } : null; })(),
+       presse: v.sources.press.status === 'ok' ? v.sources.press.items.slice(0, 5).map((a) => ({ date: a.date, titre: a.title, media: a.domain })) : []
      };
    }
    
@@ -2510,7 +2851,8 @@
        v.nafLabel ? `Son activité principale relève de la ${lowerFirst(v.nafLabel)} (code NAF ${v.naf})${v.city ? `, depuis un siège situé à ${v.city}` : ''}.` : (v.city ? `Son siège est situé à ${v.city}.` : ''),
        v.effectif !== NA ? `L’effectif déclaré au répertoire Sirene est de ${v.effectif.toLowerCase()}${v.company.annee_tranche_effectif_salarie ? ` (donnée ${v.company.annee_tranche_effectif_salarie})` : ''}${v.categorie !== NA ? `, ce qui la classe dans la catégorie ${v.categorie}` : ''}.` : 'L’effectif salarié n’est pas renseigné.',
        v.nbEtab !== null ? `Elle compte ${plural(v.nbEtab, 'établissement', 'établissements')}${v.nbEtabOpen !== null ? `, dont ${v.nbEtabOpen} ouvert${v.nbEtabOpen > 1 ? 's' : ''}` : ''}.` : '',
-       v.dirigeants.length ? `La gouvernance déclarée comprend ${plural(v.dirigeants.length, 'mandataire', 'mandataires')}${v.dirigeants.some(isLegalPerson) ? `, dont ${v.dirigeants.filter(isLegalPerson).map((d) => d.denomination).filter(Boolean).join(', ')} en qualité de personne morale` : ''}.` : 'Aucun dirigeant n’est déclaré dans les sources publiques.'
+       v.dirigeants.length ? `La gouvernance déclarée comprend ${plural(v.dirigeants.length, 'mandataire', 'mandataires')}${v.dirigeants.some((d) => !isLegalPerson(d) && d.nom) ? `, dont ${v.dirigeants.filter((d) => !isLegalPerson(d) && d.nom).slice(0, 2).map((d) => `${[d.prenoms, d.nom].filter(Boolean).join(' ')} (${(d.qualite || 'dirigeant').toLowerCase()})`).join(' et ')}` : ''}${v.dirigeants.some(isLegalPerson) ? `, ainsi que la holding ${v.dirigeants.filter(isLegalPerson).map((d) => d.denomination).filter(Boolean).join(', ')}` : ''}.` : 'Aucun dirigeant n’est déclaré dans les sources publiques.',
+       (() => { const l = linkedStats(v); return l && l.count ? `Le ou les dirigeants sont également mandataires de ${plural(l.count, 'autre société', 'autres sociétés')}${l.closed ? `, dont ${l.closed} cessée${l.closed > 1 ? 's' : ''}` : ', toutes actives'}.` : ''; })()
      ].filter(Boolean).join(' ');
    
      /* Analyse financière */
@@ -2526,7 +2868,12 @@
      } else {
        finParts.push('Aucun compte annuel n’est publié en source ouverte : l’appréciation financière repose sur les seuls éléments d’identité, d’ancienneté et de taille.');
      }
-     if (v.estimate.available) finParts.push(`À titre indicatif, une entreprise de cette taille réalisant le chiffre d’affaires moyen de son secteur (${v.estimate.sector}) atteindrait environ ${fmtCompact(v.estimate.central)} par an (fourchette ${fmtCompact(v.estimate.low)} à ${fmtCompact(v.estimate.high)}) ; cette estimation n’est pas issue des comptes.`);
+     const lastPub = [...fin.rows].reverse().find((r) => r.ca !== null);
+     if (lastPub && (!latest || latest.ca === null)) finParts.push(`Le dernier chiffre d’affaires publié atteint ${fmtEuro(lastPub.ca)} (exercice ${lastPub.year})${lastPub.resultat !== null && lastPub.ca ? `, pour une marge nette de ${fmtPct(lastPub.resultat / lastPub.ca)}` : ''}${lastPub.ebe ? ` et un excédent brut d’exploitation de ${fmtEuro(lastPub.ebe)}` : ''}.`);
+     if (v.estimate.available && v.estimate.kind === 'historique') finParts.push(`Faute de publication plus récente, nous retenons à titre d’estimation un chiffre d’affaires de l’ordre de ${fmtCompact(v.estimate.central)} (fourchette ${fmtCompact(v.estimate.low)} à ${fmtCompact(v.estimate.high)}).`);
+     else if (v.estimate.available) finParts.push(`À titre indicatif, une entreprise de cette taille réalisant le chiffre d’affaires moyen de son secteur (${v.estimate.sector}) atteindrait environ ${fmtCompact(v.estimate.central)} par an (fourchette ${fmtCompact(v.estimate.low)} à ${fmtCompact(v.estimate.high)}) ; cette estimation n’est pas issue des comptes.`);
+     const resTrend = fin.rows.filter((r) => r.resultat !== null);
+     if (resTrend.length >= 2) finParts.push(`Le résultat net est passé de ${fmtEuro(resTrend[0].resultat)} (${resTrend[0].year}) à ${fmtEuro(resTrend[resTrend.length - 1].resultat)} (${resTrend[resTrend.length - 1].year}).`);
      const rb = latestRatios(v);
      if (rb) {
        const bits = [];
@@ -2579,6 +2926,9 @@
      if (age !== null && age < 3) vig.push('Entreprise jeune (moins de 3 ans).');
      if (b.status === 'unavailable' || a.status === 'unavailable') vig.push('Une source officielle n’a pas répondu : vérification à compléter.');
      if (v.manualAlerts.length) vig.push('Signal privé non vérifié à confirmer.');
+     const lsv = linkedStats(v);
+     if (lsv && lsv.closed >= 2) vig.push(`Le réseau du dirigeant compte ${lsv.closed} sociétés cessées : vérifier les circonstances.`);
+     if (lsv && lsv.count >= 1 && lsv.closed === 0) forts.push(`Dirigeant expérimenté : ${plural(lsv.count, 'autre société active', 'autres sociétés actives')}.`);
      if (!v.active) vig.unshift('Entreprise cessée.');
    
      /* Recommandation et conditions */
@@ -2635,7 +2985,8 @@
    - "sources_externes" : "ok" = résultats ; "none" = consultée, aucun résultat ; "unavailable" = injoignable (n'en tire aucune conclusion) ; "na" = sans objet.
    - "veille" : faits publics relevés et sourcés par le cabinet (presse, préfecture). Tu peux les présenter comme établis en citant la date, l'autorité et la nature de la mesure. Si aucune réouverture n'est mentionnée, dis-le sans supposer.
    - "notes_privees_non_verifiees" : signaux saisis par l'utilisateur, à présenter comme non vérifiés.
-   - "ca_non_communique" vrai : le chiffre d'affaires n'est pas publié ; ne le présente jamais comme nul.
+   - "ca_non_communique" vrai : le chiffre d'affaires n'est pas publié ; ne le présente jamais comme nul. "ca_estime" et "resultat_estime" sont des estimations du cabinet : présente-les comme telles (« estimé à environ… »).
+   - "reseau_dirigeants" : nombre d'autres sociétés des dirigeants (rapprochement par nom, homonymes possibles) ; "presse" : titres d'articles repérés automatiquement, à citer avec prudence.
    - "estimation_ca" est une estimation (moyenne sectorielle INSEE appliquée à l'effectif) : donne la valeur centrale et la fourchette, présente-la comme une estimation, sans conclusion ferme.
    - "ratios_bilan" provient des comptes déposés (base BCE / INPI) : pourcentages en %, délais en jours. Commente l'autonomie financière, l'endettement, la liquidité et les délais quand ils sont présents.
    - Aucun plafond d'encours chiffré. Recommandations qualitatives (délais, garanties, suivi, vérifications).
@@ -2717,7 +3068,7 @@
      return out;
    }
    
-   const analysisKey = (v) => [v.siren, v.score.total, v.sources.ratios.status, v.sources.ratios.items.length, v.sources.bodacc.status, v.sources.bodacc.items.length, v.sources.alim.status, v.sources.alim.items.length, v.veille.length, v.manualAlerts.length].join('|');
+   const analysisKey = (v) => [v.siren, v.score.total, v.sources.linked.status, v.sources.press.status, v.sources.ratios.status, v.sources.ratios.items.length, v.sources.bodacc.status, v.sources.bodacc.items.length, v.sources.alim.status, v.sources.alim.items.length, v.veille.length, v.manualAlerts.length].join('|');
    const analysisCache = new Map();
    
    /**
@@ -2779,17 +3130,17 @@
        setHTML('ai-analysis', '<p class="muted"><i class="fa-solid fa-spinner spin" style="color:var(--accent)"></i> Consultation des sources, puis rédaction de l’analyse…</p>');
        return;
      }
-     const para = (title, text) => (text ? `<section class="an-sec"><h3>${esc(title)}</h3><p>${esc(text)}</p></section>` : '');
-     const list = (title, items, cls) => (items && items.length ? `<section class="an-list ${cls}"><h3>${esc(title)}</h3><ul>${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul></section>` : '');
+     const para = (title, text, icon) => (text ? `<section class="an-sec"><h3><i class="fa-solid ${icon}"></i> ${esc(title)}</h3><p>${boldFigures(esc(text))}</p></section>` : '');
+     const list = (title, items, cls, icon) => (items && items.length ? `<section class="an-list ${cls}"><h3><i class="fa-solid ${icon}"></i> ${esc(title)}</h3><ul>${items.map((i) => `<li>${boldFigures(esc(i))}</li>`).join('')}</ul></section>` : '');
      const c = a.conditions || {};
      setHTML('ai-analysis',
        `<p class="an-meta">Analyse établie le ${esc(a.generatedAt.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }))} à partir des données du dossier.</p>` +
-       `<p class="an-lead">${esc(a.synthese)}</p>` +
-       `<div class="an-grid">${para('Profil de l’entreprise', a.profil)}${para('Analyse financière', a.analyse_financiere)}${para('Signaux de risque', a.signaux)}</div>` +
-       `<div class="an-grid an-grid--2">${list('Points forts', a.points_forts, 'an-list--ok')}${list('Points de vigilance', a.points_vigilance, 'an-list--warn')}</div>` +
-       `<div class="an-reco"><h3>Notre recommandation</h3><p>${esc(a.recommandation)}</p>` +
+       `<p class="an-lead">${boldFigures(esc(a.synthese))}</p>` +
+       `<div class="an-grid">${para('Profil de l’entreprise', a.profil, 'fa-building')}${para('Analyse financière', a.analyse_financiere, 'fa-chart-line')}${para('Signaux de risque', a.signaux, 'fa-triangle-exclamation')}</div>` +
+       `<div class="an-grid an-grid--2">${list('Points forts', a.points_forts, 'an-list--ok', 'fa-circle-check')}${list('Points de vigilance', a.points_vigilance, 'an-list--warn', 'fa-circle-exclamation')}</div>` +
+       `<div class="an-reco"><h3><i class="fa-solid fa-scale-balanced"></i> Notre recommandation</h3><p>${boldFigures(esc(a.recommandation))}</p>` +
        `<dl class="an-cond"><div><dt>Paiement</dt><dd>${esc(c.paiement || NA)}</dd></div><div><dt>Garanties</dt><dd>${esc(c.garanties || NA)}</dd></div><div><dt>Suivi</dt><dd>${esc(c.suivi || NA)}</dd></div></dl></div>` +
-       list('Vérifications à mener', a.verifications, 'an-list--info'));
+       list('Vérifications à mener', a.verifications, 'an-list--info', 'fa-list-check'));
    }
    
    /* =============================================================================
@@ -2954,7 +3305,7 @@
          if (v.sources.alim.status === 'loading') jobs.push(loadAlim(v).then((r) => { v.sources.alim = r; }));
          await Promise.all(jobs.map((j) => j.catch(() => {})));
          ['bodacc', 'alim', 'ratios'].forEach((k) => { if (v.sources[k].status === 'loading') v.sources[k].status = 'unavailable'; });
-         v.score = computeScore(v.company, v.fin, v.dirigeants, { collective: hasCollective(v), veille: v.veille, ratios: latestRatios(v) });
+         v.score = computeScore(v.company, v.fin, v.dirigeants, { collective: hasCollective(v), veille: v.veille, ratios: latestRatios(v), alim: v.sources.alim.status === 'ok' ? v.sources.alim.items : [] });
          const c = updateWatchEntry(v);
          if (c && c.length) changed += 1;
        } catch (e) { console.error('Suivi :', e); }
@@ -3015,7 +3366,7 @@
      const acomptePct = grade === 'B' && ht <= 10000 ? 0 : policy.acompte;
      const acompte = ttc * acomptePct / 100;
      const exposure = ttc - acompte;
-     const ca = v.fin.latest && v.fin.latest.ca ? { value: v.fin.latest.ca, label: `CA publié ${v.fin.latest.year}` } : v.estimate.available ? { value: v.estimate.central, label: 'CA estimé (moyenne sectorielle INSEE)' } : null;
+     const ca = v.fin.latest && v.fin.latest.ca ? { value: v.fin.latest.ca, label: `CA publié ${v.fin.latest.year}` } : v.estimate.available ? { value: v.estimate.central, label: `CA estimé (${v.estimate.label})` } : null;
      const weight = ca ? (ht / ca.value) * 100 : null;
      const effort = margin && margin > 0 ? exposure / (margin / 100) : null;
      const pr = penaltyRateFor(new Date());
@@ -3217,7 +3568,7 @@
        const quick = t.closest('[data-quick]');
        if (quick) return triggerSearchBySiren(quick.getAttribute('data-quick'));
        const tab = t.closest('[data-tab]');
-       if (tab) return switchTab(tab.dataset.tab);
+       if (tab) { switchTab(tab.dataset.tab); if (!tab.classList.contains('tab')) { const bar = document.querySelector('.tabs'); if (bar) bar.scrollIntoView({ behavior: 'smooth', block: 'start' }); } return; }
        const unwatch = t.closest('[data-unwatch]');
        if (unwatch) { writeJSON(WATCH_KEY, readWatch().filter((w) => w.siren !== unwatch.getAttribute('data-unwatch'))); return renderWatchlist(); }
        const rm = t.closest('[data-remove-alert]');

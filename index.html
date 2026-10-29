@@ -411,8 +411,8 @@
         .an-sec p { color: var(--ink-2); font-size: 14.5px; line-height: 1.65; }
         .an-list { margin-top: 0; }
         .an-list ul { display: grid; gap: 6px; }
-        .an-list li { display: flex; gap: 10px; color: var(--ink-2); font-size: 14.5px; }
-        .an-list li::before { content: ""; width: 7px; height: 7px; border-radius: 50%; margin-top: 8px; flex: none; background: var(--ink-3); }
+        .an-list li { display: block; position: relative; padding-left: 17px; color: var(--ink-2); font-size: 14.5px; }
+        .an-list li::before { content: ""; position: absolute; left: 0; top: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--ink-3); }
         .an-list--ok li::before { background: var(--ok); } .an-list--warn li::before { background: var(--warn); } .an-list--info li::before { background: var(--info); }
         .an-list--info { margin-top: 22px; }
         .an-reco { margin-top: 24px; padding: 18px 20px; border-radius: var(--r-m); background: var(--accent-soft); border-left: 3px solid var(--accent); }
@@ -423,6 +423,11 @@
         .dd-sub { display: block; font-size: 12.5px; font-weight: 400; color: var(--ink-3); margin-top: 1px; }
         .kpi__v { font-family: var(--cond); font-weight: 600; font-size: 21px; }
         .alert p.small a { color: inherit; }
+        .people { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+        .person { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; border-radius: var(--r-m); background: var(--bg-sunk); border: 1px solid var(--line); }
+        .person__ico { width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center; flex: none; }
+        .person strong { font-size: 15.5px; }
+        .person__extra { display: inline-block; margin-top: 6px; font-size: 12.5px; font-weight: 600; color: var(--accent); }
 
 
         /* ===== Outils ===== */
@@ -439,6 +444,46 @@
         .sec-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 14px; }
         .sec-actions { display: flex; flex-wrap: wrap; gap: 8px; }
         #watch-section .tbl td { vertical-align: middle; }
+
+
+        /* ===== Rendu pro : couleurs, gras, estimations ===== */
+        .block > h2 { justify-content: flex-start; font-weight: 600; font-size: 16.5px; }
+        .block > h2 .h-fill { flex: 1; }
+        .block > h2 > .btn { margin-left: auto; }
+        .h-title { display: inline-flex; align-items: center; gap: 10px; }
+        .h-ico { width: 30px; height: 30px; border-radius: 9px; display: inline-grid; place-items: center; font-size: 13.5px; flex: none; margin-right: 2px; }
+        .v-ok { color: var(--ok) !important; } .v-warn { color: var(--warn) !important; } .v-bad { color: var(--bad) !important; } .v-muted { color: var(--ink-3) !important; font-weight: 400 !important; }
+        .row__v { font-weight: 600; }
+        .facts dd { font-weight: 600; }
+        .terms dd { font-weight: 600; font-size: 15.5px; }
+        .kpi__v { font-weight: 600; }
+        .est { display: inline-block; margin-left: 4px; padding: 1px 6px; border-radius: 6px; font: 600 11px/1.5 var(--sans); color: var(--warn); background: var(--warn-soft); border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); vertical-align: middle; letter-spacing: 0; }
+        .big .est { font-size: 12px; }
+        .is-est { color: var(--warn); font-style: italic; }
+        .tbl--fin thead th { background: var(--bg-sunk); color: var(--ink-2); font-weight: 600; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+        .tbl--fin thead th:first-child { border-radius: 8px 0 0 8px; } .tbl--fin thead th:last-child { border-radius: 0 8px 8px 0; }
+        .tbl--fin td { padding: 12px; }
+        .tbl--fin td.num { font-weight: 600; font-size: 15px; }
+        .tbl--fin tbody tr:hover td { background: var(--accent-soft); }
+        .tbl th, .tbl td strong { color: var(--ink); }
+        .bar-est { fill: url(#hatch); stroke: var(--warn); stroke-width: 1.5; stroke-dasharray: 4 3; }
+        .lg-est { background: repeating-linear-gradient(45deg, var(--warn) 0 2px, var(--warn-soft) 2px 5px) !important; border: 1px solid var(--warn); }
+        .chart .val { fill: var(--ink); font-weight: 600; font-size: 12.5px; }
+        .chart .yr { fill: var(--ink-2); font-weight: 600; font-size: 13px; }
+        .pbar { display: inline-block; width: 70px; height: 6px; border-radius: 99px; background: var(--bg-sunk); margin-right: 10px; vertical-align: middle; overflow: hidden; }
+        .pbar__fill { display: block; height: 100%; border-radius: 99px; }
+        .pbar--ok { background: var(--ok); } .pbar--warn { background: var(--warn); } .pbar--bad { background: var(--bad); }
+        .link-btn { background: none; border: 0; padding: 0; margin-left: 6px; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; }
+        .an-lead strong, .an-sec p strong, .an-list li strong, .an-reco p strong { color: var(--ink); font-weight: 600; }
+        .an-lead strong { color: var(--accent); }
+        .an-sec h3 i { color: var(--accent); margin-right: 4px; }
+        .an-list--ok h3 i { color: var(--ok); } .an-list--warn h3 i { color: var(--warn); } .an-list--info h3 i { color: var(--info); } .an-reco h3 i { color: var(--accent); }
+        .an-sec, .an-list { padding: 16px 18px; border-radius: var(--r-m); background: var(--bg-sunk); }
+        .an-list--ok { border-top: 3px solid var(--ok); } .an-list--warn { border-top: 3px solid var(--warn); } .an-list--info { border-top: 3px solid var(--info); }
+        .an-sec { border-top: 3px solid var(--accent); }
+        .an-cond dd { font-weight: 600; }
+        .company__name { background: linear-gradient(100deg, var(--ink) 30%, var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .verdict { border-top: 3px solid var(--accent); }
 
         /* ===== Adaptatif ===== */
         @media (max-width: 900px) {
@@ -695,7 +740,7 @@
                         <div><dt>Niveau de risque</dt><dd id="risk-level">—</dd></div>
                         <div><dt>Grade indicatif</dt><dd id="credit-rating-grade">—</dd></div>
                         <div><dt>Conditions suggérées</dt><dd id="payment-terms">—</dd></div>
-                        <div><dt>Plafond d'encours</dt><dd id="credit-limit">Non chiffré</dd></div>
+                        <div><dt>Acompte et délai conseillés</dt><dd id="credit-limit">—</dd></div>
                     </dl>
                 </div>
             </section>
@@ -705,11 +750,11 @@
             <!-- CA + SIGNAUX -->
             <div class="grid-2">
                 <section class="block">
-                    <h2>Chiffre d'affaires</h2>
+                    <h2><span class="h-ico t-accent"><i class="fa-solid fa-chart-column"></i></span>Chiffre d'affaires<span class="h-fill"></span></h2>
                     <div id="revenue-block" class="block__body"></div>
                 </section>
                 <section class="block">
-                    <h2>Signaux</h2>
+                    <h2><span class="h-ico t-warn"><i class="fa-solid fa-signal"></i></span>Signaux<span class="h-fill"></span></h2>
                     <div id="signals-list" class="block__body rows"></div>
                 </section>
             </div>
@@ -717,7 +762,7 @@
             <!-- ANALYSE RÉDIGÉE -->
             <section class="block ai">
                 <h2>
-                    <span>Analyse Euro Expert Solvabilité</span>
+                    <span class="h-title"><span class="h-ico t-ai"><i class="fa-solid fa-pen-nib"></i></span>Analyse Euro Expert Solvabilité</span>
                     <button id="ai-generate-btn" class="btn btn--ghost btn--small" data-action="ai"><i class="fa-solid fa-rotate"></i> Actualiser</button>
                 </h2>
                 <div id="ai-analysis" class="block__body"></div>
@@ -733,23 +778,25 @@
             </div>
 
             <div id="cat-finances" class="panel tab-content" role="tabpanel">
-                <section class="block"><h2>Comptes publiés</h2><div id="finance-chart" class="block__body chart"></div></section>
-                <section class="block"><h2>Détail et ratios</h2><div id="finance-table" class="block__body"></div></section>
-                <section class="block"><h2>Ratios de bilan</h2><div id="ratios-container" class="block__body"></div></section>
+                <section class="block"><h2><span class="h-ico t-accent"><i class="fa-solid fa-chart-simple"></i></span>Comptes publiés<span class="h-fill"></span></h2><div id="finance-chart" class="block__body chart"></div></section>
+                <section class="block"><h2><span class="h-ico t-ok"><i class="fa-solid fa-table"></i></span>Compte de résultat<span class="h-fill"></span></h2><div id="finance-table" class="block__body"></div></section>
+                <section class="block"><h2><span class="h-ico t-info"><i class="fa-solid fa-scale-balanced"></i></span>Ratios de bilan<span class="h-fill"></span></h2><div id="ratios-container" class="block__body"></div></section>
             </div>
 
             <div id="cat-groupe" class="panel tab-content" role="tabpanel" hidden>
-                <section class="block"><h2>Dirigeants</h2><div id="leaders-container" class="block__body"></div></section>
-                <section class="block"><h2>Personnes morales dirigeantes</h2><div id="holding-container" class="block__body"></div></section>
-                <section class="block"><h2>Établissements</h2><div id="etablissements-container" class="block__body"></div></section>
+                <section class="block"><h2><span class="h-ico t-ai"><i class="fa-solid fa-user-tie"></i></span>Gérant et dirigeants<span class="h-fill"></span></h2><div id="leaders-container" class="block__body"></div></section>
+                <section class="block"><h2><span class="h-ico t-ai"><i class="fa-solid fa-sitemap"></i></span>Holdings et personnes morales dirigeantes<span class="h-fill"></span></h2><div id="holding-container" class="block__body"></div></section>
+                <section class="block"><h2><span class="h-ico t-accent"><i class="fa-solid fa-diagram-project"></i></span>Autres entreprises des dirigeants<span class="h-fill"></span></h2><div id="linked-container" class="block__body"></div></section>
+                <section class="block"><h2><span class="h-ico t-accent"><i class="fa-solid fa-store"></i></span>Établissements<span class="h-fill"></span></h2><div id="etablissements-container" class="block__body"></div></section>
             </div>
 
             <div id="cat-alertes" class="panel tab-content" role="tabpanel" hidden>
-                <section class="block"><h2>Annonces légales (BODACC)</h2><div id="bodacc-container" class="block__body"></div></section>
-                <section class="block"><h2>Contrôles sanitaires officiels</h2><div id="sanitary-container" class="block__body"></div></section>
-                <section class="block"><h2>Veille Euro Expert Solvabilité</h2><div id="veille-container" class="block__body"></div></section>
+                <section class="block"><h2><span class="h-ico t-warn"><i class="fa-solid fa-gavel"></i></span>Annonces légales (BODACC)<span class="h-fill"></span></h2><div id="bodacc-container" class="block__body"></div></section>
+                <section class="block"><h2><span class="h-ico t-info"><i class="fa-solid fa-utensils"></i></span>Contrôles sanitaires officiels<span class="h-fill"></span></h2><div id="sanitary-container" class="block__body"></div></section>
+                <section class="block"><h2><span class="h-ico t-info"><i class="fa-solid fa-newspaper"></i></span>Presse<span class="h-fill"></span></h2><div id="press-container" class="block__body"></div></section>
+                <section class="block"><h2><span class="h-ico t-bad"><i class="fa-solid fa-ban"></i></span>Veille Euro Expert Solvabilité<span class="h-fill"></span></h2><div id="veille-container" class="block__body"></div></section>
                 <section class="block">
-                    <h2>Vos notes privées</h2>
+                    <h2><span class="h-ico t-ai"><i class="fa-solid fa-note-sticky"></i></span>Vos notes privées<span class="h-fill"></span></h2>
                     <div class="block__body stack">
                         <div id="manual-alerts"></div>
                         <form id="alert-form" class="form">
@@ -773,7 +820,7 @@
 
             <div id="cat-outils" class="panel tab-content" role="tabpanel" hidden>
                 <section class="block">
-                    <h2>Simuler une commande</h2>
+                    <h2><span class="h-ico t-ok"><i class="fa-solid fa-calculator"></i></span>Simuler une commande<span class="h-fill"></span></h2>
                     <div class="block__body tool">
                         <form id="sim-form" class="form">
                             <label>Montant HT (€)<input type="text" inputmode="decimal" id="sim-amount" placeholder="Ex. 12 000"></label>
@@ -788,7 +835,7 @@
                     </div>
                 </section>
                 <section class="block">
-                    <h2>Contrôler un RIB (fraude au changement de coordonnées bancaires)</h2>
+                    <h2><span class="h-ico t-bad"><i class="fa-solid fa-shield-halved"></i></span>Contrôler un RIB (fraude au changement de coordonnées bancaires)<span class="h-fill"></span></h2>
                     <div class="block__body tool">
                         <form id="iban-form" class="form">
                             <label class="wide">IBAN reçu<input type="text" id="iban-input" autocomplete="off" spellcheck="false" placeholder="FR76 3000 4000 0312 3456 7890 143"></label>
@@ -799,7 +846,7 @@
                     </div>
                 </section>
                 <section class="block">
-                    <h2>Préparer une relance ou une mise en demeure</h2>
+                    <h2><span class="h-ico t-warn"><i class="fa-solid fa-envelope-open-text"></i></span>Préparer une relance ou une mise en demeure<span class="h-fill"></span></h2>
                     <div class="block__body tool">
                         <form class="form" onsubmit="return false">
                             <label class="wide">Votre société (expéditeur)<input type="text" id="letter-me" maxlength="200" placeholder="Raison sociale, adresse"></label>
@@ -817,8 +864,8 @@
             </div>
 
             <div id="cat-sources" class="panel tab-content" role="tabpanel" hidden>
-                <section class="block"><h2>Couverture des sources</h2><div id="sources-container" class="block__body"></div></section>
-                <section class="block"><h2>Méthode de la note indicative</h2><div id="method-container" class="block__body"></div></section>
+                <section class="block"><h2><span class="h-ico t-ok"><i class="fa-solid fa-database"></i></span>Couverture des sources<span class="h-fill"></span></h2><div id="sources-container" class="block__body"></div></section>
+                <section class="block"><h2><span class="h-ico t-accent"><i class="fa-solid fa-calculator"></i></span>Méthode de la note indicative<span class="h-fill"></span></h2><div id="method-container" class="block__body"></div></section>
             </div>
         </div>
 
