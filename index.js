@@ -37,7 +37,11 @@
      auth: Object.freeze({
        endpoint: 'api/verify.php',
        storageKey: 'ees_session'
-     })
+     }),
+     // Comptes clients et paiement (fichiers PHP du dossier api)
+     accounts: Object.freeze({ endpoint: 'api/account.php', billing: 'api/billing.php', admin: 'api/admin.php' }),
+     // Prix affichés sur la page publique (les montants facturés sont ceux des prix Stripe)
+     pricing: Object.freeze({ pass: 10, monthly: 29, yearly: 290 })
    });
    
    const NA = 'Non disponible';
@@ -261,6 +265,69 @@
      'Jugement arrêtant le plan de redressement': 'Judgment approving the recovery plan', 'Jugement prononçant la liquidation judiciaire': 'Judgment ordering compulsory liquidation', 'Jugement de conversion en liquidation judiciaire': 'Judgment converting to compulsory liquidation',
      'ANALYSE DU DOSSIER': 'FILE ANALYSIS', 'DIRIGEANTS DÉCLARÉS': 'DECLARED DIRECTORS', 'CONTRÔLES ET VÉRIFICATIONS COMPLÉMENTAIRES': 'ADDITIONAL CHECKS AND VERIFICATIONS', 'MENTIONS ET LIMITES': 'DISCLAIMERS AND LIMITATIONS',
      'Rondavelle L’Uni Vert, La Saline-les-Bains (Saint-Paul)': 'Rondavelle L’Uni Vert, La Saline-les-Bains (Saint-Paul)',
+   
+     // --- Page publique, comptes, abonnement
+     'Fonctionnement': 'How it works', 'Tarifs': 'Pricing', 'Qui suis-je': 'About', 'Questions': 'FAQ', 'Navigation': 'Navigation',
+     'Se connecter': 'Sign in', 'Se déconnecter': 'Sign out', 'Créer un compte': 'Create an account', 'Créer mon compte': 'Create my account',
+     'Votre client va-t-il vous payer ?': 'Will your customer pay you?', 'Votre client va‑t‑il vous payer ?': 'Will your customer pay you?',
+     'Tapez le nom ou le SIREN d’une entreprise française. En quelques secondes, vous obtenez sa note de solvabilité, ses comptes sur 3 ans, ses dirigeants, ses procédures judiciaires et nos conseils : acompte, délai de paiement, vérifications à faire.': 'Type the name or SIREN of any French company. Within seconds you get its solvency score, three years of accounts, its directors, any insolvency proceedings and our advice: deposit, payment term, checks to carry out.',
+     'Voir les offres': 'See plans', 'Données officielles : INSEE (Sirene), BODACC, comptes déposés, Alim’confiance.': 'Official data: INSEE (Sirene), BODACC, filed accounts, Alim’confiance.',
+     'Un dossier complet en trois étapes': 'A complete file in three steps',
+     'Par son nom, son SIREN ou son SIRET. Toutes les entreprises immatriculées en France, Outre-mer compris.': 'By name, SIREN or SIRET. Every company registered in France, overseas territories included.',
+     'Une note sur 100, le niveau de risque, les signaux d’alerte et une analyse rédigée, sources à l’appui.': 'A score out of 100, the risk level, warning signs and a written analysis, with sources.',
+     'Ce que contient chaque dossier': 'What every file contains', 'Note de solvabilité': 'Solvency score',
+     'Note sur 100, grade et conditions de paiement suggérées, avec le détail de chaque critère.': 'Score out of 100, grade and suggested payment terms, with each criterion explained.',
+     'Comptes sur 3 ans': 'Three years of accounts', 'Chiffre d’affaires, résultat, marge et ratios de bilan. Les estimations sont signalées comme telles.': 'Revenue, net income, margin and balance sheet ratios. Estimates are clearly labelled.',
+     'Annonces légales': 'Legal notices', 'Redressements, liquidations, cessions et dépôts de comptes publiés au BODACC.': 'Receiverships, liquidations, business sales and account filings published in the BODACC.',
+     'Dirigeants et sociétés liées': 'Directors and related companies', 'Le gérant, les holdings et les autres sociétés des dirigeants, y compris celles qui ont fermé.': 'The manager, holding companies and the directors’ other companies, including those that have closed.',
+     'Résultats officiels des inspections et fermetures administratives relevées par notre veille.': 'Official inspection results and administrative closures found by our watch.',
+     'Outils anti-impayés': 'Anti-default tools', 'Simulateur de commande, contrôle anti-fraude des RIB, lettres de relance avec pénalités calculées.': 'Order simulator, bank details fraud check, reminder letters with late-payment interest calculated.',
+     'Des offres simples, sans engagement': 'Simple plans, no commitment',
+     'Un impayé de 5 000 € avec 8 % de marge oblige à refaire 62 500 € de chiffre d’affaires. Une vérification coûte bien moins cher.': 'A €5,000 unpaid invoice at an 8% margin means €62,500 of extra revenue to make it up. A check costs far less.',
+     'Pass 24 h': '24-hour pass', 'paiement unique': 'one-off payment', 'Accès complet pendant 24 heures': 'Full access for 24 hours', 'Dossiers et rapports PDF illimités': 'Unlimited files and PDF reports',
+     'Idéal avant une grosse commande': 'Ideal before a large order', 'Acheter un pass': 'Buy a pass', 'Recommandé': 'Recommended', 'Mensuel': 'Monthly', '/ mois': '/ month',
+     'sans engagement, résiliable à tout moment': 'no commitment, cancel at any time', 'Accès illimité à tous les dossiers': 'Unlimited access to every file', 'Suivi de vos clients et alertes': 'Customer monitoring and alerts',
+     'Tous les outils anti-impayés': 'All anti-default tools', 'S’abonner': 'Subscribe', 'Annuel': 'Yearly', '/ an': '/ year', '2 mois offerts': '2 months free', 'Tout l’abonnement mensuel': 'Everything in the monthly plan',
+     'Un seul paiement par an': 'A single payment per year', 'Facture pour votre comptabilité': 'Invoice for your accounts', 'S’abonner pour un an': 'Subscribe for a year',
+     'Paiement sécurisé par Stripe. Facture fournie à chaque paiement. Vous gérez et résiliez votre abonnement depuis votre compte.': 'Secure payment by Stripe. An invoice with every payment. Manage or cancel your subscription from your account.',
+     'Qui est derrière Euro Expert Solvabilité ?': 'Who is behind Euro Expert Solvabilité?',
+     'Je m’appelle Matteo Mussard. Je travaille dans la restauration, un secteur où l’on mesure vite ce que coûte un partenaire fragile : un fournisseur qui cesse de livrer du jour au lendemain, un établissement fermé après un contrôle, une facture qui ne sera jamais réglée.': 'My name is Matteo Mussard. I work in the restaurant trade, where you quickly learn what a fragile partner costs: a supplier who stops delivering overnight, a business closed after an inspection, an invoice that will never be paid.',
+     'En cherchant comment s’en protéger, j’ai constaté que l’essentiel des informations utiles est public : registres officiels, annonces légales, comptes déposés, contrôles sanitaires. Mais elles sont dispersées sur une dizaine de sites et difficiles à interpréter quand on n’est pas analyste financier.': 'Looking for ways to protect myself, I found that most of the useful information is public: official registers, legal notices, filed accounts, health inspections. But it is spread across a dozen websites and hard to interpret unless you are a financial analyst.',
+     'J’ai donc créé Euro Expert Solvabilité : un outil qui réunit ces sources en un dossier clair, avec une note, des conseils concrets et un rapport prêt à transmettre. Mon objectif est simple : qu’un dirigeant de PME puisse vérifier un client ou un fournisseur en quelques secondes, avant de s’engager.': 'So I built Euro Expert Solvabilité: a tool that brings these sources together in one clear file, with a score, practical advice and a report ready to share. My goal is simple: any SME owner should be able to check a customer or supplier in seconds, before committing.',
+     'Matteo Mussard, fondateur': 'Matteo Mussard, founder', 'Questions fréquentes': 'Frequently asked questions', 'D’où viennent les informations ?': 'Where does the information come from?',
+     'Des sources publiques officielles : le répertoire Sirene de l’INSEE, le BODACC (annonces légales), les comptes annuels déposés et Alim’confiance pour les contrôles sanitaires. Chaque information est rattachée à sa source, et une source qui ne répond pas est signalée comme telle.': 'From official public sources: the INSEE Sirene register, the BODACC (legal notices), filed annual accounts and Alim’confiance for health inspections. Every item is linked to its source, and a source that does not respond is flagged as such.',
+     'La note est-elle une notation financière officielle ?': 'Is the score an official credit rating?',
+     'Non. C’est un indicateur calculé à partir des données publiques, pour vous aider à décider. Elle ne constitue ni une notation réglementée, ni une garantie de paiement.': 'No. It is an indicator computed from public data to help you decide. It is neither a regulated rating nor a guarantee of payment.',
+     'L’entreprise vérifiée est-elle prévenue ?': 'Is the company notified?', 'Non. La consultation est discrète : l’entreprise n’est pas informée de votre recherche.': 'No. Checks are discreet: the company is not told about your search.',
+     'Puis-je résilier mon abonnement ?': 'Can I cancel my subscription?', 'Oui, à tout moment, depuis « Mon compte ». L’accès reste ouvert jusqu’à la fin de la période déjà payée.': 'Yes, at any time, from “My account”. Access stays open until the end of the period already paid.',
+     'Comment se passe le paiement ?': 'How does payment work?', 'Le paiement est géré par Stripe, une plateforme de paiement sécurisée. Nous n’avons jamais accès à votre numéro de carte. Une facture vous est envoyée à chaque paiement.': 'Payments are handled by Stripe, a secure payment platform. We never see your card number. You receive an invoice with every payment.',
+     'Quelles entreprises sont couvertes ?': 'Which companies are covered?', 'Toutes les entreprises immatriculées en France, métropole et Outre-mer. Les comptes ne sont disponibles que lorsque l’entreprise les publie ; sinon, une estimation est indiquée et signalée comme telle.': 'Every company registered in France, mainland and overseas. Accounts are only available when the company publishes them; otherwise an estimate is shown and labelled as such.',
+     '© 2026 Euro Expert Solvabilité': '© 2026 Euro Expert Solvabilité', 'E-mail': 'Email', 'Mot de passe': 'Password', 'Mot de passe oublié ?': 'Forgot your password?', 'Prénom et nom': 'Full name',
+     'E-mail professionnel': 'Work email', 'Mot de passe (8 caractères minimum)': 'Password (at least 8 characters)', 'J’accepte les': 'I accept the', 'et la': 'and the', 'politique de confidentialité': 'privacy policy',
+     'Mot de passe oublié': 'Forgotten password', 'Indiquez votre e-mail : nous vous envoyons un code à 6 chiffres pour choisir un nouveau mot de passe.': 'Enter your email: we will send you a 6-digit code to choose a new password.',
+     'Recevoir le code': 'Send me the code', 'Code reçu par e-mail': 'Code received by email', 'Nouveau mot de passe': 'New password', 'Changer le mot de passe': 'Change password', 'Retour à la connexion': 'Back to sign in',
+     'Saisissez le code d’accès transmis par votre conseiller.': 'Enter the access code sent by your account manager.', 'Saisissez la clé fournie avec votre abonnement.': 'Enter the key provided with your subscription.',
+     'Connexion sécurisée. Vos mots de passe sont chiffrés de façon irréversible.': 'Secure sign-in. Passwords are stored with irreversible encryption.',
+     'Mon compte': 'My account', 'Nom': 'Name', 'Offre': 'Plan', 'Factures et abonnement': 'Invoices and subscription',
+     'Pour résilier, ouvrez « Factures et abonnement ». L’accès reste actif jusqu’à la fin de la période payée.': 'To cancel, open “Invoices and subscription”. Access stays active until the end of the paid period.',
+     'Mes abonnés': 'My subscribers', 'Inscrit le': 'Signed up on', 'Aucun compte pour l’instant.': 'No accounts yet.',
+     'Adresse e-mail invalide.': 'Invalid email address.', 'Le mot de passe doit contenir au moins 8 caractères.': 'The password must be at least 8 characters.', 'Indiquez votre nom et votre entreprise.': 'Enter your name and company.',
+     'Acceptez les conditions générales pour créer votre compte.': 'Accept the terms and conditions to create your account.', 'Un compte existe déjà avec cet e-mail : connectez-vous.': 'An account already exists with this email: please sign in.',
+     'E-mail ou mot de passe incorrect.': 'Incorrect email or password.', 'Service momentanément indisponible. Réessayez plus tard.': 'Service temporarily unavailable. Please try again later.', 'Une erreur est survenue. Réessayez.': 'Something went wrong. Please try again.',
+     'Indiquez votre e-mail et votre mot de passe.': 'Enter your email and password.', 'Indiquez votre e-mail.': 'Enter your email.', 'Indiquez votre e-mail et le code reçu.': 'Enter your email and the code you received.',
+     'Si un compte existe pour cet e-mail, un code vient d’y être envoyé. Pensez à vérifier vos courriers indésirables.': 'If an account exists for this email, a code has just been sent. Check your spam folder too.',
+     'Mot de passe modifié.': 'Password changed.', 'Un instant…': 'One moment…', 'Créez votre compte (ou connectez-vous) pour continuer vers le paiement.': 'Create your account (or sign in) to continue to payment.',
+     'Choisissez une offre': 'Choose a plan', ' pour accéder aux dossiers : ': ' to access company files: ', 'voir les tarifs': 'see pricing', 'conditions générales': 'terms and conditions',
+     'Les abonnements ouvrent très prochainement.': 'Subscriptions open very soon.', ' Votre compte est prêt : nous vous préviendrons par e-mail dès l’ouverture.': ' Your account is ready: we will email you as soon as they open.',
+     'Les offres en ligne ouvrent très prochainement.': 'Online plans open very soon.', ' Vous avez déjà un code d’accès ? Utilisez « Se connecter ».': ' Already have an access code? Use “Sign in”.',
+     ' Ouverture du paiement sécurisé…': ' Opening secure payment…', 'Votre session a expiré : reconnectez-vous.': 'Your session has expired: please sign in again.',
+     'Vous avez déjà un abonnement en cours. Gérez-le depuis « Mon compte ».': 'You already have an active subscription. Manage it from “My account”.', 'Le paiement n’a pas pu être ouvert. Réessayez dans un instant.': 'Payment could not be opened. Please try again shortly.',
+     'Paiement annulé : aucun montant n’a été débité.': 'Payment cancelled: nothing was charged.', ' Paiement reçu, activation de votre accès…': ' Payment received, activating your access…',
+     'Paiement confirmé : votre accès est actif. Merci !': 'Payment confirmed: your access is active. Thank you!', 'Votre paiement est bien enregistré par Stripe. L’activation peut prendre une minute : rechargez la page dans un instant.': 'Your payment has been recorded by Stripe. Activation can take a minute: reload the page shortly.',
+     'Votre accès a pris fin : choisissez une offre pour continuer.': 'Your access has ended: choose a plan to continue.', 'L’espace de facturation est momentanément indisponible.': 'The billing area is temporarily unavailable.',
+     'Aucune offre active': 'No active plan', 'Abonnement mensuel': 'Monthly subscription', 'Abonnement annuel': 'Yearly subscription', 'Abonnement': 'Subscription', 'paiement en attente': 'payment pending',
+     'Reconnectez-vous avec le code gérant pour afficher vos abonnés.': 'Sign in again with the manager code to show your subscribers.', ' Chargement…': ' Loading…', 'Liste indisponible pour le moment.': 'List unavailable for now.',
+     'La liste des abonnés sera disponible une fois les fichiers du dossier « api » installés sur votre hébergement.': 'The subscriber list will be available once the “api” folder files are installed on your hosting.',
      // --- Connexion et espace gérant
      'Le dossier de crédit de vos clients professionnels, à partir des sources officielles.': 'The credit file of your business customers, from official sources.',
      'Sirene, BODACC, bilans, contrôles sanitaires': 'Sirene, BODACC, balance sheets, health inspections', 'Veille des fermetures administratives': 'Administrative closure watch',
@@ -488,6 +555,12 @@
    /* Modèles : [expression, remplacement] — le remplacement peut être une fonction qui retraduit les morceaux. */
    const t$ = (s) => tr(s);
    const EN_RULES = [
+     [/^Bienvenue( .+)?, votre compte est créé\.$/, (m, n) => `Welcome${n || ''}, your account has been created.`],
+     [/^(Pass 24 h|Abonnement mensuel|Abonnement annuel|Abonnement) · renouvelé le (\S+)$/, (m, p, d) => `${t$(p)} · renews on ${d}`],
+     [/^(Abonnement mensuel|Abonnement annuel|Abonnement) · paiement en attente$/, (m, p) => `${t$(p)} · payment pending`],
+     [/^Pass 24 h · actif jusqu’au (.+)$/, 'Pass 24 h · active until $1'.replace('Pass 24 h', '24-hour pass')],
+     [/^compte\(s\)$/, 'account(s)'], [/^accès actif\(s\)$/, 'active access'],
+   
      [/^(\d[\d\s.,]*) à (\d[\d\s.,]*) salariés$/, '$1 to $2 employees'], [/^(\d+) à (\d+) salariés$/, '$1 to $2 employees'],
      [/^(\d+) ans? d[’']existence$/, (m, n) => `${n} year${n > 1 ? 's' : ''} in business`], [/^(\d+) ans?$/, (m, n) => `${n} year${n > 1 ? 's' : ''}`],
      [/^donnée (\d{4})$/, 'data from $1'], [/^(\d+) \((\d+) ouverts?\)$/, '$1 ($2 open)'], [/^dont (\d+) cessées?$/, '$1 ceased'],
@@ -1217,13 +1290,12 @@
      const modal = $('auth-modal');
      if (modal) modal.hidden = !locked;
      document.body.classList.toggle('is-locked', locked);
-     ['header', 'main', 'footer'].forEach((selector) => {
+     ['body > header', 'body > main', 'body > footer'].forEach((selector) => {
        const el = document.querySelector(selector);
        if (el) el.inert = locked;
      });
      if (locked) {
-       const input = $('access-code-input');
-       if (input) setTimeout(() => input.focus(), 50);
+       closeAccountPanel();
        refreshLockoutDisplay();
      }
      renderRoleBadge();
@@ -1244,7 +1316,7 @@
    
    function clearSession() {
      try { localStorage.removeItem(CONFIG.auth.storageKey); } catch (e) { /* stockage indisponible */ }
-     try { sessionStorage.removeItem(MGR_KEY); } catch (e) { /* stockage indisponible */ }
+     try { sessionStorage.removeItem(MGR_KEY); sessionStorage.removeItem(MGR_PW_KEY); } catch (e) { /* stockage indisponible */ }
    }
    
    const isManager = () => { const s = readSession(); return !!(s && s.role === 'manager'); };
@@ -1304,6 +1376,12 @@
      setLocked(true);
      const session = readSession();
      if (!session) return;
+     if (isAccountSession(session)) {
+       const u = await refreshAccount();
+       if (u) applyAccountUser(u);
+       refreshPublicState();
+       return;
+     }
      if (isLocalToken(session.token)) {
        if (accessMode() === 'codes') setLocked(false); else clearSession();
        return;
@@ -1344,7 +1422,7 @@
          const mgr = await openSealed(ACCESS.manager, code, ACCESS.mgrIter || ACCESS.iter);
          if (mgr && mgr.secret) {
            writeLockout({ fails: 0, until: 0 });
-           try { sessionStorage.setItem(MGR_KEY, JSON.stringify(mgr)); } catch (e) { /* stockage indisponible */ }
+           try { sessionStorage.setItem(MGR_KEY, JSON.stringify(mgr)); sessionStorage.setItem(MGR_PW_KEY, normCode(code)); } catch (e) { /* stockage indisponible */ }
            storeAIKey(mgr.ai || null);
            writeSession({ token: `local.manager.${Date.now()}`, role: 'manager', exp: Date.now() + 24 * 3600 * 1000 });
            return succeed();
@@ -1385,7 +1463,7 @@
        input.value = '';
        showAuthMessage('ok', 'Accès autorisé.');
        if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> Accès autorisé'; }
-       setTimeout(() => { done(); showAuthMessage('info', ''); setLocked(false); }, 350);
+       setTimeout(() => { done(); showAuthMessage('info', ''); closeAuthDialog(); setLocked(false); }, 350);
      }
    }
    
@@ -1395,14 +1473,22 @@
      closeManagerPanel();
      if (state.view) resetToHome(); // aucune donnée de dossier ne reste visible derrière l'écran
      setLocked(true);
-     if (typeof message === 'string' && message) showAuthMessage('info', message);
+     if (typeof message === 'string' && message) { showAuthMessage('info', message); pubBanner(esc(message)); }
    }
    
    /** Vérifie régulièrement l'expiration de la session (code du jour périmé à minuit, etc.). */
    function watchSessionExpiry() {
-     setInterval(() => {
+     let ticks = 0;
+     setInterval(async () => {
        if (document.body.classList.contains('is-locked')) return;
-       if (!readSession()) lockSession(accessMode() === 'codes' ? 'Votre code du jour a expiré : saisissez le nouveau code.' : 'Votre session a expiré : reconnectez-vous.');
+       const s = readSession();
+       if (!s) return lockSession(accessMode() === 'codes' ? 'Votre code du jour a expiré : saisissez le nouveau code.' : 'Votre session a expiré : reconnectez-vous.');
+       ticks += 1;
+       if (isAccountSession(s) && ticks % 20 === 0) { // toutes les 10 minutes : l'accès est-il toujours actif ?
+         const u = await refreshAccount();
+         if (u === null) lockSession('Votre session a expiré : reconnectez-vous.');
+         else if (u && !u.active) { lockSession('Votre accès a pris fin : choisissez une offre pour continuer.'); writeSession({ ...s, user: u }); refreshPublicState(); }
+       }
      }, 30000);
    }
    
@@ -1413,7 +1499,329 @@
      const mgr = isManager();
      if (badge) { badge.hidden = !mgr; }
      if (mgrBtn) mgrBtn.hidden = !mgr;
+     const acctBtn = $('account-btn');
+     if (acctBtn) acctBtn.hidden = !isAccountSession(readSession()) || document.body.classList.contains('is-locked');
    }
+   
+   /* =============================================================================
+      2 bis. COMPTES CLIENTS, ABONNEMENT STRIPE ET PAGE PUBLIQUE
+      - Comptes par e-mail (api/account.php), paiement Stripe (api/billing.php),
+        activation automatique par les notifications Stripe (api/webhook.php).
+      - Sans serveur PHP, la page publique reste affichée et seul le code d'accès fonctionne.
+      ============================================================================= */
+   const ACCOUNTS = { ready: null, salesOpen: false, pendingPlan: null };
+   const MGR_PW_KEY = 'ees_mgr_pw';
+   const isAccountSession = (s) => !!(s && s.kind === 'account');
+   
+   async function accountApi(url, payload) {
+     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+     let data = null;
+     try { data = await res.json(); } catch (e) { /* réponse non JSON (serveur absent) */ }
+     return { status: res.status, data };
+   }
+   
+   async function pingAccounts() {
+     try {
+       const { status, data } = await accountApi(CONFIG.accounts.endpoint, { action: 'ping' });
+       ACCOUNTS.ready = status === 200 && !!(data && data.ok);
+       ACCOUNTS.salesOpen = ACCOUNTS.ready && !!data.sales_open;
+     } catch (e) {
+       ACCOUNTS.ready = false;
+     }
+     document.querySelectorAll('.auth__tab[data-auth="login"], .auth__tab[data-auth="signup"], #pub-login-btn, #pub-signup-btn, [data-auth="signup"].btn--lg')
+       .forEach((el) => { el.hidden = !ACCOUNTS.ready; });
+     if (!ACCOUNTS.ready) {
+       const login = $('pub-login-btn');
+       if (login) { login.hidden = false; login.setAttribute('data-auth', 'code'); login.textContent = 'Se connecter'; }
+     }
+     refreshPublicState();
+   }
+   
+   /* ---- Fenêtre de connexion ---- */
+   const AUTH_TITLES = { login: 'Connexion', signup: 'Créer un compte', code: 'Code d’accès', forgot: 'Mot de passe oublié' };
+   function openAuthDialog(pane = 'login') {
+     const dlg = $('auth-dialog');
+     if (!dlg) return;
+     if ((pane === 'login' || pane === 'signup' || pane === 'forgot') && ACCOUNTS.ready === false) pane = 'code';
+     dlg.hidden = false;
+     showAuthPane(pane);
+   }
+   function closeAuthDialog() {
+     const dlg = $('auth-dialog');
+     if (dlg) dlg.hidden = true;
+     acctMsg('', '');
+   }
+   function showAuthPane(pane) {
+     document.querySelectorAll('#auth-dialog [data-pane]').forEach((p) => { p.hidden = p.getAttribute('data-pane') !== pane; });
+     document.querySelectorAll('#auth-dialog .auth__tab').forEach((t) => t.setAttribute('aria-selected', String(t.getAttribute('data-auth') === pane)));
+     setText('auth-title', AUTH_TITLES[pane] || 'Connexion');
+     acctMsg('', '');
+     const first = document.querySelector(`#auth-dialog [data-pane="${pane}"] input`);
+     if (first) setTimeout(() => first.focus(), 60);
+     if (pane === 'code') refreshLockoutDisplay();
+   }
+   function acctMsg(kind, text) {
+     const box = $('acct-msg');
+     if (!box) return;
+     box.hidden = !text;
+     box.className = `auth__msg auth__msg--${kind || 'info'}`;
+     box.textContent = text || '';
+   }
+   const ACCOUNT_ERRORS = {
+     invalid_email: 'Adresse e-mail invalide.', weak_password: 'Le mot de passe doit contenir au moins 8 caractères.',
+     missing_fields: 'Indiquez votre nom et votre entreprise.', terms_required: 'Acceptez les conditions générales pour créer votre compte.',
+     email_taken: 'Un compte existe déjà avec cet e-mail : connectez-vous.', invalid_credentials: 'E-mail ou mot de passe incorrect.',
+     too_many_attempts: 'Trop de tentatives. Réessayez dans quelques minutes.', invalid_code: 'Code incorrect ou expiré.',
+     server_not_configured: 'Service momentanément indisponible. Réessayez plus tard.'
+   };
+   const accountError = (data, status) => ACCOUNT_ERRORS[data && data.error] || (status === 404 ? 'Service momentanément indisponible. Réessayez plus tard.' : 'Une erreur est survenue. Réessayez.');
+   
+   function busy(form, on) {
+     const btn = form && form.querySelector('button[type="submit"]');
+     if (!btn) return;
+     if (on) { btn.dataset.label = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner spin"></i> Un instant…'; }
+     else { btn.disabled = false; if (btn.dataset.label) btn.innerHTML = btn.dataset.label; }
+   }
+   
+   async function submitLogin(event) {
+     event.preventDefault();
+     const form = event.target;
+     const email = $('acct-login-email').value.trim();
+     const password = $('acct-login-pass').value;
+     if (!email || !password) return acctMsg('error', 'Indiquez votre e-mail et votre mot de passe.');
+     busy(form, true);
+     try {
+       const { status, data } = await accountApi(CONFIG.accounts.endpoint, { action: 'login', email, password });
+       if (status === 200 && data && data.ok) { $('acct-login-pass').value = ''; return startAccountSession(data); }
+       acctMsg('error', accountError(data, status));
+     } catch (e) { acctMsg('error', 'Service momentanément indisponible. Réessayez plus tard.'); }
+     finally { busy(form, false); }
+   }
+   
+   async function submitSignup(event) {
+     event.preventDefault();
+     const form = event.target;
+     const payload = {
+       action: 'register', name: $('acct-su-name').value.trim(), company: $('acct-su-company').value.trim(),
+       email: $('acct-su-email').value.trim(), password: $('acct-su-pass').value, terms: $('acct-su-terms').checked
+     };
+     if (!payload.name || !payload.company) return acctMsg('error', ACCOUNT_ERRORS.missing_fields);
+     if (payload.password.length < 8) return acctMsg('error', ACCOUNT_ERRORS.weak_password);
+     if (!payload.terms) return acctMsg('error', ACCOUNT_ERRORS.terms_required);
+     busy(form, true);
+     try {
+       const { status, data } = await accountApi(CONFIG.accounts.endpoint, payload);
+       if (status === 200 && data && data.ok) { $('acct-su-pass').value = ''; return startAccountSession(data, true); }
+       acctMsg('error', accountError(data, status));
+       if (data && data.error === 'email_taken') { $('acct-login-email').value = payload.email; }
+     } catch (e) { acctMsg('error', 'Service momentanément indisponible. Réessayez plus tard.'); }
+     finally { busy(form, false); }
+   }
+   
+   async function sendResetCode() {
+     const email = $('acct-fg-email').value.trim();
+     if (!email) return acctMsg('error', 'Indiquez votre e-mail.');
+     try { await accountApi(CONFIG.accounts.endpoint, { action: 'forgot', email }); } catch (e) { /* réponse neutre */ }
+     acctMsg('ok', 'Si un compte existe pour cet e-mail, un code vient d’y être envoyé. Pensez à vérifier vos courriers indésirables.');
+   }
+   
+   async function submitReset(event) {
+     event.preventDefault();
+     const form = event.target;
+     const email = $('acct-fg-email').value.trim();
+     const code = $('acct-fg-code').value.trim();
+     const password = $('acct-fg-pass').value;
+     if (!email || !code) return acctMsg('error', 'Indiquez votre e-mail et le code reçu.');
+     if (password.length < 8) return acctMsg('error', ACCOUNT_ERRORS.weak_password);
+     busy(form, true);
+     try {
+       const { status, data } = await accountApi(CONFIG.accounts.endpoint, { action: 'reset', email, code, password });
+       if (status === 200 && data && data.ok) { notify('Mot de passe modifié.'); return startAccountSession(data); }
+       acctMsg('error', accountError(data, status));
+     } catch (e) { acctMsg('error', 'Service momentanément indisponible. Réessayez plus tard.'); }
+     finally { busy(form, false); }
+   }
+   
+   function startAccountSession(data, isNew = false) {
+     writeSession({ token: data.token, exp: data.exp, role: 'client', kind: 'account', user: data.user });
+     storeAIKey(null);
+     closeAuthDialog();
+     applyAccountUser(data.user, isNew);
+   }
+   
+   /** Met à jour l'interface selon l'état du compte (accès actif ou non). */
+   function applyAccountUser(user, isNew = false) {
+     const s = readSession();
+     if (s && isAccountSession(s)) writeSession({ ...s, user });
+     if (user && user.active) {
+       setLocked(false);
+       if (ACCOUNTS.pendingPlan) ACCOUNTS.pendingPlan = null;
+       return;
+     }
+     setLocked(true);
+     refreshPublicState(isNew);
+     if (ACCOUNTS.pendingPlan) { const p = ACCOUNTS.pendingPlan; ACCOUNTS.pendingPlan = null; startCheckout(p); }
+   }
+   
+   function pubBanner(html, warn = false) {
+     const b = $('pub-banner');
+     if (!b) return;
+     b.hidden = !html;
+     b.className = `pub-banner${warn ? ' pub-banner--warn' : ''}`;
+     b.innerHTML = html || '';
+   }
+   
+   /** Barre de compte et message d'accueil sur la page publique. */
+   function refreshPublicState(isNew = false) {
+     const s = readSession();
+     const acct = isAccountSession(s) ? s : null;
+     const bar = $('pub-account');
+     if (bar) bar.hidden = !acct;
+     setText('pub-account-email', acct && acct.user ? acct.user.email : '');
+     ['pub-login-btn', 'pub-signup-btn'].forEach((id) => { const el = $(id); if (el && acct) el.hidden = true; });
+     if (!acct) return;
+     const first = acct.user && acct.user.name ? acct.user.name.split(' ')[0] : '';
+     if (ACCOUNTS.salesOpen) {
+       pubBanner(`${isNew ? `Bienvenue${first ? ` ${esc(first)}` : ''}, votre compte est créé. ` : ''}<strong>Choisissez une offre</strong> pour accéder aux dossiers : <a href="#pub-pricing">voir les tarifs</a>.`);
+     } else {
+       pubBanner(`${isNew ? `Bienvenue${first ? ` ${esc(first)}` : ''}, votre compte est créé. ` : ''}<strong>Les abonnements ouvrent très prochainement.</strong> Votre compte est prêt : nous vous préviendrons par e-mail dès l’ouverture.`);
+     }
+   }
+   
+   async function startCheckout(plan) {
+     if (!ACCOUNTS.ready) {
+       pubBanner('<strong>Les offres en ligne ouvrent très prochainement.</strong> Vous avez déjà un code d’accès ? Utilisez « Se connecter ».');
+       return;
+     }
+     const s = readSession();
+     if (!isAccountSession(s)) {
+       ACCOUNTS.pendingPlan = plan;
+       openAuthDialog('signup');
+       acctMsg('info', 'Créez votre compte (ou connectez-vous) pour continuer vers le paiement.');
+       return;
+     }
+     if (!ACCOUNTS.salesOpen) { refreshPublicState(); $('pub-banner').scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+     pubBanner('<i class="fa-solid fa-spinner spin"></i> Ouverture du paiement sécurisé…');
+     try {
+       const { status, data } = await accountApi(CONFIG.accounts.billing, { action: 'checkout', token: s.token, plan });
+       if (status === 200 && data && data.url) { location.href = data.url; return; }
+       if (status === 401) { clearSession(); refreshPublicState(); openAuthDialog('login'); return acctMsg('info', 'Votre session a expiré : reconnectez-vous.'); }
+       if (data && data.error === 'already_subscribed') return pubBanner('Vous avez déjà un abonnement en cours. Gérez-le depuis « Mon compte ».');
+       pubBanner('Le paiement n’a pas pu être ouvert. Réessayez dans un instant.', true);
+     } catch (e) { pubBanner('Le paiement n’a pas pu être ouvert. Réessayez dans un instant.', true); }
+   }
+   
+   /** Vérifie le compte auprès du serveur ; renvoie le compte, null (déconnecté) ou undefined (serveur injoignable). */
+   async function refreshAccount() {
+     const s = readSession();
+     if (!isAccountSession(s)) return null;
+     try {
+       const { status, data } = await accountApi(CONFIG.accounts.endpoint, { action: 'me', token: s.token });
+       if (status === 200 && data && data.ok) { writeSession({ ...s, user: data.user }); return data.user; }
+       if (status === 401) { clearSession(); return null; }
+     } catch (e) { /* serveur injoignable */ }
+     return undefined;
+   }
+   
+   /** Retour de Stripe (?paiement=ok|annule) : attend l'activation envoyée par Stripe. */
+   async function handlePaymentReturn() {
+     const p = new URLSearchParams(location.search).get('paiement');
+     if (!p) return;
+     history.replaceState(null, '', location.pathname + location.hash);
+     if (p === 'annule') { pubBanner('Paiement annulé : aucun montant n’a été débité.'); return; }
+     pubBanner('<i class="fa-solid fa-spinner spin"></i> Paiement reçu, activation de votre accès…');
+     for (let i = 0; i < 12; i += 1) {
+       const u = await refreshAccount();
+       if (u && u.active) { pubBanner(''); applyAccountUser(u); notify('Paiement confirmé : votre accès est actif. Merci !'); return; }
+       if (u === null) break;
+       await sleep(2500);
+     }
+     pubBanner('Votre paiement est bien enregistré par Stripe. L’activation peut prendre une minute : rechargez la page dans un instant.', true);
+   }
+   
+   async function accountLogout() {
+     const s = readSession();
+     if (isAccountSession(s)) { try { await accountApi(CONFIG.accounts.endpoint, { action: 'logout', token: s.token }); } catch (e) { /* hors ligne */ } }
+     closeAccountPanel();
+     lockSession();
+     refreshPublicState();
+     const login = $('pub-login-btn'); const signup = $('pub-signup-btn');
+     if (ACCOUNTS.ready) { if (login) login.hidden = false; if (signup) signup.hidden = false; }
+   }
+   
+   /* ---- Mon compte ---- */
+   const PLAN_LABELS = { pass: 'Pass 24 h', monthly: 'Abonnement mensuel', yearly: 'Abonnement annuel' };
+   function planText(u) {
+     if (!u) return '—';
+     const now = Date.now() / 1000;
+     const subOn = ['active', 'trialing', 'past_due'].includes(u.sub_status);
+     if (subOn && u.period_end) {
+       const until = fmtDate(new Date(u.period_end * 1000).toISOString().slice(0, 10));
+       return `${PLAN_LABELS[u.plan] || 'Abonnement'} · ${u.sub_status === 'past_due' ? 'paiement en attente' : `renouvelé le ${until}`}`;
+     }
+     if (u.access_until > now) return `Pass 24 h · actif jusqu’au ${new Date(u.access_until * 1000).toLocaleString(LOCALE, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+     return 'Aucune offre active';
+   }
+   async function openAccountPanel() {
+     const panel = $('account-panel');
+     if (!panel) return;
+     const s = readSession();
+     if (!isAccountSession(s)) return;
+     const fill = (u) => {
+       setText('acct-name', (u && u.name) || '—'); setText('acct-company', (u && u.company) || '—');
+       setText('acct-email', (u && u.email) || '—'); setText('acct-plan', planText(u));
+       const portal = $('acct-portal-btn'); if (portal) portal.hidden = !(u && u.has_billing);
+     };
+     fill(s.user);
+     panel.hidden = false;
+     const u = await refreshAccount();
+     if (u) fill(u);
+   }
+   function closeAccountPanel() { const p = $('account-panel'); if (p) p.hidden = true; }
+   async function openBillingPortal() {
+     const s = readSession();
+     if (!isAccountSession(s)) return;
+     try {
+       const { status, data } = await accountApi(CONFIG.accounts.billing, { action: 'portal', token: s.token });
+       if (status === 200 && data && data.url) { location.href = data.url; return; }
+       notify('L’espace de facturation est momentanément indisponible.');
+     } catch (e) { notify('L’espace de facturation est momentanément indisponible.'); }
+   }
+   
+   /* ---- Espace gérant : liste des abonnés ---- */
+   let subsCache = [];
+   async function loadSubscribers() {
+     let pw = '';
+     try { pw = sessionStorage.getItem(MGR_PW_KEY) || ''; } catch (e) { /* rien */ }
+     if (!pw) return setHTML('subs-status', 'Reconnectez-vous avec le code gérant pour afficher vos abonnés.');
+     setHTML('subs-status', '<i class="fa-solid fa-spinner spin"></i> Chargement…');
+     try {
+       const { status, data } = await accountApi(CONFIG.accounts.admin, { password: pw });
+       if (status !== 200 || !data || !data.ok) {
+         return setHTML('subs-status', status === 404 ? 'La liste des abonnés sera disponible une fois les fichiers du dossier « api » installés sur votre hébergement.' : 'Liste indisponible pour le moment.');
+       }
+       subsCache = data.users;
+       const st = data.stats;
+       setHTML('subs-status', `<strong>${st.total}</strong> compte(s) · <strong>${st.active}</strong> accès actif(s) · ${st.monthly} mensuel(s), ${st.yearly} annuel(s), ${st.pass_active} pass en cours · revenu mensuel estimé <strong>${esc(fmtEuro(st.mrr))}</strong>`);
+       const ex = $('subs-export-btn'); if (ex) ex.hidden = !subsCache.length;
+       setHTML('subs-list', subsCache.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nom</th><th>Entreprise</th><th>E-mail</th><th>Offre</th><th>Inscrit le</th></tr></thead><tbody>${
+         subsCache.map((u) => `<tr><td>${esc(u.name || '—')}</td><td>${esc(u.company || '—')}</td><td><a href="mailto:${esc(u.email)}">${esc(u.email)}</a></td><td>${u.active ? '<span class="chip chip--ok">' : '<span class="chip">'}${esc(planText(u))}</span></td><td>${esc(fmtDate(new Date(u.created * 1000).toISOString().slice(0, 10)))}</td></tr>`).join('')
+       }</tbody></table></div>` : '<p class="note">Aucun compte pour l’instant.</p>');
+     } catch (e) { setHTML('subs-status', 'Liste indisponible pour le moment.'); }
+   }
+   function exportSubscribers() {
+     if (!subsCache.length) return;
+     const q = (x) => `"${String(x ?? '').replace(/"/g, '""')}"`;
+     const head = ['Nom', 'Entreprise', 'E-mail', 'Offre', 'Accès actif', 'Inscrit le', 'Total payé (€)'];
+     const lines = subsCache.map((u) => [u.name, u.company, u.email, planText(u), u.active ? 'oui' : 'non', new Date(u.created * 1000).toISOString().slice(0, 10), u.paid_total].map(q).join(';'));
+     downloadText(`Abonnes_EES_${new Date().toISOString().slice(0, 10)}.csv`, `﻿${head.map(q).join(';')}\n${lines.join('\n')}`, 'text/csv;charset=utf-8');
+   }
+   
+   function fillPublicPrices() {
+     const fmt = (n) => (LANG === 'en' ? `€${n}` : `${n} €`);
+     document.querySelectorAll('[data-price]').forEach((el) => { const v = CONFIG.pricing[el.getAttribute('data-price')]; if (v) el.textContent = fmt(v); });
+   }
+   
    
    let managerTimer = null;
    async function openManagerPanel() {
@@ -3286,6 +3694,248 @@
      }
    }
    
+   
+   /* =============================================================================
+      9 ter. PROSPECTION (espace gérant)
+      Trouve des PME cibles par secteur, région et taille dans la base officielle,
+      calcule leur note, exporte la liste (CSV pour Google Sheets / publipostage)
+      et génère leurs rapports PDF en lot (archive ZIP).
+      ============================================================================= */
+   const PROSPECT_SECTORS = Object.freeze({
+     grossistes_alim: { label: 'Grossistes alimentaires et boissons', naf: ['46.31Z', '46.32A', '46.33Z', '46.34Z', '46.36Z', '46.37Z', '46.38B', '46.39A', '46.39B'] },
+     materiaux: { label: 'Négoce de matériaux, bois et quincaillerie', naf: ['46.73A', '46.73B', '46.74A', '46.74B'] },
+     btp: { label: 'Sous-traitants du bâtiment (second œuvre)', naf: ['43.21A', '43.22A', '43.22B', '43.31Z', '43.32A', '43.33Z', '43.34Z', '43.39Z', '43.91B', '43.99C'] },
+     transport: { label: 'Transport routier et logistique', naf: ['49.41A', '49.41B', '52.29A', '52.10B'] },
+     industrie_gros: { label: 'Grossistes industriels et non spécialisés', naf: ['46.69B', '46.69C', '46.90Z', '46.62Z', '46.63Z'] },
+     agences: { label: 'Agences de communication et conseil', naf: ['73.11Z', '73.12Z', '70.21Z', '70.22Z'] },
+     informatique: { label: 'Services informatiques', naf: ['62.01Z', '62.02A', '62.03Z', '62.09Z'] },
+     services_b2b: { label: 'Nettoyage, sécurité et intérim', naf: ['81.21Z', '81.22Z', '80.10Z', '78.20Z'] }
+   });
+   const PROSPECT_REGIONS = Object.freeze({
+     idf: { label: 'Île-de-France', dep: ['75', '77', '78', '91', '92', '93', '94', '95'] },
+     ara: { label: 'Auvergne-Rhône-Alpes', dep: ['01', '03', '07', '15', '26', '38', '42', '43', '63', '69', '73', '74'] },
+     paca: { label: 'Provence-Alpes-Côte d’Azur', dep: ['04', '05', '06', '13', '83', '84'] },
+     occitanie: { label: 'Occitanie', dep: ['09', '11', '12', '30', '31', '32', '34', '46', '48', '65', '66', '81', '82'] },
+     na: { label: 'Nouvelle-Aquitaine', dep: ['16', '17', '19', '23', '24', '33', '40', '47', '64', '79', '86', '87'] },
+     hdf: { label: 'Hauts-de-France', dep: ['02', '59', '60', '62', '80'] },
+     ge: { label: 'Grand Est', dep: ['08', '10', '51', '52', '54', '55', '57', '67', '68', '88'] },
+     pdl: { label: 'Pays de la Loire', dep: ['44', '49', '53', '72', '85'] },
+     bretagne: { label: 'Bretagne', dep: ['22', '29', '35', '56'] },
+     normandie: { label: 'Normandie', dep: ['14', '27', '50', '61', '76'] },
+     bfc: { label: 'Bourgogne-Franche-Comté', dep: ['21', '25', '39', '58', '70', '71', '89', '90'] },
+     cvl: { label: 'Centre-Val de Loire', dep: ['18', '28', '36', '37', '41', '45'] },
+     corse: { label: 'Corse', dep: ['2A', '2B'] },
+     reunion: { label: 'La Réunion', dep: ['974'] }
+   });
+   const PROSPECT_SIZES = Object.freeze({
+     petites: { label: '10 à 49 salariés', codes: ['11', '12'] },
+     tpe: { label: '6 à 9 salariés', codes: ['03'] },
+     moyennes: { label: '50 à 249 salariés', codes: ['21', '22', '31'] }
+   });
+   const PROSPECT_DONE_KEY = 'ees_prospects_done';
+   const prospect = { rows: [], busy: false, sel: new Set() };
+   
+   function prospectDone() {
+     try { const d = JSON.parse(localStorage.getItem(PROSPECT_DONE_KEY)); return d && typeof d === 'object' ? d : {}; } catch (e) { return {}; }
+   }
+   function setProspectDone(siren, on) {
+     const d = prospectDone();
+     if (on) d[siren] = new Date().toISOString().slice(0, 10); else delete d[siren];
+     try { localStorage.setItem(PROSPECT_DONE_KEY, JSON.stringify(d)); } catch (e) { /* stockage indisponible */ }
+   }
+   
+   function openProspectPanel() {
+     if (!isManager()) return notify('Réservé à l’espace gérant.');
+     const panel = $('prospect-panel');
+     if (!panel) return;
+     const fill = (id, obj) => { const s = $(id); if (s && !s.options.length) s.innerHTML = Object.entries(obj).map(([k, o]) => `<option value="${k}">${esc(o.label)}</option>`).join(''); };
+     fill('pr-sector', PROSPECT_SECTORS);
+     fill('pr-region', PROSPECT_REGIONS);
+     fill('pr-size', PROSPECT_SIZES);
+     closeManagerPanel();
+     panel.hidden = false;
+     renderProspects();
+   }
+   function closeProspectPanel() { const p = $('prospect-panel'); if (p) p.hidden = true; }
+   
+   /** Dirigeant principal (personne physique de préférence). */
+   function mainDirector(company) {
+     const list = Array.isArray(company.dirigeants) ? company.dirigeants : [];
+     const p = list.find((d) => d.type_dirigeant !== 'personne morale' && d.nom) || list[0];
+     if (!p) return { prenom: '', nom: '', qualite: '' };
+     if (p.type_dirigeant === 'personne morale') return { prenom: '', nom: String(p.denomination || ''), qualite: String(p.qualite || '') };
+     const prenom = String(p.prenoms || '').split(/[\s,]+/)[0] || '';
+     const cap = (s) => s.toLowerCase().replace(/(^|[\s-])\S/g, (m) => m.toUpperCase());
+     return { prenom: cap(prenom), nom: cap(String(p.nom || '')), qualite: String(p.qualite || '') };
+   }
+   function latestPublished(company) {
+     const f = company.finances && typeof company.finances === 'object' ? company.finances : {};
+     const years = Object.keys(f).filter((y) => f[y] && Number(f[y].ca) > 0).sort();
+     const y = years[years.length - 1];
+     return y ? { year: y, ca: Number(f[y].ca), res: f[y].resultat_net !== undefined && f[y].resultat_net !== null ? Number(f[y].resultat_net) : null } : null;
+   }
+   
+   async function runProspectSearch() {
+     if (prospect.busy) return;
+     const sector = PROSPECT_SECTORS[$('pr-sector').value];
+     const region = PROSPECT_REGIONS[$('pr-region').value];
+     const size = PROSPECT_SIZES[$('pr-size').value];
+     const want = Math.min(100, Math.max(10, parseInt($('pr-count').value, 10) || 50));
+     const onlyCa = $('pr-onlyca').checked;
+     const hideDone = $('pr-hidedone').checked;
+     prospect.busy = true;
+     setHTML('pr-status', 'Recherche dans la base officielle des entreprises…');
+     const done = prospectDone();
+     const rows = [];
+     const seen = new Set();
+     let failed = false;
+     for (let page = 1; page <= 8 && rows.length < want; page += 1) {
+       const params = new URLSearchParams({
+         activite_principale: sector.naf.join(','), departement: region.dep.join(','),
+         tranche_effectif_salarie: size.codes.join(','), etat_administratif: 'A', per_page: '25', page: String(page)
+       });
+       const data = await fetchGouvAPI(`${CONFIG.searchApi}?${params.toString()}`);
+       if (!data) { failed = true; break; }
+       const list = Array.isArray(data.results) ? data.results : [];
+       list.forEach((c) => {
+         const siren = digits(c.siren);
+         if (!siren || seen.has(siren) || rows.length >= want) return;
+         seen.add(siren);
+         if (hideDone && done[siren]) return;
+         const pub = latestPublished(c);
+         if (onlyCa && !pub) return;
+         rows.push({ company: c, siren, pub, dir: mainDirector(c), score: null, grade: null, risk: '' });
+       });
+       if (list.length < 25 || page >= (data.total_pages || 1)) break;
+       await sleep(250);
+     }
+     prospect.rows = rows;
+     prospect.sel = new Set();
+     prospect.busy = false;
+     setHTML('pr-status', failed && !rows.length
+       ? '<span style="color:var(--bad)">La base officielle n’a pas répondu. Réessayez dans un instant.</span>'
+       : `<strong>${rows.length}</strong> entreprise(s) trouvée(s) : ${esc(sector.label.toLowerCase())}, ${esc(region.label)}, ${esc(size.label)}.`);
+     renderProspects();
+   }
+   
+   function renderProspects() {
+     const box = $('pr-results');
+     if (!box) return;
+     if (!prospect.rows.length) { box.innerHTML = '<p class="note">Choisissez un secteur, une région et une taille, puis lancez la recherche.</p>'; return; }
+     const done = prospectDone();
+     box.innerHTML = `<div class="tbl-wrap"><table class="tbl pr-tbl"><thead><tr><th><input type="checkbox" id="pr-all" aria-label="Tout sélectionner"></th><th>Entreprise</th><th>Dirigeant</th><th>Ville</th><th class="num">CA publié</th><th class="num">Note</th><th>Contacté</th></tr></thead><tbody>${
+       prospect.rows.map((r, i) => {
+         const s = r.company.siege || {};
+         return `<tr><td><input type="checkbox" data-pr-sel="${i}" ${prospect.sel.has(i) ? 'checked' : ''} aria-label="Sélectionner"></td>
+           <td><button class="linkish" data-pr-open="${i}">${esc(companyDisplayName(r.company))}</button><br><span class="muted small">SIREN ${esc(r.siren)}</span></td>
+           <td>${esc([r.dir.prenom, r.dir.nom].filter(Boolean).join(' ') || '—')}<br><span class="muted small">${esc(r.dir.qualite)}</span>
+             <div class="pr-find"><a href="${esc(prospectContactUrl(r))}" target="_blank" rel="noopener"><i class="fa-solid fa-envelope"></i> E-mail</a><a href="${esc(prospectLinkedInUrl(r))}" target="_blank" rel="noopener"><i class="fa-brands fa-linkedin"></i> LinkedIn</a></div></td>
+           <td>${esc(s.libelle_commune || '—')}<br><span class="muted small">${esc(s.code_postal || '')}</span></td>
+           <td class="num">${r.pub ? `${esc(fmtCompact(r.pub.ca))}<br><span class="muted small">${esc(r.pub.year)}</span>` : '<span class="muted">—</span>'}</td>
+           <td class="num">${r.score === null ? '<span class="muted">—</span>' : `<strong>${r.score}</strong>/100<br><span class="muted small">grade ${esc(r.grade)}</span>`}</td>
+           <td><input type="checkbox" data-pr-done="${esc(r.siren)}" ${done[r.siren] ? 'checked' : ''} aria-label="Marquer comme contacté"></td></tr>`;
+       }).join('')}</tbody></table></div>`;
+     const all = $('pr-all');
+     if (all) {
+       all.checked = prospect.rows.length > 0 && prospect.sel.size === prospect.rows.length;
+       all.addEventListener('change', () => box.querySelectorAll('[data-pr-sel]').forEach((c) => { c.checked = all.checked; const i = Number(c.getAttribute('data-pr-sel')); if (all.checked) prospect.sel.add(i); else prospect.sel.delete(i); }));
+     }
+     box.querySelectorAll('[data-pr-sel]').forEach((c) => c.addEventListener('change', () => { const i = Number(c.getAttribute('data-pr-sel')); if (c.checked) prospect.sel.add(i); else prospect.sel.delete(i); }));
+   }
+   
+   /** Raccourcis pour trouver le contact : recherche du site / de l'e-mail de l'entreprise, et du dirigeant sur LinkedIn. */
+   function prospectContactUrl(r) {
+     const s = r.company.siege || {};
+     return `https://www.google.com/search?q=${encodeURIComponent(`"${companyDisplayName(r.company)}" ${s.libelle_commune || ''} contact e-mail`)}`;
+   }
+   function prospectLinkedInUrl(r) {
+     const who = [r.dir.prenom, r.dir.nom].filter(Boolean).join(' ');
+     return `https://www.linkedin.com/search/results/people/?keywords=${encodeURIComponent(`${who} ${companyDisplayName(r.company)}`.trim())}`;
+   }
+   
+   function selectedProspects() {
+     return [...prospect.sel].sort((a, b) => a - b).map((i) => prospect.rows[i]).filter(Boolean);
+   }
+   
+   /** Dossier complet sans affichage : sources principales, finances, note (pour le PDF en lot). */
+   async function buildHeadlessView(company) {
+     const v = buildView(company);
+     v.manualAlerts = loadManualAlerts(v.siren);
+     const jobs = [loadBodacc(v.siren).then((r) => { v.sources.bodacc = r; }), loadRatios(v.siren).then((r) => { v.sources.ratios = r; })];
+     if (v.sources.alim.status === 'loading') jobs.push(loadAlim(v).then((r) => { v.sources.alim = r; }));
+     jobs.push(loadLinked(v).then((r) => { v.sources.linked = r; }));
+     await Promise.all(jobs.map((j) => j.catch(() => {})));
+     ['bodacc', 'alim', 'ratios', 'linked'].forEach((k) => { if (v.sources[k].status === 'loading') v.sources[k].status = 'unavailable'; });
+     if (v.sources.press.status === 'loading') v.sources.press.status = 'unavailable';
+     const cf = computeFinance(v.company, v.sources.ratios.status === 'ok' ? v.sources.ratios.items : []);
+     v.fin = cf.fin;
+     v.estimate = cf.estimate;
+     v.score = computeScore(v.company, v.fin, v.dirigeants, { collective: hasCollective(v), veille: v.veille, ratios: latestRatios(v), alim: v.sources.alim.status === 'ok' ? v.sources.alim.items : [] });
+     return v;
+   }
+   
+   function loadScriptOnce(src) {
+     return new Promise((resolve, reject) => {
+       if (document.querySelector(`script[src="${src}"]`)) return resolve();
+       const s = document.createElement('script');
+       s.src = src; s.onload = resolve; s.onerror = reject;
+       document.head.appendChild(s);
+     });
+   }
+   const pdfBlob = (def) => new Promise((resolve, reject) => {
+     try { window.pdfMake.createPdf(def).getBlob(resolve); } catch (e) { reject(e); }
+   });
+   const fileSafe = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40);
+   
+   async function runProspectBatch() {
+     if (prospect.busy) return;
+     const list = selectedProspects().slice(0, 10);
+     if (!list.length) return notify('Cochez d’abord une ou plusieurs entreprises (10 au maximum par lot).');
+     if (!window.pdfMake) return notify('La bibliothèque pdfMake n’est pas chargée.');
+     prospect.busy = true;
+     let zip = null;
+     try { await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'); zip = window.JSZip ? new window.JSZip() : null; } catch (e) { zip = null; }
+     let ok = 0;
+     for (let i = 0; i < list.length; i += 1) {
+       const r = list[i];
+       setHTML('pr-status', `Rapport ${i + 1} sur ${list.length} : ${esc(companyDisplayName(r.company))}…`);
+       try {
+         const v = await buildHeadlessView(r.company);
+         r.score = v.score.total; r.grade = v.score.grade; r.risk = v.score.risk;
+         const def = translatePdf(buildReportDefinition(v));
+         const name = `Rapport_EES_${fileSafe(v.displayName || v.raison)}_${v.siren}.pdf`;
+         if (zip) zip.file(name, await pdfBlob(def));
+         else window.pdfMake.createPdf(def).download(name);
+         ok += 1;
+       } catch (e) { console.error('Lot :', e); }
+       renderProspects();
+     }
+     if (zip && ok) {
+       const blob = await zip.generateAsync({ type: 'blob' });
+       const a = document.createElement('a');
+       a.href = URL.createObjectURL(blob);
+       a.download = `Rapports_EES_${new Date().toISOString().slice(0, 10)}.zip`;
+       document.body.appendChild(a); a.click(); a.remove();
+       setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+     }
+     prospect.busy = false;
+     setHTML('pr-status', `<strong>${ok}</strong> rapport(s) généré(s)${zip ? ' dans une archive ZIP' : ''}. Les notes ont été ajoutées au tableau et à l’export.`);
+   }
+   
+   function exportProspectsCSV() {
+     if (!prospect.rows.length) return notify('Lancez d’abord une recherche.');
+     const sel = selectedProspects();
+     const rows = sel.length ? sel : prospect.rows;
+     const q = (x) => `"${String(x ?? '').replace(/"/g, '""')}"`;
+     const head = ['Entreprise', 'SIREN', 'Prénom dirigeant', 'Nom dirigeant', 'Qualité', 'Ville', 'Code postal', 'Activité (NAF)', 'Effectif', 'CA publié', 'Année CA', 'Note /100', 'Grade', 'E-mail', 'Statut'];
+     const lines = rows.map((r) => {
+       const s = r.company.siege || {};
+       return [companyDisplayName(r.company), r.siren, r.dir.prenom, r.dir.nom, r.dir.qualite, s.libelle_commune || '', s.code_postal || '', r.company.activite_principale || '',
+         TRANCHES_EFFECTIF[r.company.tranche_effectif_salarie] || '', r.pub ? Math.round(r.pub.ca) : '', r.pub ? r.pub.year : '', r.score ?? '', r.grade ?? '', '', prospectDone()[r.siren] ? 'contacté' : ''].map(q).join(';');
+     });
+     downloadText(`Prospects_EES_${new Date().toISOString().slice(0, 10)}.csv`, `﻿${head.map(q).join(';')}\n${lines.join('\n')}`, 'text/csv;charset=utf-8');
+   }
+   
    /* =============================================================================
       9 bis. ANALYSE RÉDIGÉE — modèle de langage (serveur PHP ou clé chiffrée), repli : synthèse standard
       Les chiffres sont toujours calculés par le code ; le modèle ne fait que rédiger.
@@ -4172,12 +4822,24 @@
      home: resetToHome,
      lang: switchLang,
      theme: toggleTheme,
-     lock: () => lockSession(),
+     lock: () => (isAccountSession(readSession()) ? accountLogout() : lockSession()),
+     account: () => openAccountPanel(),
+     'account-close': () => closeAccountPanel(),
+     'account-portal': () => openBillingPortal(),
+     'account-logout': () => accountLogout(),
+     'account-forgot': () => sendResetCode(),
+     'subs-load': () => loadSubscribers(),
+     'subs-export': () => exportSubscribers(),
      search: () => executeSearch(),
      pdf: generatePDFReport,
      ai: () => generateAIAnalysis(),
      manager: () => openManagerPanel(),
      'manager-close': () => closeManagerPanel(),
+     'prospect-open': () => openProspectPanel(),
+     'prospect-close': () => closeProspectPanel(),
+     'prospect-search': () => runProspectSearch(),
+     'prospect-batch': () => runProspectBatch(),
+     'prospect-csv': () => exportProspectsCSV(),
      'copy-today': () => copyText($('mgr-today').textContent, 'Code du jour'),
      'copy-tomorrow': () => copyText($('mgr-tomorrow').textContent, 'Code de demain'),
      'copy-message': () => copyText($('mgr-message').value, 'Message'),
@@ -4200,7 +4862,10 @@
        b.setAttribute('aria-label', label); b.setAttribute('title', label); b.setAttribute('lang', LANG === 'en' ? 'fr' : 'en');
      });
      startTranslator();
-     initAuth();
+     fillPublicPrices();
+     pingAccounts();
+     initAuth().then(handlePaymentReturn);
+     [['acct-login-form', submitLogin], ['acct-signup-form', submitSignup], ['acct-forgot-form', submitReset]].forEach(([id, fn]) => { const f = $(id); if (f) f.addEventListener('submit', fn); });
      watchSessionExpiry();
      const codeInput = $('access-code-input');
      if (codeInput) codeInput.addEventListener('input', formatCodeInput);
@@ -4225,6 +4890,10 @@
      document.addEventListener('click', (e) => {
        const t = e.target;
        if (!t.closest) return;
+       const authBtn = t.closest('[data-auth]');
+       if (authBtn) { const pane = authBtn.getAttribute('data-auth'); return pane === 'close' ? closeAuthDialog() : openAuthDialog(pane); }
+       const planBtn = t.closest('[data-plan]');
+       if (planBtn) return startCheckout(planBtn.getAttribute('data-plan'));
        const audit = t.closest('[data-audit-siren]');
        if (audit) return triggerSearchBySiren(audit.getAttribute('data-audit-siren'));
        const quick = t.closest('[data-quick]');
@@ -4233,6 +4902,10 @@
        if (tab) { switchTab(tab.dataset.tab); if (!tab.classList.contains('tab')) { const bar = document.querySelector('.tabs'); if (bar) bar.scrollIntoView({ behavior: 'smooth', block: 'start' }); } return; }
        const unwatch = t.closest('[data-unwatch]');
        if (unwatch) { writeJSON(WATCH_KEY, readWatch().filter((w) => w.siren !== unwatch.getAttribute('data-unwatch'))); return renderWatchlist(); }
+       const prOpen = t.closest('[data-pr-open]');
+       if (prOpen) { const r = prospect.rows[Number(prOpen.getAttribute('data-pr-open'))]; if (r) { closeProspectPanel(); selectCompany(r.company); } return; }
+       const prDone = t.closest('[data-pr-done]');
+       if (prDone) { setProspectDone(prDone.getAttribute('data-pr-done'), prDone.checked); return; }
        const rm = t.closest('[data-remove-alert]');
        if (rm) return removeManualAlert(rm.getAttribute('data-remove-alert'));
        const act = t.closest('[data-action]');
@@ -4242,7 +4915,7 @@
      });
    
      document.addEventListener('keydown', (e) => {
-       if (e.key === 'Escape') { hideAutocomplete(); closeManagerPanel(); }
+       if (e.key === 'Escape') { hideAutocomplete(); closeManagerPanel(); closeProspectPanel(); closeAuthDialog(); closeAccountPanel(); }
      });
      try {
        const reopen = sessionStorage.getItem('ees_reopen');
